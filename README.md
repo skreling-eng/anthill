@@ -22,7 +22,7 @@ https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000
   <video
     src="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4"
     controls
-    width="720"
+    width="360"
     playsinline
   >
     <a href="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4">Play sample output (MP4)</a>

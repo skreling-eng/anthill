@@ -1,0 +1,28 @@
+
+@voices: $list
+AaliyahCOMEHU, MichaelJacksonV1, Akira, Alizee, AvrilLavigne
+
+
+@text: $llm
+Create a short story around 70 words about a flying dog.
+Return only final result without any comments, clarifications or descriptions.
+
+
+@say: @text -> $text2speech(voice=bm_george)
+
+# Minimal change
+@light_voice_enhance: $voice_enhance(device=cuda, lambd=0.3, tau=0.2, nfe=48)
+
+@replace_voice: {
+     @say ->
+     $music_separation(model='bs_roformer_viperx_1297') -> %stems ->
+     -> $select(sounds=[0]) -> $change_voice(model=@voices) -> 
+     -> @light_voice_enhance
+     -> zip(sounds){
+        (  $select(sounds=[0]),
+           stems% -> $select(sounds=[1])
+        ) -> $join_stems
+     } -> $output
+}
+
+run @replace_voice

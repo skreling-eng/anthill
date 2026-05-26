@@ -15,9 +15,6 @@ __pycache__/
 
 # Model weights (keep README stubs)
 models/**
-!models/**/
-!models/**/README.md
-!models/**/.gitignore
 
 # Large / generated media at repo root
 *.safetensors
@@ -27,6 +24,7 @@ models/**
 *.gguf
 *.mp4
 !test_data/clip/*.mp4
+test_data/clip/*_readme.mp4
 *.wav
 *.mp3
 
