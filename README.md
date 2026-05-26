@@ -14,17 +14,32 @@ Programs are written in **`.ah` files**: a small declarative language interprete
 
 Sample output from [`examples/example_animated_clip_with_comfy.ah`](examples/example_animated_clip_with_comfy.ah) — LLM prompts → still images → ComfyUI animation → ACE-Step music → final clip.
 
+*Unmute the player for audio.*
+
+https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4
+
 <p align="center">
   <video
-    src="test_data/clip/0000_20260526_023714_video_clip_0.mp4"
+    src="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4"
     controls
     width="720"
-    muted
     playsinline
   >
-    <a href="test_data/clip/0000_20260526_023714_video_clip_0.mp4">Download sample output (MP4)</a>
+    <a href="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4">Play sample output (MP4)</a>
   </video>
 </p>
+
+<p align="center">
+  <a href="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4">
+    <img
+      src="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/demo-poster.jpg"
+      alt="Anthill demo — animated witch clip (click to play)"
+      width="720"
+    />
+  </a>
+</p>
+
+Full-quality file in the repo: [`test_data/clip/0000_20260526_023714_video_clip_0.mp4`](test_data/clip/0000_20260526_023714_video_clip_0.mp4) (~38&nbsp;MB). Requires local models, ComfyUI on port `8000`, and `comfy_workflows/Rapid-AIO-Mega__3_start_image.json`.
 
 ### Pipeline source (`example_animated_clip_with_comfy.ah`)
 
@@ -86,8 +101,6 @@ run @gen_clip
 ```powershell
 uv run python run_ah.py examples\example_animated_clip_with_comfy.ah
 ```
-
-> **Note:** The MP4 must be committed under `test_data/clip/` for the player to work on GitHub (~38&nbsp;MB). If the video does not appear in preview, open the file link above or use [Git LFS](https://git-lfs.github.com/) for that path.
 
 ---
 
