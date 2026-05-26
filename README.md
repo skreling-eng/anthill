@@ -34,7 +34,7 @@ https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000
     <img
       src="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/demo-poster.jpg"
       alt="Anthill demo — animated witch clip (click to play)"
-      width="720"
+      width="360"
     />
   </a>
 </p>
