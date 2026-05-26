@@ -10,15 +10,32 @@ For advanced generative pipelines, Anthill offers flexible integration with **Co
 
 Programs are written in **`.ah` files**: a small declarative language interpreted by `ahlib`, with GPU-heavy steps running in isolated environments when needed.
 
-### Example: animated clip with ComfyUI
+## Demo
 
-Pipeline from [`examples/example_animated_clip_with_comfy.ah`](examples/example_animated_clip_with_comfy.ah): LLM prompts → still images → ComfyUI video fragments → music track → final mux.
+Sample output from [`examples/example_animated_clip_with_comfy.ah`](examples/example_animated_clip_with_comfy.ah) — LLM prompts → still images → ComfyUI animation → ACE-Step music → final clip.
 
-<video src="test_data/clip/0000_20260526_023714_video_clip_0.mp4" controls width="720">
-  <a href="test_data/clip/0000_20260526_023714_video_clip_0.mp4">Sample output (MP4)</a>
-</video>
+<p align="center">
+  <video
+    src="test_data/clip/0000_20260526_023714_video_clip_0.mp4"
+    controls
+    width="720"
+    muted
+    playsinline
+  >
+    <a href="test_data/clip/0000_20260526_023714_video_clip_0.mp4">Download sample output (MP4)</a>
+  </video>
+</p>
 
-*Sample output — [`0000_20260526_023714_video_clip_0.mp4`](test_data/clip/0000_20260526_023714_video_clip_0.mp4). Requires local models, ComfyUI on port 8000, and workflow `comfy_workflows/Rapid-AIO-Mega__3_start_image.json`.*
+<p align="center">
+  <sub>
+    <a href="test_data/clip/0000_20260526_023714_video_clip_0.mp4"><code>test_data/clip/0000_20260526_023714_video_clip_0.mp4</code></a>
+    · requires local models, ComfyUI on port <code>8000</code>, and
+    <code>comfy_workflows/Rapid-AIO-Mega__3_start_image.json</code>
+  </sub>
+</p>
+
+<details>
+<summary><strong>Pipeline source</strong> (<code>example_animated_clip_with_comfy.ah</code>)</summary>
 
 ```ah
 ### Images
@@ -39,30 +56,30 @@ high-angle shot, camera looking down
 The detailed portrait of the witch
 
 @rand_prompt: @topic -> $llm[3] -> $texts_to_prompts -> @blond_woman
-Create a prompt for the image model to generate high quality image.
+Create a prompt for an image generation model to produce a high-quality image.
 Use no more than 55 words.
-Return only final result without any comments, clarifications or descriptions.
+Return only the final result without comments, clarifications, or descriptions.
 
 @images: @rand_prompt -> $image(model='realitsic_fantasy', width=768, height=1280)[10]
 
 ### Music
 
 @style
-irish traditional song, strong female voice
+Irish traditional song, strong female voice
 
 @lyrics_text: $llm
-Create a short song about the witch who wants to take your soul.
-Return only final result without any comments, clarifications or descriptions.
+Create a short song about a witch who wants to take your soul.
+Return only the final result without comments, clarifications, or descriptions.
 
 @track: (@style, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
 
 ### Video
 
 @video_prompt: $llm -> $texts_to_prompts
-Create a prompt for the video model to generate video.
-You need to animate the portrait image of the witch.
+Create a prompt for a video generation model.
+Animate the portrait image of the witch.
 Use no more than 55 words.
-Return only final result without any comments, clarifications or descriptions.
+Return only the final result without comments, clarifications, or descriptions.
 
 @realistic_video: @video_prompt -> $comfy(port=8000, json='Rapid-AIO-Mega__3_start_image.json')[4]
 
@@ -75,11 +92,13 @@ Return only final result without any comments, clarifications or descriptions.
 run @gen_clip
 ```
 
-Run:
+</details>
 
 ```powershell
 uv run python run_ah.py examples\example_animated_clip_with_comfy.ah
 ```
+
+> **Note:** The MP4 must be committed under `test_data/clip/` for the player to work on GitHub (~38&nbsp;MB). If the video does not appear in preview, open the file link above or use [Git LFS](https://git-lfs.github.com/) for that path.
 
 ---
 
