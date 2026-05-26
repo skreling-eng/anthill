@@ -1,0 +1,87 @@
+$change_voice — RVC voice conversion on sounds[]
+
+
+
+SUMMARY
+
+  Converts each sound in sounds[] using Retrieval-based Voice Conversion (RVC)
+  via rvc-python. Typical use: change vocals after $music_separation(model=2stem).
+
+
+
+SYNTAX
+
+  $change_voice
+  $change_voice(model=MuscleMan, f0up_key=2, protect=0.5)
+  $change_voice(model=@voices)   — one output per model from @voices texts[] ($list)
+  $change_voice(model_path='models/rvc/MuscleMan/muscleman.pth', index_path='...')
+
+
+
+INPUT
+
+  sounds[] — required; WAV/MP3 vocal tracks.
+
+
+
+OUTPUT
+
+  sounds[] — one converted WAV per input sound per model.
+
+
+
+ARGUMENTS
+
+  model= — subdirectory under models/rvc/ (default MuscleMan), or model=@ref for several.
+
+  model_path= / index_path= — explicit .pth and .index files.
+
+  device= — cuda:0 or cpu:0 (auto-detect GPU if omitted).
+
+  version= — v1, v2, or omit for auto-detect from .pth (default: auto).
+
+  f0up_key= — pitch shift in semitones (default 0).
+
+  protect= — consonant protection 0–0.5 (default 0.33).
+
+  index_rate= — index blend rate (default 0.5).
+
+  f0method= — pitch extractor: harvest, pm, crepe, rmvpe, …
+
+
+
+MODELS
+
+  models/rvc/MuscleMan/muscleman.pth
+  models/rvc/MuscleMan/added_IVF231_Flat_nprobe_1_MuscleMan_v2.index
+
+TRAINING CHECKPOINTS
+
+  Classic RVC G_*.pth under models/rvc/<name>/ are auto-converted to <name>_inference.pth.
+  Applio / non-standard training (config.json + G_ only) cannot be converted here —
+  use the trainer’s “Extract small model” export and place the resulting .pth in the folder.
+
+REQUIREMENTS
+
+  rvc-python in .venvs/change_voice (Python 3.10; isolated from media stack).
+  Setup: powershell -File tools\setup_external_venvs.ps1
+
+
+
+ENVIRONMENT
+
+  AH_EMULATE_CHANGE_VOICE=1 — stub WAV text files without rvc-python.
+  AH_CHANGE_VOICE_AUTO_CONVERT=0 — skip automatic G_*.pth conversion.
+
+
+
+EXAMPLE
+
+  @vocals: @track -> $music_separation(model=2stem)
+  @mm: @vocals -> $change_voice(model=MuscleMan, f0up_key=2, protect=0.5)
+
+
+
+PROMPT-CONSUMING
+
+  No.

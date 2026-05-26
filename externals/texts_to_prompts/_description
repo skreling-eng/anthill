@@ -1,0 +1,26 @@
+$texts_to_prompts — move texts into prompts
+
+SUMMARY
+  Copies content from each texts[] link into prompts[] (one file per text,
+  or one joined file). Clears texts[] afterward. Bridges $llm / $list output
+  into prompt-consuming externals like $image.
+
+SYNTAX
+  $texts_to_prompts
+  $texts_to_prompts(join=1)
+
+INPUT
+  texts[] — source strings.
+
+OUTPUT
+  prompts[] — new links with the same text content.
+  texts[] — cleared.
+
+ARGUMENTS
+  join=1 | true | yes — merge all texts into one prompts[] entry.
+
+EXAMPLE
+  @rand_prompt: $llm[3] -> $texts_to_prompts -> @good_quality_image
+
+PROMPT-CONSUMING
+  No (clears texts, not prompts).

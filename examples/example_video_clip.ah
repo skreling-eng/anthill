@@ -1,0 +1,7 @@
+
+
+
+@video_clip: $folder('test_data/videos') -> $file('test_data/music/20260524_052158_st_music_0.wav') -> $video_clip
+
+
+run @video_clip

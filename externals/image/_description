@@ -1,0 +1,60 @@
+$image — text-to-image generation
+
+SUMMARY
+  Generates one or more PNG images from input prompts using a registered
+  model (Flux + optional LoRA via fastimage). Supports multiple models and
+  multiple variants per prompt.
+
+SYNTAX
+  $image(model='default')
+  $image(model='crazy_desire')[2]
+  $image(model=@image_models, seed=42, neg='blurry')
+
+INPUT
+  prompts[] — text prompts (newline-joined prompt link files). If empty,
+              uses an empty string as one prompt.
+
+OUTPUT
+  images[] — new PNG links under op/images/
+             Filenames: {YYYYMMDD_HHMMSS}_{model}_image_{i}.png
+  texts[]  — when model_names_to_texts=True, one text link per image with
+             the model name used for that image (same order as images[])
+
+ARGUMENTS
+  model=     — model name or @instruction (via arg_lists) for a list of
+               models; each model runs over all prompts. Default: default
+  model_names_to_texts= — when true/yes/1, append model name to texts[] for
+               each generated image (one entry per image link)
+  width= / height= — output size in pixels. If omitted, uses the model
+               profile default (typically 768×512 for Flux). Both must be
+               positive when set.
+  count=     — variants per prompt (if [n] suffix not used)
+  seed=      — base seed; per-prompt offset when seed > 0
+  neg=       — negative prompt string
+
+REPEAT SYNTAX
+  $image(...)[n] — n output variants per prompt (same as count=n).
+
+BEHAVIOR
+  Loops: for each model × each prompt × count variants. One model load per
+  model name. On ImportError / missing weights, falls back to emulated PNG
+  placeholders unless AH_EMULATE_IMAGE is set.
+
+DEPENDENCIES
+
+  uv sync --extra image   (torch+cu128, bitsandbytes for NF4 Flux, diffusers, compel)
+
+  Flux models (default, crazy_desire) do not need compel; compel is optional unless
+  you use pony/sd1 profiles with use_compel.
+
+ENVIRONMENT
+  AH_EMULATE_IMAGE=1 — write placeholder PNGs without loading models.
+  Models and LoRAs: externals/image/model_list.py, weights under models/.
+
+EXAMPLE
+  @images: @prompt -> $image(model='crazy_desire')[2]
+  @images: @prompt -> $image(model='crazy_desire', width=1024, height=1024)[2]
+  @images: @prompt -> $image(model=@image_models)[2]
+
+PROMPT-CONSUMING
+  Yes — prompts[] cleared on output after the external returns.

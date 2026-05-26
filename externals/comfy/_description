@@ -1,0 +1,203 @@
+$comfy — run a ComfyUI API workflow (exported JSON) on a live Comfy server
+
+SUMMARY
+  Loads a workflow JSON exported from ComfyUI (API format), replaces INPUT_*
+  placeholder strings with data from the Anthill bundle, queues the graph on a
+  running ComfyUI server via HTTP, waits for completion, and downloads outputs
+  into images[] / videos[] / sounds[] / files[].
+
+  Anthill does not embed ComfyUI. Comfy must already be running (desktop or
+  python main.py --listen). Each $comfy invocation queues one Comfy /prompt job
+  per input image when the workflow uses INPUT_IMAGE / INPUT_IMAGE.png; extra
+  images in images[] do not batch in a single job.
+
+SYNTAX
+  $comfy(port=8000, json='Qwen-Rapid-AIO_4.json')
+  $comfy(json='Rapid-AIO-Mega__3_exp.json')
+  $comfy(port=8188, json='comfy_workflows/my_graph.json')
+
+  Parallel — same inputs, different workflows or prompts:
+    ( $comfy(port=8000, json='a.json'), $comfy(port=8000, json='b.json') )
+
+  Sequence with @ refs for separate prompts:
+    @realistic: @images -> (
+      @style_prompt -> $comfy(port=8000, json='Qwen-Rapid-AIO_4.json'),
+      @motion_prompt -> $comfy(port=8000, json='Rapid-AIO-Mega__3_exp.json')
+    )
+
+HOW TO ADD A NEW WORKFLOW (from ComfyUI)
+
+  1. Build and test the graph in ComfyUI until it runs correctly in the UI.
+
+  2. Export API-format JSON (required — not the UI workflow save):
+       - Menu: Save (API Format) or Export (API Format)
+       - Or enable Dev mode → Save (API Format)
+     The file must be a flat object keyed by node id strings, each node having
+     class_type and inputs — not the visual graph with nodes/links positions.
+
+  3. Insert placeholders in node inputs (any string value in the JSON):
+       - LoadImage "image": "INPUT_IMAGE" or "INPUT_IMAGE.png"
+       - Text / CLIP / Qwen encode nodes: "INPUT_PROMPT"
+       - LoadAudio or similar: "INPUT_SOUND" (see INPUT_SOUND below)
+       - KSampler / seed widgets: "INPUT_SEED" (random int 1–200000000 per job)
+     Use the exact token text; Anthill does substring replacement in all strings.
+
+  4. Save the file into the project:
+       comfy_workflows/MyWorkflow.json
+     Recommended naming: short, no spaces (e.g. Qwen-Rapid-AIO_4.json).
+
+  5. Reference it in .ah:
+       $comfy(port=8000, json='MyWorkflow.json')
+     json= is looked up without a folder prefix if the file is under
+     comfy_workflows/.
+
+  6. Start ComfyUI on the same port you pass (or set COMFYUI_URL):
+       cd path/to/ComfyUI
+       python main.py --listen 127.0.0.1 --port 8000
+
+  7. Run Anthill with inputs in the bundle (see INPUT below).
+
+  Tip: After a run, inspect sessions/.../N__comfy/patched_workflow.json to see
+  the exact JSON sent to Comfy. Fix placeholders there if a node was missed.
+
+WORKFLOW JSON SEARCH PATH (json= argument)
+
+  Resolved in order until found:
+    - Absolute path
+    - Relative to session base_dir
+    - ./<file>
+    - <repo>/<file>
+    - <repo>/comfy_workflows/<file>   ← preferred location
+    - ./comfy_workflows/<file>
+    - <repo>/workflows/<file>
+    - <repo>/comfy/<file>
+
+PLACEHOLDERS (replace in the exported JSON before running)
+
+  INPUT_IMAGE.png / INPUT_IMAGE
+    Replaced with the filename Comfy returns after uploading each image in
+    images[] (one Comfy /prompt job per file when the workflow uses this
+    placeholder). Both tokens get the same name. Use either form in LoadImage.
+
+  INPUT_PROMPT
+    Replaced with joined prompts[] link text and/or the instruction body
+    under the $comfy step (merged before the call when using @ref -> $comfy).
+
+  INPUT_SOUND
+    Replaced with a filename copied into Comfy's input folder. Set env:
+    COMFYUI_INPUT_DIR=G:/path/to/ComfyUI/input
+    (Comfy has no /upload/audio API; file is copied there before the run.)
+
+  INPUT_SEED
+    Replaced with a random integer from 1 to 200000000 (new value each Comfy
+    /prompt job). Use a scalar widget value in the JSON, e.g.
+    "seed": "INPUT_SEED" → "seed": 12345678.
+    Do not use ["INPUT_SEED", 0] in new workflows — Comfy treats [N, 0] as a
+    link to node N; Anthill still fixes that legacy form to a scalar int.
+
+INPUT
+
+  images[]  — required if the JSON contains INPUT_IMAGE or INPUT_IMAGE.png
+  sounds[]  — required if the JSON contains INPUT_SOUND
+  prompts[] — used for INPUT_PROMPT; one Comfy job per prompt link (not joined).
+    Multiple prompts × multiple images = one job per (image, prompt) pair.
+  Instruction body on the same @ line as $comfy — merged into INPUT_PROMPT
+    when the pipeline is @ref -> $comfy (not when $comfy is first in the chain).
+
+  Typical pipeline:
+    @images: @prompt -> $image(...)
+    start frame in images[]
+    @run: @images -> @my_prompt -> $comfy(json='MyWorkflow.json')
+    style / motion text for INPUT_PROMPT
+
+OUTPUT
+
+  Downloads from Comfy history into the session op folder, then appends links:
+    .png / .jpg / .webp  → images[]
+    .mp4 / .webm         → videos[]
+    .wav / .mp3          → sounds[]
+    other                → files[]
+
+  Multiple SaveImage / video nodes → multiple links in the matching arrays.
+
+ARGUMENTS
+
+  port=   — Comfy listen port (default 8188). Builds http://127.0.0.1:PORT.
+            Must match the port ComfyUI was started with.
+  json=   — Workflow filename or path (see WORKFLOW JSON SEARCH PATH).
+  workflow= — alias for json=
+
+BEHAVIOR
+
+  - One $comfy invocation = one POST /upload/image (if needed) + one POST /prompt
+    + poll /history until done + download outputs.
+  - Parallel branches ( ... , ... ) each run a separate $comfy with the same
+    incoming bundle (same image; prompts depend on @ref wiring per branch).
+  - $comfy(...)[n] repeat syntax is not implemented; use parallel duplicate
+    $comfy lines or run the instruction multiple times.
+  - Prompt-consuming: prompts[] cleared after $comfy returns (like $image).
+    Use a separate @instruction for text needed after $image if prompts were
+    consumed upstream.
+
+ENVIRONMENT
+
+  COMFYUI_URL=http://127.0.0.1:8000
+    Used when port= is omitted on $comfy.
+
+  COMFYUI_INPUT_DIR=G:/ComfyUI/input
+    Required for INPUT_SOUND placeholders.
+
+  AH_EMULATE_COMFY=1
+    Skip Comfy server; write stub texts (no GPU, for pipeline debugging).
+
+DEPENDENCIES
+
+  None in the Anthill orchestrator venv. ComfyUI runs in its own install with
+  its own models and custom nodes matching the exported workflow.
+
+SETUP CHECKLIST
+
+  [ ] ComfyUI running and reachable (browser http://127.0.0.1:PORT)
+  [ ] Workflow exported as API JSON, not UI JSON
+  [ ] Placeholders edited in JSON
+  [ ] File in comfy_workflows/
+  [ ] Custom nodes used by the graph installed in ComfyUI
+  [ ] Models/checkpoints paths valid in Comfy (same as when you tested in UI)
+  [ ] port= matches Comfy --port
+
+TROUBLESHOOTING
+
+  Connection refused
+    ComfyUI not running or wrong port / COMFYUI_URL.
+
+  HTTP 500 on /upload/image
+    Comfy running but rejected the file — use a real PNG from $image, not an
+    empty placeholder; check Comfy console for traceback.
+
+  Workflow error in history
+    Missing custom node, wrong model path, or invalid patched JSON — compare
+    patched_workflow.json with a manual test in Comfy.
+
+  INPUT_PROMPT empty / wrong
+    prompts[] cleared by earlier $image; add @prompt instruction before $comfy
+    (see example_comfy.ah @realistic_image_prompt pattern).
+
+  json file not found
+    Put JSON under comfy_workflows/ or pass a full path in json=.
+
+EXAMPLES
+
+  Single workflow:
+    @out: @images -> @caption -> $comfy(port=8000, json='Qwen-Rapid-AIO_4.json')
+    make this image in the realistic style
+
+  Two workflows, same image, different prompts (parallel):
+    @realistic: @images -> (
+      @realistic_image_prompt -> $comfy(port=8000, json='Qwen-Rapid-AIO_4.json'),
+      @video_prompt -> $comfy(port=8000, json='Rapid-AIO-Mega__3_exp.json')
+    )
+
+  See example_comfy.ah in the repo root.
+
+PROMPT-CONSUMING
+  Yes — prompts[] cleared after the external returns.

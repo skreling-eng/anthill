@@ -1,0 +1,28 @@
+_default — fallback handler for unknown $ externals
+
+SUMMARY
+  Used when $name is not registered in externals/__init__.py _KNOWN set.
+  Does not implement real logic; appends a placeholder texts[] entry so
+  pipelines can be written before a dedicated handler exists.
+
+SYNTAX
+  $any_unknown_name
+  $any_unknown_name(arg='value')
+
+INPUT
+  Full bundle copied through.
+
+OUTPUT
+  texts[] — one new link: "[emulated $name]"
+
+BEHAVIOR
+  Dispatched automatically by externals.run_external via
+  externals._default.run. To add a real external, create externals/<name>/run.py
+  and register <name> in _KNOWN.
+
+EXAMPLE
+  @bad_image_quality: $image_filter
+  (until externals/image_filter/ is implemented)
+
+NOTE
+  This folder is not a user-facing $ call; it is the runtime fallback only.

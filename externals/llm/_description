@@ -1,0 +1,42 @@
+$llm — local text generation (GGUF / llama-cpp)
+
+SUMMARY
+  Runs a local GGUF language model on the joined prompt (all prompt link
+  files plus instruction body) and optional system message. Writes one or
+  more completions into texts[].
+
+SYNTAX
+  $llm
+  $llm[3]
+  $llm(model='default', max_tokens=512, temperature=0.7, system='You are…')
+
+INPUT
+  prompts[] — primary user prompt(s).
+  texts[]   — optional extra context appended to the prompt.
+
+OUTPUT
+  texts[] — one .txt link per completion variant.
+
+ARGUMENTS
+  model=        — GGUF profile name (externals/llm/model_list.py). Default: default
+  max_tokens=   — generation limit (default 512)
+  temperature=  — sampling temperature (default 0.7)
+  seed=         — RNG seed; offset per variant when repeat > 1
+  system=       — system prompt string
+  gpu_layers= / n_gpu_layers= — layers on GPU (llama-cpp)
+  count=        — variants if [n] suffix not used
+
+REPEAT SYNTAX
+  $llm[n] — n separate completions.
+
+ENVIRONMENT
+  AH_EMULATE_LLM=1 — placeholder text files, no model load.
+  LLM_N_GPU_LAYERS — default GPU layer count when arg omitted.
+  Requires: uv pip install llama-cpp-python (CUDA wheel for GPU).
+
+EXAMPLE
+  @rand_prompt: $llm[3] -> $texts_to_prompts -> @good_quality_image
+  Create a prompt for the image model…
+
+PROMPT-CONSUMING
+  Yes.

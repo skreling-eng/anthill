@@ -1,0 +1,84 @@
+$voice_enhance — Resemble Enhance on vocal stems (sounds[])
+
+
+
+SUMMARY
+
+  Denoises and enhances each sound in sounds[] using Resemble Enhance
+  (resemble-ai/resemble-enhance). Typical use: clean vocals after $music_separation.
+
+
+
+SYNTAX
+
+  $voice_enhance
+  $voice_enhance(device=cuda)
+  $voice_enhance(denoise_only=1)
+  $voice_enhance(denoise_before=1, device=cuda, nfe=64)
+
+
+
+INPUT
+
+  sounds[] — required; WAV/MP3 vocal tracks.
+
+
+
+OUTPUT
+
+  sounds[] — one enhanced WAV per input ({timestamp}_{index}_enhanced.wav).
+
+
+
+ARGUMENTS
+
+  device= — cuda, cpu, or auto (default: auto).
+
+  denoise_only= — run denoiser only, skip enhancer (0/1).
+
+  denoise_before= — denoise then enhance (0/1).
+
+  nfe= — CFM steps, 1–128 (default 64).
+
+  solver= — midpoint, rk4, or euler (default midpoint).
+
+  lambd= — CFM prior weight 0–1 (default 0.5).
+
+  tau= — CFM temperature 0–1 (default 0.5).
+
+
+
+MODELS
+
+  models/resemble-enhance/enhancer_stage2/ — downloaded from ResembleAI/resemble-enhance on first use.
+
+  AH_RESEMBLE_ENHANCE_DIR= — override model root.
+
+  AH_RESEMBLE_ENHANCE_RUN_DIR= — override enhancer_stage2 path.
+
+
+
+REQUIREMENTS
+
+  resemble-enhance + torch 2.1.1 in .venvs/voice_enhance (Python 3.11; deepspeed stubbed, Windows PosixPath YAML fix).
+
+  Setup: powershell -File tools\setup_external_venvs.ps1
+
+
+
+ENVIRONMENT
+
+  AH_EMULATE_VOICE_ENHANCE=1 — stub files without resemble-enhance.
+
+
+
+EXAMPLE
+
+  @vocals: @track -> $music_separation(model=2stem) -> $select(sounds=[0])
+  @clean: @vocals -> $voice_enhance(device=cuda)
+
+
+
+PROMPT-CONSUMING
+
+  No.

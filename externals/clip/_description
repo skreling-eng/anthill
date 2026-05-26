@@ -1,0 +1,25 @@
+$clip — combine images and sounds into video (legacy stub)
+
+SUMMARY
+  Lightweight placeholder for a clip composer: records which images[] and
+  sounds[] were present and appends one emulated MP4 to videos[]. Prefer
+  $image_clip for real slideshow + audio muxing.
+
+SYNTAX
+  $clip
+
+INPUT
+  images[], sounds[] — referenced in the stub output only.
+
+OUTPUT
+  videos[] — one emulated .mp4 link.
+
+BEHAVIOR
+  Does not read file bytes or call ffmpeg. Use $image_clip when you need
+  a timed slideshow matched to audio length.
+
+EXAMPLE
+  @out: (@images, @music) -> $clip
+
+PROMPT-CONSUMING
+  No.

@@ -1,0 +1,32 @@
+$image2image — image-to-image transform (prompt-guided)
+
+SUMMARY
+  Takes each link in images[] and produces a new image using the joined
+  prompt text (instruction body and/or prompts[]). Replaces the images array
+  with the new outputs.
+
+SYNTAX
+  $image2image
+  $image2image(model='default')
+
+INPUT
+  images[] — source image(s) to transform.
+  prompts[] / prompt_text — guidance text (newline-joined).
+
+OUTPUT
+  images[] — one new link per input image (replaces previous images list).
+
+ARGUMENTS
+  model= — reserved for future backend selection (current handler emulated).
+
+BEHAVIOR
+  Current implementation is emulated: writes placeholder PNGs that record
+  the prompt and source link. If images[] is empty but prompt_text is set,
+  emits one placeholder image from the prompt alone.
+
+EXAMPLE
+  @correct_image: $image2image
+  correct hands
+
+PROMPT-CONSUMING
+  Yes — prompts cleared after call (runtime default for this name).

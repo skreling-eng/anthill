@@ -1,0 +1,94 @@
+$music_separation — split music into stems (BS-RoFormer or HTDemucs v4)
+
+
+
+SUMMARY
+
+  Separates each sound in sounds[] into stems using one of:
+
+  • bs_roformer_sw (default) — BS-RoFormer-SW by jarredou, 6-stem (vocals, drums,
+    bass, guitar, piano, other). Best general-purpose quality.
+
+  • bs_roformer_viperx_1297 — BS-RoFormer-Viperx-1297 via python-audio-separator
+    (vocals, instrumental). Place BS-RoFormer-Viperx-1297.ckpt in models/roformer/
+    or use model_path=.
+
+  • htdemucs_v4 — Intel HTDemucs v4 OpenVINO IR (drums, bass, other, vocals).
+    Same model as openvino-plugins-ai-audacity; RoFormer variants usually sound better.
+
+
+
+SYNTAX
+
+  $music_separation
+  $music_separation(model=bs_roformer_sw)
+  $music_separation(model=@models)
+  $music_separation(model=htdemucs_v4, device=CPU, shifts=2)
+  $music_separation(model=bs_roformer_viperx_1297)
+  $music_separation(model=2stem, model_path='models/roformer/my.ckpt')
+
+
+
+INPUT
+
+  sounds[] — required; WAV/MP3/etc. (decoded via soundfile or ffmpeg).
+
+
+
+OUTPUT
+
+  sounds[] — one WAV link per stem per input, in model stem order.
+
+
+
+ARGUMENTS
+
+  model= — bs_roformer_sw (default), bs_roformer_viperx_1297 / 2stem, htdemucs_v4 / 4stem.
+           Use model=@instruction to run each entry from that instruction's texts[] ($list).
+
+  model_path= — optional local .ckpt for RoFormer variants.
+
+  device= — OpenVINO device for HTDemucs (default CPU).
+
+  shifts= — random-shift ensembling for HTDemucs (default 2).
+
+
+
+BEHAVIOR
+
+  RoFormer: download checkpoints via audio-separator → models/roformer/,
+  PyTorch inference (GPU recommended).
+
+  HTDemucs: download Intel/demucs-openvino → models/demucs-openvino/htdemucs_v4/,
+  torch STFT + OpenVINO inference with overlap-add (matches Audacity reference).
+
+
+
+REQUIREMENTS
+
+  Runs in .venvs/media (torch + openvino + audio-separator).
+  Setup: powershell -File tools\setup_external_venvs.ps1
+
+
+
+ENVIRONMENT
+
+  AH_EMULATE_MUSIC_SEPARATION=1 — stub WAV text files without models.
+
+  OPENVINO_CACHE_DIR — HTDemucs compiled-model cache.
+
+  AUDIO_SEPARATOR_MODEL_DIR — RoFormer checkpoint dir (default models/roformer/).
+
+
+
+EXAMPLE
+
+  @stems: @track -> $music_separation
+  @vocals: @track -> $music_separation(model=2stem)
+  @classic: @track -> $music_separation(model=htdemucs_v4, shifts=5)
+
+
+
+PROMPT-CONSUMING
+
+  No.

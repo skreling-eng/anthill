@@ -1,0 +1,90 @@
+$text2speech — Kokoro TTS (text → sounds[])
+
+
+
+SUMMARY
+
+  Synthesizes speech from texts[] and/or prompts[] using Kokoro-82M (hexgrad/kokoro).
+  Default backend: pip kokoro + KPipeline. Optional legacy: HF clone in models/kokoro/
+  with models.py + kokoro.generate (user prototype style).
+
+
+
+SYNTAX
+
+  $text2speech
+  $text2speech(voice=af_bella, speed=1.0)
+  $text2speech(voice=@voices)   — one WAV per voice from @voices texts[] ($list)
+  $text2speech(voice=models/kokoro/voices/af_bella.pt)
+
+
+
+INPUT
+
+  texts[] and/or prompts[] — at least one non-empty string.
+
+
+
+OUTPUT
+
+  sounds[] — one 24 kHz WAV per input text per voice ({timestamp}_{index}_{voice}.wav).
+
+
+
+ARGUMENTS
+
+  voice= — Kokoro voice id (default af_bella) or voice=@ref for several.
+
+  device= — cuda, cpu, or auto (pipeline backend).
+
+  speed= — speech rate (default 1.0).
+
+  split= — sentence | paragraph | newline | none (pipeline chunking).
+
+  chunk_by= — legacy backend only; sentence splits on "." like the prototype.
+
+  repo_id= — HuggingFace repo id (default hexgrad/Kokoro-82M); files go to models/kokoro/.
+
+  espeak_lib= — path to libespeak-ng.dll (Windows) for G2P fallback.
+
+
+
+MODELS
+
+  models/kokoro/config.json
+  models/kokoro/kokoro-v1_0.pth   (or kokoro-v0_19.pth for legacy)
+  models/kokoro/voices/af_bella.pt
+
+  Missing files are downloaded on first use directly into models/kokoro/ (not ~/.cache/huggingface).
+  Legacy backend: clone https://huggingface.co/hexgrad/Kokoro-82M into models/kokoro instead.
+
+
+
+REQUIREMENTS
+
+  kokoro + espeak-ng + spaCy en_core_web_sm in .venvs/text2speech.
+  Setup: powershell -File tools\setup_external_venvs.ps1
+  Windows: place libespeak-ng.dll in tools\libespeak-ng.dll (default), or install eSpeak NG.
+
+
+
+ENVIRONMENT
+
+  AH_EMULATE_TEXT2SPEECH=1 — stub files without kokoro.
+  AH_TEXT2SPEECH_BACKEND=pipeline | legacy — force backend (default: legacy if models.py exists).
+  AH_KOKORO_DIR= — model/voice root (default models/kokoro).
+  AH_KOKORO_MODEL= — checkpoint path for legacy backend.
+  AH_ESPEAK_LIBRARY= — espeak-ng DLL/.so path.
+
+
+
+EXAMPLE
+
+  @script: $file(path=story.txt) -> $only(texts)
+  @say: @script -> $text2speech(voice=bm_george)
+
+
+
+PROMPT-CONSUMING
+
+  No (texts/prompts pass through unless downstream steps clear them).

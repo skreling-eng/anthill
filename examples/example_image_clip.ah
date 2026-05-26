@@ -1,0 +1,22 @@
+
+@good_quality_image
+High Angle Shot, High Resolution, Best Quality, realistic, photorealistic, hyperrealistic, best quality,score_9, score_8_up, score_7_up
+
+@clip_images: $llm -> $texts_to_prompts -> @good_quality_image -> $image(model='crazy_desire')[10]
+Create a prompt for an image model to generate a high-quality image.
+Depict a very funny Irish woman who breaks everything around her.
+Use no more than 55 words.
+Return only the final prompt without comments, clarifications, or explanations.
+
+@music_style
+irish traditional song
+
+@lyrics_text: $llm
+Create a short song about a very funny woman who breaks everything.
+Return only the final result without comments, clarifications, or explanations.
+
+@track: (@music_style, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
+
+@gen_clip: (@clip_images, @track) -> $image_clip -> $output
+
+run @gen_clip

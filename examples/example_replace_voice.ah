@@ -1,0 +1,6 @@
+
+
+
+@replace_voice: $file('test_data\music_stems\20260524_221358_bs_roformer_viperx_1297_vocals_0.wav') -> $change_voice
+
+run @replace_voice

@@ -1,0 +1,29 @@
+$list — split prompt text into a texts array
+
+SUMMARY
+  Reads all input prompt link files, splits each prompt on commas and
+  newlines, and appends one texts[] entry per non-empty segment. Clears
+  prompts[] so downstream steps use discrete text items (e.g. model names,
+  tags, or list values).
+
+SYNTAX
+  $list
+
+INPUT
+  prompts[] — one or more prompt files to split.
+
+OUTPUT
+  texts[] — one link per split token.
+  prompts[] — cleared.
+
+BEHAVIOR
+  Splitting uses regex [,\\n]+ after trim. Empty segments are skipped.
+  Typical use: instruction body "default, crazy_desire" with $list turns
+  into two texts used as model=@image_models for $image.
+
+EXAMPLE
+  @image_models: $list
+  default, crazy_desire
+
+PROMPT-CONSUMING
+  Yes.

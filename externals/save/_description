@@ -1,0 +1,30 @@
+$save — export the last bundle item to a named file
+
+SUMMARY
+  Copies the last link from the array that matches the destination file
+  extension into op/saved/<filename> and appends that path to files[].
+
+SYNTAX
+  $save('output.mp4')
+  $save(path='result.png')
+
+INPUT
+  Uses the last element of the array implied by the output extension:
+    .mp4 → videos[]
+    .png, .jpg, .jpeg → images[]
+    .mp3 → sounds[]
+    .txt → texts[]
+    other → files[]
+
+OUTPUT
+  files[] — link to the saved copy under op/saved/
+
+BEHAVIOR
+  If the source array is empty, writes a small placeholder text file instead.
+  Other input arrays are passed through unchanged.
+
+EXAMPLE
+  @gen_clip: (@images, @track) -> $image_clip -> $save('output.mp4')
+
+PROMPT-CONSUMING
+  No.

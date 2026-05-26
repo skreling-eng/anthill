@@ -1,0 +1,195 @@
+ANTHILL (.ah) — project overview
+================================
+
+PURPOSE
+  Python interpreter for ".ah" agentic pipeline language.
+  Parses programs, runs instruction graphs, dispatches $ externals (LLM, image gen, file I/O, …).
+  Each run creates a traceable session folder with per-step input/output manifests.
+
+ENTRY
+  run_ah.py  →  ahlib/run_ah.py  →  ahlib.ah_runtime.run_program()
+  uv run python run_ah.py example.ah [--sessions ./sessions] [--dump-parse]
+
+LANGUAGE (example.ah)
+  @name              — body only: append body text to prompts array
+  @name: actions     — run action pipeline; optional body (see BODY rules below)
+  run @target        — entry point
+
+  Comments (before parse):
+    # line comment
+    /* block comment */  — non-greedy, multiline
+
+  Actions:
+    @a -> @b         — sequence (output of a = input of b)
+    (@a, @b)         — parallel branches, then join arrays (+ changes)
+    @name[n]         — run instruction n times, join results (new images each time)
+    $ext(args)       — external call
+    $ext(args)[n]    — n output variants per prompt (see $image)
+
+  External args:
+    key='literal' | key=@instruction
+    @ref in args → runtime runs @ref (empty input), collects its output texts[]
+      into arg_lists[key] for the handler (e.g. model=@image_models)
+
+DATA MODEL: ArrayBundle (7 arrays, always passed through)
+  prompts, texts, images, sounds, videos, files  — lists of LINKS (usually rel. to session root;
+    $input_json from another session may use absolute paths — readers use Path(link) or base_dir/link)
+  changes — pending ops: (content_type, operation, data)
+    operations: del | add | join
+    applied after each step; changes cleared once applied
+
+SESSION LAYOUT (sessions/{YYYYMMDD_HHMMSS}_{pid}/)
+  {n}_{instruction}/     — @instruction step
+  {n}_${external}/       — $external step (e.g. 3__image_x2)
+  each op dir: input.json, output.json + materialized files under prompts/, images/, …
+
+CODE MAP
+  ahlib/ah_parser.py     — strip /* */, parse .ah → ParsedProgram
+  ahlib/ah_actions.py    — action string → AST (Ref, External, Sequence, Parallel)
+  ahlib/ah_runtime.py    — Runtime, Session, ArrayBundle, execution + changes
+                           resolve key=@ref args → arg_lists; body-before-$ rules
+  externals/
+    api.py               — ExternalContext, ExternalInput, read_prompt_texts, read_arg_list
+    __init__.py          — run_external(name, ctx, inp) dispatcher
+    image/               — fastimage.py (ImageGen), model_list.py, model_paths.py, run.py
+    llm/                 — gguf via llama-cpp-python, model_list, run.py
+    list/                — split prompts → texts (comma/newline)
+    texts_to_prompts/    — move texts → prompts
+    prompts_to_texts/    — move prompts → texts (lyrics for $music)
+    music/               — ACE-Step; see $music below
+      ace_subprocess.py  — ace-synth CLI (--models dir, request JSON)
+      ace_bin.py         — find/download ace-synth (Win/Linux/macOS ARM64, v0.0.5)
+      ace_native.py      — in-process ace-step PyTorch (ACESTEP_BACKEND=native)
+      ace_client.py      — optional HTTP API (ACESTEP_API_URL)
+      model_list.py      — model registry + optional adapter per model
+      model_paths.py     — GGUF + safetensors path resolution
+      models_env.py      — default MODELS_PATH, ACESTEP_CHECKPOINTS_DIR, HF_HOME → models/
+      synth_options.py   — $music(...) keyword args → ace-synth request JSON
+    image_clip/          — slideshow MP4 from images[] + sounds[] (encode.py, run.py)
+    input_json/          — load output.json-shaped manifest into arrays (run.py)
+    {file,image2image,check_image,image2video,clip,save}/run.py
+    _default/            — unknown $ names
+
+EXECUTION FLOW
+  1. Parse source (block comments stripped) → instruction dict
+  2. Create session dir
+  3. Runtime.run(entry): _execute_instruction from empty bundle
+  4. Per @instruction:
+       - write input.json
+       - if body + actions start with $ and no input prompts → prepend body to prompts first
+       - if actions: _eval_action (refs recurse, $ → _call_external)
+       - if body (and not prepended): actions + prompts → del + join(body); else append prompt
+       - _apply_changes (join before del/add)
+       - write output.json
+  5. Memoize @results by (name, input fingerprint); skip cache if $ in instruction tree
+  6. After prompt-consuming $ externals: clear prompts on output
+
+EXTERNALS ($)
+  Runtime: ExternalContext(session, op_dir) + ExternalInput(bundle, args, arg_lists, prompt_text, repeat)
+  externals.run_external → externals/<name>/run.py
+
+  $list              — prompts → split by , and newline → texts[]; clear prompts
+  $texts_to_prompts  — texts[] → prompts[]; clear texts (keeps prompts)
+  $prompts_to_texts  — prompts[] → texts[]; clear prompts (e.g. lyrics body for $music)
+  $llm[ n ]          — local GGUF (llama-cpp); writes texts[]; consumes prompts
+                       AH_EMULATE_LLM=1 for placeholders; LLM_N_GPU_LAYERS / gpu_layers arg
+  $image(…)[ n ]     — text-to-image (fastimage + model_list under models/)
+                       loops all input prompts × arg_lists[model] (or single model=)
+                       [n] = variants per prompt via one gen() batch (count=n)
+                       output: {YYYYMMDD_HHMMSS}_{model}_image_{i}.png in op/images/
+                       AH_EMULATE_IMAGE=1 for placeholder PNGs
+  $music              — ACE-Step: prompts[] → caption, texts[] → lyrics; outputs sounds[]
+                       GGUF models → ace-synth (default backend ACESTEP_BACKEND=synth)
+                       safetensors models (e.g. st) → native PyTorch (ace-step package)
+                       GGUF in models/ace-step-1.5/: DiT + vae-BF16.gguf + Qwen3-Embedding-0.6B-BF16.gguf
+                       binary: tools/acestep/ace-synth.exe (or ACESTEP_SYNTH_BIN)
+                       ACESTEP_DOWNLOAD_BIN=1 downloads ace-synth v0.0.5 (Win/Linux/macOS ARM64)
+
+                       model_list.py registry (model= arg); each entry can set duration,
+                         bpm, keyscale, steps, guidance_scale, lm_* defaults:
+                         default — models/ace-step-1.5/, xl-turbo, 20 steps
+                         st — models/ace-step-1.5_st/ HF bundle (acestep-v15-turbo/, vae/, …),
+                              weights=safetensors → native PyTorch (not ace-synth/GGUF);
+                              needs pip install ace-step from GitHub
+                         xl-turbo, turbo — turbo variants (8 steps)
+                         xl-base — xl-base GGUF, 50 steps
+                       optional adapter per model (ace-synth --adapters); file must exist:
+                         models/ace-step-1.5/adapters/<stem>.*
+                         $music(adapter=name) or model_list MusicModel.adapter; skipped if missing
+                       $music args: bpm, shift, guidance_scale, keyscale, timesignature, language, …
+
+                       other backends: ACESTEP_BACKEND=native (pip ace-step from upstream, not PyPI 0.1.0)
+                                     ACESTEP_BACKEND=api + ACESTEP_API_URL
+                       AH_EMULATE_MUSIC=1 — placeholder beep WAV
+  $input_json('path.json') — load output.json / input.json manifest into all arrays
+                       same keys as output.json: prompts, texts, images, sounds, videos, files, changes
+                       if JSON is under sessions/<id>/ (or current session), each link is resolved
+                         to an absolute file path in that session (reuse assets across runs)
+                       optional strict=1 — error if any linked file is missing
+                       example: $input_json('sessions/…/11__music/output.json')
+                                $input_json('…/12__image_clip/input.json') -> $image_clip
+  $image_clip          — images[] + sounds[] → videos[] (one MP4 per sound)
+                       1) ffprobe audio duration (float WAV, mp3, …)
+                       2) duration / N images → seconds per slide; × fps → frame count per image
+                       3) ffmpeg: PNG frame sequence → silent H.264 MP4
+                       4) moviepy: VideoFileClip + AudioFileClip → with_audio → write_videofile
+                       args: fps=25 (default); output fps matches slideshow fps
+                       needs ffmpeg/ffprobe on PATH + moviepy (uv pip install moviepy)
+                       AH_EMULATE_IMAGE_CLIP=1 — stub .mp4 text
+  $save('out.mp4')     — copy last item of matching array to op/saved/
+  $file, $clip, $image2image, $check_image, $image2video — stubs / partial ($clip emulated)
+
+  Prompt-consuming (cleared after call): image, image2image, check_image, image2video, llm, list, music, prompts_to_texts
+
+KEY BEHAVIORS
+  - Prompt text for $ ops = newline-joined content of all prompt link files
+  - $image: one model load per model name; unique filenames via start_index across prompts
+  - Parallel join dedupes images when merging branches
+  - @image_models: $list + body "a, b" → texts used as model= list for $image(model=@image_models)
+
+EXAMPLE PIPELINE (example.ah)
+  @image_models: $list ← "default, crazy_desire"
+  @rand_prompt: $llm[3] -> $texts_to_prompts -> @good_quality_image (+ body → LLM input)
+  @images: @rand_prompt -> $image(model=@image_models)[2]
+  @clip_images: $llm[10] -> … -> $image(model='crazy_desire')[2]
+  @caption / @lyrics_text — body = caption / lyrics source
+  @track: (@caption, @lyrics_text) -> $music(model='st')  — native PyTorch (ace-step-1.5_st)
+  @gen_clip: (@clip_images, @track) -> $image_clip -> $save('output.mp4')
+  @test_clip: $input_json('sessions/…/12__image_clip/input.json') -> $image_clip
+  @testing_music_models: $input_json('…/11__music/input.json') -> $music(model=@music_models)
+  @create_clip: (@images, @music) -> $image_clip -> $save('output.mp4')  (older example)
+
+DEPENDENCIES / ENV
+  pyproject.toml: llama-cpp-python (CUDA wheel for GPU)
+  optional [clip]: moviepy>=2.0  (for $image_clip audio mux)
+  $music: ace-synth binary and/or pip install ace-step from GitHub (not on PyPI as 1.5)
+  models/          — all weights (image, llm, music); downloads go here by default
+                   — ace-step-1.5_st/  native PyTorch (HF layout, see below)
+                   — ace-step-1.5/     GGUF for ace-synth
+                   — huggingface/      HF_HOME + hub cache for auto-downloads
+                   — llm/*.gguf        $llm
+  tools/acestep/   — ace-synth.exe when ACESTEP_DOWNLOAD_BIN=1
+  MODELS_PATH      — optional extra search path (defaults to models/)
+  AH_EMULATE_LLM, AH_EMULATE_IMAGE, AH_EMULATE_MUSIC, AH_EMULATE_IMAGE_CLIP — skip heavy backends
+  ACESTEP_BACKEND  — synth (default) | native | api | auto
+  ACESTEP_SYNTH_BIN, ACESTEP_DOWNLOAD_BIN, ACESTEP_DOWNLOAD_MISSING
+  ACESTEP_DIT_GGUF, ACESTEP_VAE_GGUF, ACESTEP_EMBEDDING_GGUF
+  ACESTEP_API_URL, ACESTEP_CHECKPOINTS_DIR (native backend only)
+  Project .env (loaded by run_ah via _bootstrap_env): ACESTEP_BACKEND, ACESTEP_DEVICE, …
+  run_ah.py calls music/models_env.configure_models_environment() before .env (setdefault only):
+    MODELS_PATH=models/
+    ACESTEP_CHECKPOINTS_DIR=models/ace-step-1.5_st
+    HF_HOME / HUGGINGFACE_HUB_CACHE / TRANSFORMERS_CACHE=models/huggingface/
+
+  Native checkpoint layout (under models/ace-step-1.5_st/ or ACESTEP_CHECKPOINTS_DIR):
+    acestep-v15-turbo/     DiT weights + config.json, modeling_*.py
+    vae/                   VAE
+    Qwen3-Embedding-0.6B/  text encoder (caption + lyrics)
+    acestep-5Hz-lm-1.7B/   optional LM (only if thinking enabled)
+    silence_latent.pt      often at repo root of the bundle
+  $music model=st uses config_path=acestep-v15-turbo → loads …/ace-step-1.5_st/acestep-v15-turbo/
+  Comfy single-file *.safetensors are NOT this layout; use HF download or Ace-Step1.5 repo snapshot.
+
+  Native install (venv, Windows CUDA example):
+    uv pip install torch==2.7.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+    uv pip install "ace-step @ git+https://github.com/ace-step/ACE-Step-1.5.git"

@@ -1,0 +1,254 @@
+# Anthill (.ah) language reference
+
+Agentic pipeline language: instructions pass **arrays of links** through action chains.
+The runtime (`ahlib`) parses `.ah` files, executes `@` instructions and `$` externals,
+and writes each step under a session directory.
+
+---
+
+## 1. Data model
+
+Every step receives and returns an **ArrayBundle** — seven arrays, always present (may be empty):
+
+| Array       | Contents |
+|------------|----------|
+| `prompts[]` | Links to `.txt` prompt files |
+| `texts[]`   | Links to text files |
+| `images[]`  | Links to image files |
+| `sounds[]`  | Links to audio files |
+| `videos[]`  | Links to video files |
+| `files[]`   | Links to other files |
+| `changes[]` | Pending mutations (see §5) |
+
+Links are paths **relative to the session root**. The runtime materializes files as needed.
+
+---
+
+## 2. Program structure
+
+### 2.1 Instructions
+
+```ah
+@instruction_name: optional action pipeline
+Body of instruction (optional)
+```
+
+- **Header:** `@name` or `@name: actions`
+- **Body:** Plain text or `"""` … `"""` multiline block. Added to `prompts[]` (see §4).
+- **Comments:** Lines starting with `#`. Block comments `/* … */` are stripped before parse.
+- **Actions** may span lines; wrapping `{ … }` around the whole pipeline is allowed.
+
+If there are **no actions**, the instruction returns inputs unchanged (after body handling).
+
+### 2.2 Run target
+
+```ah
+run @instruction_name
+```
+
+Starts execution at `@instruction_name` with empty input arrays.
+
+---
+
+## 3. Action pipeline syntax
+
+Actions are chained with **`->`**. Each step takes the previous step’s output arrays as input.
+
+Multiline pipelines: `@name: { … }` wraps actions in braces; you may break lines after `->` (a lone `->` at the start of the next line is ignored). Only the braced region is action text — not the `@name:` header line.
+
+```ah
+@mix: {
+  $file('track.wav') ->
+  -> $music_separation(model=2stem) -> %stems ->
+  -> ( $select(sounds=[0]), stems% -> $select(sounds=[1]) )
+}
+```
+
+### 3.1 Instruction references — `@name`
+
+Call another instruction. Optional repeat suffix:
+
+```ah
+@image[20]    @name runs 20 times; results are joined
+```
+
+### 3.2 External calls — `$name(...)`
+
+Built-in handlers under `externals/`. Arguments are `key=value` (strings, `@ref`, or quoted paths).
+
+```ah
+$image(model='default')[3]
+$music(model='st')
+$file('music.mp3')
+$save('output.mp4')
+```
+
+Repeat suffix `[n]` on `$name` requests multiple output variants where supported.
+
+**Argument lists:** `key=@some_instruction` resolves `@some_instruction` to a list of strings from its output `texts[]`.
+
+### 3.3 Parallel — `( @a, @b, … )`
+
+A parenthesized list is **one action** in the `->` chain, like `@ref` or `$external`.
+
+1. Each branch runs on a **copy** of the current input bundle.
+2. Pending `changes[]` are applied after each branch.
+3. All branch outputs are **joined**: every array (`prompts[]`, `texts[]`, `images[]`, …) is appended — same rules for all array types.
+4. The joined bundle is the output of this step — input for the next `->` step, or the final result if nothing follows.
+
+What comes after `( … )` does not change how the parallel step joins arrays.
+
+Example:
+
+```ah
+(@caption, @lyrics) -> $music(model='st')
+@eee: (@aaa, @bbb)
+```
+
+In the first line, `$music` receives one bundle with caption prompts and lyric texts appended from both branches. In the second, `@eee` ends with the combined arrays from `@aaa` and `@bbb`.
+
+### 3.4 Filter loop — `for(filter){ body }`
+
+Partition input: run `filter`, subtract matched links from the original bundle, run `body` on matches, rejoin with the rest.
+
+### 3.5 Zip loop — `zip(images, texts){ body }`
+
+Run `body` once per index across the listed arrays (same index from each array).
+
+1. Array names inside `( … )` must be bundle keys: `prompts`, `texts`, `images`, `sounds`, `videos`, `files`.
+2. For index `i`, build a slice bundle with only `array[i]` for each listed array (other arrays empty).
+3. Run the action(s) inside `{ … }` on that slice.
+4. Append all slice outputs into one bundle (same join rules as parallel `()`).
+
+If array lengths differ, the shortest length is used and a warning is printed.
+
+Example:
+
+```ah
+@overlay: @images -> zip(images, texts){ $draw_text }
+```
+
+### 3.6 Context storage — `%name`, `name%`, `%name%`
+
+Separate namespace from `@` instructions. Stores full **ArrayBundle** in named context.
+
+| Syntax      | Scope   | Effect |
+|------------|---------|--------|
+| `%name`    | session | Merge current bundle into context `name`; **pass input through** unchanged |
+| `name%`    | session | **Replace** output with stored context; ignore current input |
+| `%name%`   | session | Merge input into `name`, then output **full stored** context |
+| `%%name`   | instruction pipeline | Same as `%name`, scoped to current `@` instruction only |
+| `name%%`   | instruction pipeline | Same as `name%`, instruction-scoped |
+| `%%name%%` | instruction pipeline | Same as `%name%`, instruction-scoped |
+
+**Session scope (`%`):** Persists for the whole run (all `@` calls share it).
+
+**Instruction scope (`%%`):** Created fresh per `@` instruction execution; not visible in nested or subsequent `@` instructions.
+
+**Merge:** On each store, incoming bundle is **appended** to existing context (same rules as parallel join).
+
+**Empty context on load:** Returns empty bundle; prints `warning: context 'name' is empty` to stderr.
+
+**Independence:** `%track` and `@track` are unrelated. Instruction caching (`@foo` with identical inputs) does not skip or affect `%` side effects inside cached runs — cache applies to whole `@` instruction results only when the instruction has no `$` externals in its tree.
+
+Examples:
+
+```ah
+@step: @aaa -> %track -> @bbb -> %track -> track%
+@snap: @aaa -> %track%
+@read: track%
+```
+
+### 3.6 Example pipelines
+
+```ah
+@blonde_woman: @good_quality_image -> @blond_woman -> @high_angle_shot
+
+@create_clip: (@images, @music) -> $image_clip -> $save('output.mp4')
+
+@realistic: @images -> @video_prompt -> (
+  $comfy(port=8000, json='a.json'),
+  $comfy(port=8000, json='b.json')
+)
+```
+
+---
+
+## 4. Instruction body behavior
+
+| Situation | Body handling |
+|-----------|----------------|
+| No actions | Body appended to each `prompts[]` link, or creates one prompt if empty |
+| Actions start with `$` that consumes prompts | Body prepended into `prompts[]` before first `$` |
+| Other actions | Body merged with prompts after pipeline (compose / append per link) |
+| Body-only `@ref` (no actions on target) | Body text appended to **each** input prompt link separately |
+
+---
+
+## 5. Changes array
+
+Tuples: `(content_type, operation, data)`
+
+| Field           | Values |
+|----------------|--------|
+| `content_type` | `prompt`, `text`, `image`, `sound`, `video`, `file`, … |
+| `operation`    | `add`, `del`, `join` |
+| `data`         | For `del`: link id to remove. For `add`: path or content. For `join`: `{sources, text}` |
+
+After each step, the runtime applies pending `changes[]` and clears the array.
+
+---
+
+## 6. Externals (`$`)
+
+Registered handlers (see `externals/__init__.py`):
+
+| External | Role |
+|----------|------|
+| `$file`, `$folder` | Load file(s) from disk into arrays by extension |
+| `$save` | Write array data to a path by extension |
+| `$output` | Session output helper |
+| `$image`, `$image2image`, `$image_variation` | Image generation |
+| `$comfy` | ComfyUI workflow |
+| `$llm` | LLM text generation |
+| `$texts_to_prompts`, `$prompts_to_texts` | Convert between texts and prompts |
+| `$music`, `$music_separation`, `$change_voice`, `$join_stems`, `$text2speech`, `$voice_enhance` | Music / stems / RVC / mix / TTS / Resemble Enhance |
+| `$image_clip`, `$video_clip`, `$clip` | Video from images/sounds or joined videos + sound |
+| `$image2video` | Image to video |
+| `$sound2text` | Speech-to-text (optional JSON word timestamps) |
+| `$draw_text` | Overlay multiline text on `images[]` (Pillow) |
+| `$only` | Keep only listed arrays, e.g. `$only(images, prompts)` |
+| `$select` | Pick elements by index, e.g. `$select(sounds=[1], texts=[0])` |
+| `$check_image` | Image validation (may emit `del` changes) |
+| `$clear` | Clear arrays |
+| `$list`, `$first_image`, `$input_json` | Utilities |
+
+**Prompt-consuming externals** (`$image`, `$llm`, `$music`, …) clear `prompts[]` on output after the call.
+
+**Emulation (tests):** `AH_EMULATE_*=1`, `AH_EXTERNAL_INPROCESS=…`, `AH_EXTERNAL_SUBPROCESS=0`.
+
+Each `$` call gets an op folder with `input.json`, `invoke.json`, and `output.json`.
+
+---
+
+## 7. Execution model
+
+1. Parse `.ah` → `ParsedProgram` (`ahlib.ah_parser`).
+2. Create session dir (`sessions/<timestamp>_<pid>_<suffix>/`).
+3. Run entry `@` instruction with empty `ArrayBundle`.
+4. Each `@` step: write `input.json`, run actions, apply changes, write `output.json`.
+5. `@` instructions without `$` in their action tree may be **cached** by `(name, input links)`.
+
+Implementation: `ahlib/ah_runtime.py`, action AST: `ahlib/ah_actions.py`.
+
+---
+
+## 8. Examples in repo
+
+| File | Focus |
+|------|--------|
+| `example.ah` | LLM prompts, `$image`, parallel clip |
+| `example_comfy.ah` | ComfyUI parallel workflows |
+| `example_clip.ah`, `example_clip2.ah` | Clip / video pipelines |
+
+Tests: `tests/test_context.py`, `tests/test_parallel_join.py`, `tests/test_prompt_merge.py`.

@@ -1,0 +1,10 @@
+# Dependencies for $llm (GGUF text-to-text)
+llama-cpp-python>=0.3.0
+
+# GPU on Windows (CUDA 12.x) — replace the CPU wheel:
+#   uv pip uninstall llama-cpp-python
+#   uv pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124
+
+# Per-call: $llm(gpu_layers=-1)   # all layers on GPU
+# Per-call: $llm(gpu_layers=35)   # partial offload
+# Env:      LLM_N_GPU_LAYERS=-1   # default when gpu_layers is omitted

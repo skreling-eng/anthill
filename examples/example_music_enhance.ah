@@ -1,0 +1,24 @@
+
+@strong_voice_enhance: $voice_enhance(
+  denoise_before=1,
+  device=cuda,
+  nfe=128,
+  solver=rk4,
+  lambd=0.8,
+  tau=0.4
+)
+
+# Minimal change
+@light_voice_enhance: $voice_enhance(device=cuda, lambd=0.3, tau=0.2, nfe=48)
+
+@replace_voice: {
+     $file('test_data\music\20260524_185140_st_music_0.wav') ->
+     $music_separation(model='bs_roformer_viperx_1297') -> %stems ->
+     -> $select(sounds=[0]) -> @strong_voice_enhance ->
+     (  $select(sounds=[0]),
+        stems% -> $select(sounds=[1])
+     ) -> $join_stems
+     -> $output
+}
+
+run @replace_voice

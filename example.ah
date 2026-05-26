@@ -1,0 +1,135 @@
+
+
+@image_models: $list
+default, crazy_desire
+
+@good_quality_image
+High Angle Shot, High Resolution, Best Quality, realistic, photorealistic, hyperrealistic, best quality,score_9, score_8_up, score_7_up
+
+@blond_woman
+1girl, blonde with green eyes, portrait of a grown-up woman
+
+@high_angle_shot
+high-angle shot, camera looking down
+
+@rand_prompt: $llm[3] -> $texts_to_prompts -> @good_quality_image
+Create a prompt for the image model to generate high quality image of the running grown-up woman in the park.
+Return only final result without any comments, clarifications or descriptions.
+
+@blonde_woman: @good_quality_image -> @blond_woman -> @high_angle_shot
+
+@image_prompt: @blonde_woman
+runner in the park
+
+@music: $file('music.mp3')
+
+#@images: @image_prompt -> $image(model='crazy_desire')[20]
+#@images: @rand_prompt -> $image(model='crazy_desire')[2]
+#@images: @rand_prompt -> $image[2]
+
+@images: @rand_prompt -> $image(model=@image_models)[2]
+
+@create_clip: (@images, @music) -> $image_clip -> $save('output.mp4')
+
+#run @create_clip
+
+#run @images
+
+#run @models
+
+#@caption
+#upbeat electronic dance, heavy bass
+
+@caption
+upbeat electronic dance
+
+@lyrics
+[Verse]
+Running through the park tonight
+
+#@lyrics_texts: @lyrics -> $prompts_to_texts
+
+@lyrics_text: $llm
+Create a short song about a very funny woman that break everything.
+Return only final result without any comments, clarifications or descriptions.
+
+#@track: (@caption, @lyrics_texts) -> $music()
+
+
+#@clip_images: $llm[10] -> $texts_to_prompts -> @good_quality_image -> $image(model='crazy_desire')[2]
+
+@clip_images: $llm -> $texts_to_prompts -> @good_quality_image -> $image(model='crazy_desire')[4]
+Create a prompt for the image model to generate high quality image.
+There is a very funny woman that break everything.
+Use no more than 55 words.
+Return only final result without any comments, clarifications or descriptions.
+
+
+@track: (@caption, @lyrics_text) -> $music(model='st')
+
+@gen_clip: (@clip_images, @track) -> $image_clip -> $save('output.mp4')
+
+#@test_clip: $input_json('G:\_cur\_anthill\sessions\20260519_051548_2592\12__image_clip\input.json') -> $image_clip
+@test_clip: $input_json('G:\_cur\_anthill\sessions\20260519_051548_2592\12__image_clip\input.json') -> $image_clip
+
+@music_models: $list
+st, st_temp_07, st_top_95, st_cfg_scale_3
+
+
+@testing_music_models: $input_json('G:\_cur\_anthill\sessions\20260519_051548_2592\11__music\input.json') -> $music(model=@music_models)
+
+run @gen_clip
+#run @testing_music_models
+
+
+@bad_image_quality: $image_filter
+You need to check if image has issues with the proper showing of fingers.
+Check if hands have correct number of fingers.
+If you don't see any hands, return 'no'.
+If you see hands and don't aee any issues, return 'no'.
+If you see some issues, return 'yes'.
+Return only one word:
+'yes' if you see hands and issues with any of them
+'no' in all other cases
+
+
+#@correct_image: $image2image
+#correct hands
+
+
+#@only_good_images: $image(model='crazy_desire')[3] -> for(@bad_image_quality){ @correct_image }
+#runner in the park
+
+#@only_good_images: $image(model='crazy_desire')[3] -> for($first_image){ $clear }
+
+#run @only_good_images
+
+@image_prompt
+Running through the park tonight
+
+#@rand_image: @image_prompt -> $image(model='crazy_desire', width=768, height=1280)
+@rand_image: @image_prompt -> $image(model='crazy_desire', width=100, height=300, model_names_to_texts=True)
+
+@create_video: (@rand_image, @image_prompt) -> $image2video(steps=4, guidance=1)
+
+#run @create_video
+
+#run @rand_image
+
+@caption
+Line one^Line two
+@test_image_text: $file('20260524_030852_default_image_2.png') -> @caption -> $draw_text
+
+#run @test_image_text
+
+@captured_image: @image_prompt -> $image(model=@image_models, width=768, height=1280, model_names_to_texts=True)[3] -> zip(images, texts){ $draw_text }
+
+run @captured_image
+
+
+
+
+
+
+
+

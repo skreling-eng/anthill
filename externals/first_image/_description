@@ -1,0 +1,28 @@
+$first_image — keep only the first input image
+
+SUMMARY
+  Reduces the images[] array to a single element: the first link from the
+  incoming bundle. All other arrays are passed through unchanged.
+
+SYNTAX
+  $first_image
+
+INPUT
+  images[] — one or more image links (required for non-empty output)
+
+OUTPUT
+  images[] — [images[0]] if the input had at least one image, else []
+
+ARGUMENTS
+  None.
+
+BEHAVIOR
+  Does not copy or re-encode image files; the same session link is kept.
+  Useful after $image(...)[n] or parallel branches when downstream steps
+  should process only one frame.
+
+EXAMPLE
+  @hero: @gallery -> $first_image -> $image2image
+
+PROMPT-CONSUMING
+  No.

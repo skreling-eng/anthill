@@ -1,0 +1,26 @@
+$prompts_to_texts — move prompts into texts
+
+SUMMARY
+  Copies content from each prompts[] link into texts[] (one file per prompt,
+  or a single joined file). Clears prompts[] afterward. Used to feed lyrics
+  or plain text into $music (texts[] = lyrics) or other text consumers.
+
+SYNTAX
+  $prompts_to_texts
+  $prompts_to_texts(join=1)
+
+INPUT
+  prompts[] — source strings.
+
+OUTPUT
+  texts[] — new links with the same text content.
+  prompts[] — cleared.
+
+ARGUMENTS
+  join=1 | true | yes — merge all prompts into one texts[] entry (\\n\\n separated).
+
+EXAMPLE
+  @lyrics_texts: @lyrics -> $prompts_to_texts
+
+PROMPT-CONSUMING
+  Yes.

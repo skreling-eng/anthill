@@ -1,0 +1,29 @@
+$check_image — filter images by a validation prompt
+
+SUMMARY
+  Evaluates each image in images[] against the joined prompt (quality check
+  instructions). Failed images are queued for removal via the changes array;
+  they are not deleted until the runtime applies changes after the step.
+
+SYNTAX
+  $check_image
+
+INPUT
+  images[] — candidates to validate.
+  prompts[] / prompt_text — criteria text (e.g. "return yes if bad hands").
+
+OUTPUT
+  Same bundle as input, plus changes[] entries:
+    ("image", "del", <link>) for each failed image.
+
+BEHAVIOR
+  Current implementation uses a deterministic hash-based stub (~20% fail
+  rate) for testing pipelines. A production version would call vision/LLM
+  per image. Use with for(@checker){ @fix } to split bad vs good items.
+
+EXAMPLE
+  @filtered: @images -> $check_image
+  Check finger count…
+
+PROMPT-CONSUMING
+  Yes.

@@ -1,0 +1,43 @@
+
+@voices: $list
+AaliyahCOMEHU, MichaelJacksonV1, Akira, Alizee, AvrilLavigne
+
+#lumine-jp-v2, MuscleMan, BartSimpson, mordecai, Pops_RegularShowRVC, RegularShow_ThomasAI, Rigby_RegularShow
+
+@style
+irish ballad song, strong female voice
+
+@lyrics_text: $llm
+Create a short song about the witch who wants to take your soul.
+Return only final result without any comments, clarifications or descriptions.
+
+@track: (@style, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
+
+
+@strong_voice_enhance: $voice_enhance(
+  denoise_before=0,
+  device=cuda,
+  nfe=128,
+  solver=rk4,
+  lambd=0.8,
+  tau=0.4
+)
+
+# Minimal change
+@light_voice_enhance: $voice_enhance(device=cuda, lambd=0.3, tau=0.2, nfe=48)
+
+@replace_voice: {
+     #$file('test_data\music\20260524_052158_st_music_0.wav') ->
+     @track ->
+     $music_separation(model='bs_roformer_viperx_1297') -> %stems ->
+     -> $select(sounds=[0]) -> $change_voice(model=@voices) -> 
+#     -> $voice_enhance(device=cuda) ->
+     -> @strong_voice_enhance
+     -> zip(sounds){
+        (  $select(sounds=[0]),
+           stems% -> $select(sounds=[1])
+        ) -> $join_stems
+     } -> $output
+}
+
+run @replace_voice

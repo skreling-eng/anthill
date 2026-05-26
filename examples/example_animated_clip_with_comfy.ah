@@ -1,0 +1,66 @@
+
+
+### Images
+
+@good_quality_image
+High Angle Shot, High Resolution, Best Quality, best quality,score_9, score_8_up, score_7_up
+
+@realistic
+realistic, photorealistic, hyperrealistic,
+
+@high_angle_shot
+high-angle shot, camera looking down
+
+@blond_woman: @good_quality_image -> @high_angle_shot
+1girl, blonde with green eyes
+
+@topic
+The detailed portrait of the witch
+
+# Create 3 prompts
+@rand_prompt: @topic -> $llm[3] -> $texts_to_prompts -> @blond_woman
+Create a prompt for the image model to generate high quality image.
+Use no more than 55 words.
+Return only final result without any comments, clarifications or descriptions.
+
+#For 3 prompts and several models we will create 2 images per their combinations.
+@images: @rand_prompt -> $image(model='realitsic_fantasy', width=768, height=1280)[10]
+
+
+### Music
+
+@style
+irish traditional song, strong female voice
+
+@lyrics_text: $llm
+Create a short song about the witch who wants to take your soul.
+Return only final result without any comments, clarifications or descriptions.
+
+@track: (@style, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
+
+
+### Video
+
+@video_prompt: $llm -> $texts_to_prompts
+Create a prompt for the video model to generate video.
+You need to animate the portrait image of the witch.
+Use no more than 55 words.
+Return only final result without any comments, clarifications or descriptions.
+
+@realistic_video: @video_prompt -> $comfy(port=8000, json='Rapid-AIO-Mega__3_start_image.json')[4]
+
+@video_fragments: @images -> @realistic_video
+
+### Clip
+
+@gen_clip: (@video_fragments, @track) -> $video_clip -> $output
+
+run @gen_clip
+
+
+
+
+
+
+
+

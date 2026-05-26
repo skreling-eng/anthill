@@ -1,0 +1,34 @@
+$input_json — load a bundle manifest from JSON
+
+SUMMARY
+  Reads an output.json- or input.json-shaped manifest and rebuilds an
+  ArrayBundle so a pipeline can continue from a previous session step or
+  reuse assets without re-running upstream work.
+
+SYNTAX
+  $input_json('sessions/20260519_051548_2592/11__music/output.json')
+  $input_json('path/to/output.json', strict=1)
+
+INPUT
+  Ignored — the JSON file is the sole data source for this step.
+
+OUTPUT
+  All arrays present in the JSON: prompts, texts, images, sounds, videos,
+  files, changes (same keys as session output.json).
+
+ARGUMENTS
+  Positional path or path= / _path= — path to the JSON manifest.
+  strict=1 | true | yes — fail if any linked file on disk is missing.
+
+BEHAVIOR
+  Resolves the JSON path relative to the current session dir, cwd, or as
+  an absolute path. When the JSON lives under sessions/<id>/, each relative
+  link in the manifest is resolved to an absolute path under that session
+  folder so files remain valid across runs.
+
+EXAMPLE
+  @restore: $input_json('sessions/…/11__music/output.json')
+  @test_clip: $input_json('…/12__image_clip/input.json') -> $image_clip
+
+PROMPT-CONSUMING
+  No.

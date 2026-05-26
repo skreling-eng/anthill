@@ -1,0 +1,28 @@
+$select — pick elements from input arrays by index
+
+SUMMARY
+  Copies selected indices from named input arrays to output. All other
+  arrays are empty in the result.
+
+SYNTAX
+  $select(sounds=[1])
+  $select(texts=[2], sounds=[0, 1, 2])
+  $select(text=[2], sounds=[0, 1, 2])   — singular aliases (text, sound, image, …)
+  $select(sounds=@indices)   — indexes from @indices texts[]
+
+INPUT
+  Any arrays referenced in (...).
+
+OUTPUT
+  Only the listed arrays, each containing the selected links in order.
+
+ARGUMENTS
+  array=[i, j, ...] — zero-based indexes into that input array.
+  array=@ref — each text from @ref is one index (supports key=@list output).
+
+EXAMPLE
+  @vocals: @track -> $music_separation(model=2stem)
+  @mm: @vocals -> $select(sounds=[1]) -> $change_voice(model=MuscleMan)
+
+PROMPT-CONSUMING
+  No.

@@ -1,0 +1,101 @@
+"""External ($) action handlers — one folder per external, common API."""
+
+from __future__ import annotations
+
+import importlib
+from typing import Callable
+
+from externals.api import ExternalContext, ExternalInput
+from externals.invoke import subprocess_enabled, write_invoke
+
+_KNOWN = frozenset(
+    {
+        "file",
+        "folder",
+        "first_image",
+        "input_json",
+        "image",
+        "image2image",
+        "check_image",
+        "clear",
+        "comfy",
+        "image2video",
+        "image_clip",
+        "video_clip",
+        "clip",
+        "save",
+        "output",
+        "sound2text",
+        "llm",
+        "texts_to_prompts",
+        "prompts_to_texts",
+        "list",
+        "music",
+        "music_separation",
+        "change_voice",
+        "draw_text",
+        "only",
+        "select",
+        "join_stems",
+        "text2speech",
+        "voice_enhance",
+    }
+)
+
+# Externals that read prompts as model input and should not pass them through.
+_PROMPT_CONSUMING = frozenset(
+    {
+        "image",
+        "image2image",
+        "check_image",
+        "image2video",
+        "comfy",
+        "llm",
+        "list",
+        "music",
+        "prompts_to_texts",
+    }
+)
+
+_Handler = Callable[[ExternalContext, ExternalInput], "ArrayBundle"]
+
+
+def _load_handler(name: str) -> _Handler:
+    if name in _KNOWN:
+        mod = importlib.import_module(f"externals.{name}.run")
+        return mod.run
+    from externals._default.run import run as default_run
+
+    def _wrapped(ctx: ExternalContext, inp: ExternalInput):
+        return default_run(ctx, inp, name=name)
+
+    return _wrapped
+
+
+def run_external(
+    name: str, ctx: ExternalContext, inp: ExternalInput
+) -> "ArrayBundle":
+    """Dispatch to the handler for $name (subprocess by default)."""
+    from ahlib.ah_runtime import ArrayBundle  # noqa: F401 — return type
+
+    if subprocess_enabled(name):
+        from externals.invoke import run_external_subprocess
+
+        return run_external_subprocess(name, ctx, inp)
+    handler = _load_handler(name)
+    return handler(ctx, inp)
+
+
+def external_consumes_prompts(name: str) -> bool:
+    """True if this $ external uses up the prompts array (clear on output)."""
+    return name in _PROMPT_CONSUMING
+
+
+__all__ = [
+    "ExternalContext",
+    "ExternalInput",
+    "external_consumes_prompts",
+    "run_external",
+    "subprocess_enabled",
+    "write_invoke",
+]

@@ -1,0 +1,34 @@
+$join_stems — mix sounds[] stems into one WAV
+
+SUMMARY
+  Loads every sound in sounds[], sums them (typical stem recombination), and
+  writes one mixed WAV to sounds[].
+
+SYNTAX
+  $join_stems
+  $join_stems(normalize=1, sample_rate=44100)
+
+INPUT
+  sounds[] — required; two or more stem files (WAV/MP3). One file passes through.
+
+OUTPUT
+  sounds[] — single joined WAV.
+
+ARGUMENTS
+  normalize= — scale mix to avoid clipping when sum exceeds 1.0 (default 1).
+  sample_rate= — decode/resample rate in Hz (default 44100).
+
+REQUIREMENTS
+  soundfile or ffmpeg (same as $music_separation). Runs in .venvs/media.
+
+ENVIRONMENT
+  AH_EMULATE_JOIN_STEMS=1 — stub WAV text without audio deps.
+
+EXAMPLE
+  @mix: (
+    $select(sounds=[0]) -> $change_voice,
+    stems% -> $select(sounds=[1])
+  ) -> $join_stems -> $save('output.wav')
+
+PROMPT-CONSUMING
+  No.

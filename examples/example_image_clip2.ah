@@ -1,0 +1,49 @@
+
+
+@image_models: $list
+default, crazy_desire, realitsic_fantasy, aibeauty01
+
+@good_quality_image
+High Angle Shot, High Resolution, Best Quality, best quality,score_9, score_8_up, score_7_up
+
+@realistic
+realistic, photorealistic, hyperrealistic,
+
+@high_angle_shot
+high-angle shot, camera looking down
+
+@blond_woman: @good_quality_image -> @high_angle_shot
+1girl, blonde with green eyes
+
+@topic
+The detailed portrait of the witch
+
+# Create 3 prompts
+@rand_prompt: @topic -> $llm[3] -> $texts_to_prompts -> @blond_woman
+Create a prompt for the image model to generate high quality image.
+Use no more than 55 words.
+Return only final result without any comments, clarifications or descriptions.
+
+#For 3 prompts and several models we will create 2 images per their combinations.
+@images: @rand_prompt -> $image(model=@image_models, model_names_to_texts=True)[2] -> zip(images, texts){ $draw_text(size=80) }
+
+@caption
+irish traditional song, strong female voice
+
+@lyrics_text: $llm
+Create a short song about the witch who wants to take your soul.
+Return only final result without any comments, clarifications or descriptions.
+
+@track: (@caption, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
+
+@gen_clip: (@images, @track) -> $image_clip -> $output
+
+run @gen_clip
+
+
+
+
+
+
+
+

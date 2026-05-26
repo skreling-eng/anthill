@@ -1,0 +1,53 @@
+$music — music generation (ACE-Step)
+
+SUMMARY
+  Generates audio tracks from captions (prompts[]) and lyrics (texts[]).
+  Supports multiple models, caption/lyrics pairing rules, and GGUF
+  (ace-synth) or native PyTorch (safetensors) backends.
+
+SYNTAX
+  $music(model='st')
+  $music(model=@music_models)[2]
+  $music(bpm=128, guidance_scale=3, duration=30, format=wav)
+
+INPUT
+  prompts[] — caption / style description (one or many; paired with lyrics).
+  texts[]   — lyrics; default [Instrumental] if empty.
+
+OUTPUT
+  sounds[] — WAV/MP3 links under op/sounds/
+             Names: {timestamp}_{model}_music_{i}.{ext}
+  prompts[] — cleared after generation.
+
+ARGUMENTS
+  model=     — registry name or @instruction list (externals/music/model_list.py)
+  count=     — tracks per caption/lyrics pair (or use [n] suffix)
+  duration=  — seconds (else model default)
+  seed=      — -1 for random; else fixed / offset per variant
+  steps=     — diffusion steps (else model / inference_steps default)
+  format=    — output extension: wav, mp3, … (default wav)
+  bpm, shift, guidance_scale, keyscale, timesignature, language, adapter,
+  lm_temperature, lm_top_p, lm_cfg_scale, use_cot_caption, … — passed to ace-synth / native
+
+MODEL NOTES
+  default, xl-turbo, turbo — GGUF under models/ace-step-1.5/, ace-synth
+  st — safetensors HF bundle under models/ace-step-1.5_st/, native PyTorch
+  See model_list.py for per-model duration, steps, adapters.
+
+BACKENDS (ACESTEP_BACKEND)
+  synth (default) — ace-synth CLI + GGUF weights
+  native — pip install ace-step from GitHub (ACE-Step-1.5)
+  api — ACESTEP_API_URL HTTP service
+  auto — per-model preferred_backend
+
+ENVIRONMENT
+  ACESTEP_SYNTH_BIN, ACESTEP_DOWNLOAD_BIN, ACESTEP_CHECKPOINTS_DIR,
+  MODELS_PATH, HF_HOME, ACESTEP_DIT_GGUF, …
+  AH_EMULATE_MUSIC=1 — short placeholder beep WAV.
+
+EXAMPLE
+  @track: (@caption, @lyrics_text) -> $music(model='st')
+  @testing: $input_json('…/output.json') -> $music(model=@music_models)
+
+PROMPT-CONSUMING
+  Yes.

@@ -1,0 +1,26 @@
+$only — keep selected arrays from the input bundle
+
+SUMMARY
+  Copies only the listed arrays from input to output. All other arrays
+  are empty in the result.
+
+SYNTAX
+  $only(images, prompts)
+  $only(texts)
+  $only(images, texts, sounds)
+
+INPUT
+  Any arrays — only the named arrays are copied through.
+
+OUTPUT
+  Same array names as listed in (...); all other arrays empty.
+
+ARGUMENTS
+  Positional comma-separated array names: prompts, texts, images, sounds,
+  videos, files.
+
+EXAMPLE
+  @step: @source -> $only(images, prompts) -> $draw_text
+
+PROMPT-CONSUMING
+  No.

@@ -1,0 +1,69 @@
+$sound2text — speech-to-text with OpenAI Whisper
+
+SUMMARY
+  Transcribes audio files from sounds[] using the openai-whisper Python package
+  (https://github.com/openai/whisper). Writes one texts[] link per input file,
+  or a single joined file when join=1.
+
+SYNTAX
+  $sound2text
+  $sound2text(model='base')
+  $sound2text(model='turbo', language='en')
+  $sound2text(model='medium', task='translate', language='Japanese')
+  $sound2text(model='small', join=1)
+  $sound2text(json=True)
+
+INPUT
+  sounds[] — required; each link is transcribed (wav, mp3, flac, m4a, etc.)
+  prompts[] / instruction body — optional initial_prompt for Whisper (context hint)
+
+OUTPUT
+  texts[] — transcript text (.txt per file, or one joined file)
+  texts[] — with json=True: .json per file with word-level timestamps
+
+ARGUMENTS
+  model=      — Whisper size (default base). Examples: tiny, base, small,
+                medium, large-v3, turbo, tiny.en, base.en (English-only, often faster)
+  language=   — ISO language code (e.g. en, ru, Japanese). Omit for auto-detect.
+  task=       — transcribe (default) or translate (speech → English; use medium/large,
+                not turbo — turbo is poor for translation per upstream docs)
+  join=       — 1/true: one texts[] entry with all transcripts separated by blank lines
+  json=       — 1/true: write .json with full text and words[] ({word, start, end} in seconds)
+  count=      — unused unless [n] repeat on the external
+
+DEPENDENCIES
+  uv sync --extra sound2text
+  ffmpeg on PATH (required by Whisper to load audio)
+
+ENVIRONMENT
+  AH_EMULATE_SOUND2TEXT=1 — stub texts, no model load
+  AH_EXTERNAL_INPROCESS=sound2text — run in orchestrator process (optional)
+
+MODEL NOTES (from OpenAI Whisper)
+  turbo — fast, good for English transcription
+  base / small — balance of speed and quality
+  medium / large — better for translation and hard audio
+  Models download on first use to the Whisper cache (~/.cache/whisper)
+
+BEHAVIOR
+  Loads each Whisper model once per process and reuses it.
+  Multiple files in sounds[] are processed in order.
+
+EXAMPLE
+  @track: @caption -> $music(model='st')
+  @lyrics: @track -> $sound2text(model='base')
+  @clip: (@images, @lyrics) -> $image_clip
+
+  @transcript: $sound2text(model='turbo', language='en')
+  podcast episode text
+
+TROUBLESHOOTING
+  ImportError / No module named whisper
+    Run: uv sync --extra sound2text
+  ffmpeg not found
+    Install ffmpeg and ensure it is on PATH
+  CUDA out of memory
+    Use a smaller model= (tiny, base, small)
+
+PROMPT-CONSUMING
+  No (prompts[] may be used as initial_prompt only).

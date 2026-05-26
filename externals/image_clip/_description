@@ -1,0 +1,38 @@
+$image_clip — slideshow video with audio track
+
+SUMMARY
+  Builds one MP4 per sound in sounds[]: still images from images[] are shown
+  as a slideshow whose total length matches the audio duration, then the
+  audio is muxed in with moviepy.
+
+SYNTAX
+  $image_clip
+  $image_clip(fps=25)
+
+INPUT
+  images[] — required; PNG/JPEG paths used as slides.
+  sounds[] — required; WAV/MP3/etc. duration sets slideshow length.
+
+OUTPUT
+  videos[] — one MP4 per sound file ({timestamp}_image_clip_{i}.mp4).
+
+ARGUMENTS
+  fps= — frames per second for the silent slideshow (default 25).
+
+BEHAVIOR
+  1) ffprobe — audio duration
+  2) duration / N images → seconds per slide; × fps → frames per image
+  3) ffmpeg — PNG sequence → silent H.264 MP4
+  4) moviepy — mux audio + video → final file
+
+REQUIREMENTS
+  ffmpeg and ffprobe on PATH; moviepy (included in media venv / uv sync --extra media).
+
+ENVIRONMENT
+  AH_EMULATE_IMAGE_CLIP=1 — write stub .mp4 text files without ffmpeg.
+
+EXAMPLE
+  @gen_clip: (@clip_images, @track) -> $image_clip -> $save('output.mp4')
+
+PROMPT-CONSUMING
+  No.

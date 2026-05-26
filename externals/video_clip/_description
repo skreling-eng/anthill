@@ -1,0 +1,42 @@
+$video_clip — join input videos to an audio track
+
+SUMMARY
+  Builds one MP4 per sound in sounds[]: input videos[] are repeated and
+  concatenated in order until the clip length matches the audio duration.
+  Every other segment is mirrored horizontally (legacy flip behavior).
+
+SYNTAX
+  $video_clip
+  $video_clip(fps=25, frames_per_chunk=81, delete_last_frames=0, repeat=120, flip=1)
+
+INPUT
+  videos[] — required; MP4 (or other moviepy-readable) paths used as segments.
+  sounds[] — required; WAV/MP3/etc. duration sets final clip length.
+
+OUTPUT
+  videos[] — one MP4 per sound file ({timestamp}_video_clip_{i}.mp4).
+
+ARGUMENTS
+  fps= — output frame rate (default 25).
+  frames_per_chunk= — frames taken from each source video (default 81).
+  delete_last_frames= — drop this many trailing frames from each segment (default 0).
+  repeat= — repeat the videos[] list this many times before trimming (default 120).
+  flip= — 1/0 alternate horizontal flip on even segments (default 1).
+
+BEHAVIOR
+  1) ffprobe — audio duration
+  2) repeat videos[] × repeat; trim count to int(secs / ((frames_per_chunk - delete_last_frames) / fps)) + 1
+  3) moviepy — read each segment directly from MP4 (no PNG intermediate), optional MirrorX
+  4) concatenate segments, trim to audio length, mux audio
+
+REQUIREMENTS
+  ffmpeg and ffprobe on PATH; moviepy (uv sync --extra clip or media).
+
+ENVIRONMENT
+  AH_EMULATE_VIDEO_CLIP=1 — write stub .mp4 text files without ffmpeg.
+
+EXAMPLE
+  @out: (@clips, @music) -> $video_clip -> $save('output.mp4')
+
+PROMPT-CONSUMING
+  No.

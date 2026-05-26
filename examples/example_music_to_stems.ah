@@ -1,0 +1,24 @@
+
+
+@models: $list
+bs_roformer_sw, bs_roformer_viperx_1297, htdemucs_v4 
+
+@caption
+irish traditional song, strong female voice
+
+@lyrics_text: $llm
+Create a short song about the witch who wants to take your soul.
+Return only final result without any comments, clarifications or descriptions.
+
+@track: (@caption, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
+
+#@stems: @track -> $music_separation
+#@stems: @track -> $music_separation(model=htdemucs_v4, shifts=5)
+@stems: $file('test_data/music/20260524_185140_st_music_0.wav') -> (
+       $music_separation(model=@models),
+       $music_separation(model=htdemucs_v4, shifts=5)
+)
+
+
+run @stems
+

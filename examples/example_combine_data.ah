@@ -1,0 +1,5 @@
+
+
+@get_clip: $folder('test_data/videos/wtch') -> $file('test_data/music/20260524_185140_st_music_0.wav') -> $video_clip -> $output
+
+run @get_clip

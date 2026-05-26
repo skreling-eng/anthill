@@ -1,0 +1,42 @@
+$draw_text — overlay multiline text on input images
+
+SUMMARY
+  Draws white text with black outline on each image in images[] using Pillow.
+
+SYNTAX
+  $draw_text
+  $draw_text(text='Hello^World')
+  $draw_text(font='ttf/MuseoSansCyrl-700.ttf', size=40, left=30, top=350)
+
+INPUT
+  images[] — source images (required)
+  prompts[] or texts[] — text to draw; one entry per image, or one for all
+
+OUTPUT
+  images[] — new image links with text rendered (replaces input image links)
+
+ARGUMENTS
+  text=         — fixed text for every image (overrides prompts[]/texts[])
+  font=         — path to .ttf file (default: ttf/MuseoSansCyrl-700.ttf under repo root)
+  size=         — font size in pixels (default: 40)
+  left= / top=  — text position (default: 30, 350); clamped to stay inside image
+  spacing=      — line spacing (default: 6)
+  stroke_width= — outline width (default: 2)
+
+TEXT RULES
+  If len(text) > 10, caret ^ in text is replaced with newline.
+
+ENVIRONMENT
+  AH_EMULATE_DRAW_TEXT=1 — copy source bytes with marker, no Pillow.
+
+DEPENDENCIES
+  uv sync --extra draw_text   (Pillow)
+
+PROMPT-CONSUMING
+  No — prompts[] and texts[] pass through unless used as text source.
+
+EXAMPLE
+  @caption
+  Line one^Line two
+
+  @overlay: @images -> @caption -> $draw_text

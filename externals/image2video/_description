@@ -1,0 +1,177 @@
+$image2video — image-to-video (Wan, start frame = input image)
+
+
+
+SUMMARY
+
+  For each image in images[], generates an MP4 using the input image as the first
+
+  frame and the joined prompt as motion/scene guidance. New videos are appended
+
+  to videos[]; images[] is cleared (source frames are not kept in the output).
+
+
+
+SYNTAX
+
+  $image2video
+
+  $image2video(model='wan')
+
+  $image2video(model='wan', seed=42)
+
+  $image2video(model='wan', steps=4, guidance=1)
+  $image2video(model='wan', width=832, height=480)
+
+
+
+INPUT
+
+  images[] — required; each link is the start frame (one video per image).
+
+  prompts[] / instruction body — required text prompt for the model.
+
+
+
+OUTPUT
+
+  videos[] — one MP4 per input image ({timestamp}_{model}_i2v_{n}.mp4).
+
+  images[] — cleared after the call.
+
+
+
+ARGUMENTS
+
+  model= — profile name (default wan).
+
+  width= / height= — output size in pixels (snapped to VAE/patch grid). If only one
+    is set, the other follows the input image aspect ratio. If neither is set, the
+    input image pixel size is used (same as Comfy at 768×1280). Optional downscale:
+    WAN_I2V_MAX_AREA=399360 (480×832).
+
+  steps= — denoising steps (default 4 for wan — matches Comfy MEGA rapid).
+
+  frames= — output frame count (default 81). Lower (e.g. 49) for faster tests.
+
+  guidance= / cfg= — classifier-free guidance scale (default 1.0 for wan; use 1
+    for Comfy-style speed, not 5).
+
+  attn= / attention= — attention backend (default sage). Use native to force
+    PyTorch SDPA only (slower but safest if sage fails).
+
+  backend= — diffusers (default, in-process) or comfy (ComfyUI API; Comfy speed).
+
+  seed= — RNG seed; offset per output when generating multiple videos.
+
+  neg= / negative_prompt= — negative prompt override.
+
+
+
+WEIGHT LAYOUT (Comfy-style AIO split, one file read)
+
+  Single checkpoint (default):
+
+    models/wan/wan2.2-rapid-mega-aio-v12.safetensors
+
+
+
+  From that file (same prefixes as ComfyUI Load Checkpoint):
+
+    model.diffusion_model.* — DiT (16-ch MEGA layout; VACE tensors skipped for diffusers)
+
+    vae.*                   — Wan VAE
+
+    text_encoders.umt5xxl.* — UMT5 text encoder
+
+
+
+  From hub/local aux tree (configs + small files only; no transformer shards):
+
+    tokenizer, scheduler, CLIP image encoder, image_processor
+
+    Preferred: models/wan/i2v-base/ (Wan2.1-I2V-14B-480P-Diffusers layout)
+
+
+
+  One-time offline configs:
+
+    huggingface-cli download Wan-AI/Wan2.1-I2V-14B-480P-Diffusers \\
+
+      --local-dir models/wan/i2v-base \\
+
+      --exclude "transformer/*"
+
+
+
+DEPENDENCIES
+
+  uv sync --extra media   (image + image2video together, for @create_video-style runs)
+  uv sync --extra image2video  (ftfy, sageattention, diffusers, huggingface-hub<1.0)
+
+  Do not install the `kernels` package — it upgrades huggingface-hub to 1.x and breaks
+  transformers/diffusers on this project.
+
+
+
+ENVIRONMENT
+
+  WAN_I2V_BASE_DIR — local aux tree (default wan/i2v-base under models/)
+
+  WAN_I2V_BASE_REPO — hub id when local tree absent (default Wan2.1-I2V-14B-480P)
+
+  WAN_T2V_CONFIG_REPO — DiT config for 16-ch AIO (default Wan2.2-T2V-A14B-Diffusers)
+
+  WAN_I2V_MAX_AREA — optional pixel cap when sizing from the input image
+
+  WAN_I2V_ATTN — override attn= / default (sage). Example: WAN_I2V_ATTN=native
+
+  WAN_I2V_FRAMES — override frame count (e.g. 49 for quicker runs)
+
+  WAN_I2V_FAST_ATTN=1 — also try flash/xformers backends (optional)
+
+  AH_EMULATE_IMAGE2VIDEO=1 — placeholder MP4s, no GPU
+
+  Comfy speed (recommended if you already have ComfyUI at ~8 min for 768×1280):
+
+    AH_IMAGE2VIDEO_BACKEND=comfy   (or backend=comfy on $image2video)
+
+    COMFYUI_URL=http://127.0.0.1:8188
+
+    COMFYUI_WORKFLOW=G:/ComfyUI/user/.../your_mega_i2v_api.json
+
+    Export workflow from Comfy in *API format* (not the UI graph). Anthill uploads the
+    start image and patches LoadImage / text / sampler nodes by class_type.
+
+  Windows sage (for diffusers backend): tools\setup_sage_windows.ps1 after uv sync --extra media
+    (triton + sageattention 2.1.1+cu128torch2.7.1; PyPI sageattention 1.0.6 needs triton
+    and is slower / often falls back to _native_cudnn)
+
+
+
+  MEGA AIO uses 16-ch patch + expand_timesteps (not hub 36-ch I2V patch). VACE weights
+
+  in the file are not used by the diffusers path (Comfy MEGA workflows use VaceWanModel).
+
+  Importing ComfyUI Python modules into Anthill's venv is not supported (separate env,
+  folder_paths, custom nodes). Use backend=comfy to run your existing Comfy graph.
+
+
+
+EXAMPLE
+
+  @animate: @still -> $image2video(model='wan')
+
+  woman running in the park
+
+  @animate_fast: @still -> $image2video(model='wan', width=832, height=480)
+
+  woman running in the park
+
+
+
+PROMPT-CONSUMING
+
+  Yes.
+
+

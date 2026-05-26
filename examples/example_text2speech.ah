@@ -1,0 +1,10 @@
+
+
+@text: $llm
+Create a short story around 70 words about a flying dog.
+Return only final result without any comments, clarifications or descriptions.
+
+
+@say: @text -> $text2speech(voice=bm_george)
+
+run @say

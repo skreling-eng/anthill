@@ -1,0 +1,28 @@
+$clear — reset the bundle to empty arrays
+
+SUMMARY
+  Ignores all input arrays and returns a fresh empty ArrayBundle: no prompts,
+  texts, images, sounds, videos, files, or pending changes.
+
+SYNTAX
+  $clear
+
+INPUT
+  Any — discarded.
+
+OUTPUT
+  Empty bundle (all arrays empty).
+
+ARGUMENTS
+  None.
+
+BEHAVIOR
+  Useful to drop accumulated state between pipeline stages or after a branch
+  you do not want to carry forward.
+
+EXAMPLE
+  @scratch: @images -> $clear
+  @fresh: (@a, @b) -> $clear -> @only_prompts
+
+PROMPT-CONSUMING
+  No (output has no prompts to clear).

@@ -1,0 +1,35 @@
+$folder — load all files from a directory into the bundle
+
+SUMMARY
+  Reads every file in a directory (non-recursive, sorted by name) and appends
+  links to the appropriate arrays based on file extension — same mapping as $file.
+
+SYNTAX
+  $folder('path/to/dir')
+  $folder(path='test_data/videos')
+
+INPUT
+  prompts, texts, images, sounds, videos, files — unchanged (copied through)
+
+OUTPUT
+  Appends one link per file, routed by extension:
+    .mp3, .wav  → sounds[]
+    .png, .jpg, .jpeg, .webp → images[]
+    .mp4        → videos[]
+    .txt        → texts[]
+    other       → files[]
+
+ARGUMENTS
+  Positional string or path= / _path= — directory to load.
+
+BEHAVIOR
+  Resolves the directory relative to cwd, repo root, or session directory.
+  Skips subdirectories. File order is sorted by filename.
+
+  AH_EMULATE_FOLDER=1 — write placeholder links without reading disk (tests).
+
+EXAMPLE
+  @videos: $folder('test_data/videos')
+
+PROMPT-CONSUMING
+  No.

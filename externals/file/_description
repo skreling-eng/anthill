@@ -1,0 +1,37 @@
+$file — load a file from disk into the bundle
+
+SUMMARY
+  Reads a path given as the sole argument and appends one link to the
+  appropriate array based on the file extension. Other input arrays are
+  passed through unchanged.
+
+SYNTAX
+  $file('path/to/asset.mp3')
+  $file(path='path/to/image.png')
+
+INPUT
+  prompts, texts, images, sounds, videos, files — unchanged (copied through)
+
+OUTPUT
+  Appends one new link to the array that matches the file extension:
+    .mp3, .wav  → sounds[]
+    .png, .jpg, .jpeg → images[]
+    .mp4        → videos[]
+    .txt        → texts[]
+    other       → files[]
+
+ARGUMENTS
+  Positional string or path= / _path= — filesystem path to load.
+
+BEHAVIOR
+  Resolves the path relative to the current working directory, repo root,
+  session directory, or sessions/** (for a bare filename). Copies file bytes
+  into a new link under the current op directory.
+
+  AH_EMULATE_FILE=1 — write a placeholder link without reading disk (tests).
+
+EXAMPLE
+  @music: $file('music.mp3')
+
+PROMPT-CONSUMING
+  No — prompts are not cleared after this call.
