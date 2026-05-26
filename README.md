@@ -26,16 +26,7 @@ Sample output from [`examples/example_animated_clip_with_comfy.ah`](examples/exa
   </video>
 </p>
 
-<p align="center">
-  <sub>
-    <a href="test_data/clip/0000_20260526_023714_video_clip_0.mp4"><code>test_data/clip/0000_20260526_023714_video_clip_0.mp4</code></a>
-    · requires local models, ComfyUI on port <code>8000</code>, and
-    <code>comfy_workflows/Rapid-AIO-Mega__3_start_image.json</code>
-  </sub>
-</p>
-
-<details>
-<summary><strong>Pipeline source</strong> (<code>example_animated_clip_with_comfy.ah</code>)</summary>
+### Pipeline source (`example_animated_clip_with_comfy.ah`)
 
 ```ah
 ### Images
@@ -91,8 +82,6 @@ Return only the final result without comments, clarifications, or descriptions.
 
 run @gen_clip
 ```
-
-</details>
 
 ```powershell
 uv run python run_ah.py examples\example_animated_clip_with_comfy.ah
