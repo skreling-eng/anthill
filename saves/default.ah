@@ -1,0 +1,20 @@
+
+@clear_answer:
+Return only the final result without comments, clarifications, or explanations.
+
+@image: $image[3]
+a beautiful woman in the town
+
+@lyrics: @clear_answer -> $llm
+create a song about woman in the town
+
+@style:
+French traditional song
+
+@track: (@lyrics, @style) -> $music
+
+@clip: (@track, @image) -> $image_clip
+
+run @clip
+
+#run @image

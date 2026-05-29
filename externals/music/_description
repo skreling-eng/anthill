@@ -6,6 +6,7 @@ SUMMARY
   (ace-synth) or native PyTorch (safetensors) backends.
 
 SYNTAX
+  $music()
   $music(model='st')
   $music(model=@music_models)[2]
   $music(bpm=128, guidance_scale=3, duration=30, format=wav)
@@ -30,8 +31,8 @@ ARGUMENTS
   lm_temperature, lm_top_p, lm_cfg_scale, use_cot_caption, … — passed to ace-synth / native
 
 MODEL NOTES
+  st (default when model= omitted) — safetensors under models/ace-step-1.5_st/, native PyTorch
   default, xl-turbo, turbo — GGUF under models/ace-step-1.5/, ace-synth
-  st — safetensors HF bundle under models/ace-step-1.5_st/, native PyTorch
   See model_list.py for per-model duration, steps, adapters.
 
 BACKENDS (ACESTEP_BACKEND)

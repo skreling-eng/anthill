@@ -10,10 +10,18 @@ from pathlib import Path
 from ahlib.ah_parser import parse_ah_source
 from ahlib.ah_runtime import ArrayBundle, Runtime, Session, create_session_dir
 from externals.api import ExternalContext, ExternalInput
+from externals.api import read_arg_list
+from externals.music.model_list import DEFAULT_MUSIC_MODEL, get_music_model
 from externals.music.run import _caption_lyrics_pairs, _read_captions, _read_lyrics, run
 
 
 class TestMusicInputMapping(unittest.TestCase):
+    def test_default_model_is_st(self) -> None:
+        self.assertEqual(DEFAULT_MUSIC_MODEL, "st")
+        inp = ExternalInput(bundle=ArrayBundle(), args={}, prompt_text="")
+        self.assertEqual(read_arg_list(inp, "model", DEFAULT_MUSIC_MODEL), ["st"])
+        self.assertEqual(get_music_model("").name, "st")
+
     def test_captions_from_prompts_only(self) -> None:
         session_dir = create_session_dir(Path("sessions"))
         op_dir = session_dir / "1__music"

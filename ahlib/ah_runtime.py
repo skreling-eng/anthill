@@ -6,10 +6,12 @@ import json
 import os
 import re
 import sys
+import threading
 import time
+import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from ahlib.ah_actions import (
     ActionExpr,
@@ -37,6 +39,25 @@ from externals import (
 _PROMPT_MULTI_OUTPUT_EXTS = frozenset({"texts_to_prompts"})
 
 # Map changes content_type to array key
+class RuntimeCancelled(Exception):
+    """Raised when .ah execution is stopped (e.g. app window closing)."""
+
+
+class ActionCallback(Protocol):
+    """Optional progress hooks for external UIs during .ah execution."""
+
+    def action_start(self, action_name: str) -> None: ...
+
+    def action_finish(
+        self,
+        action_name: str,
+        output_context: dict[str, list],
+        output_json_path: str | None = None,
+    ) -> None: ...
+
+    def action_error(self, action_name: str, error_message: str) -> None: ...
+
+
 _CHANGE_TYPE_MAP = {
     "prompt": "prompts",
     "prompts": "prompts",
@@ -151,13 +172,77 @@ class Session:
 
 
 class Runtime:
-    def __init__(self, program: ParsedProgram, session: Session):
+    def __init__(
+        self,
+        program: ParsedProgram,
+        session: Session,
+        callback: ActionCallback | None = None,
+        cancel_event: threading.Event | None = None,
+    ):
         self.program = program
         self.session = session
+        self.callback = callback
+        self.cancel_event = cancel_event
         self._instruction_cache: dict[tuple[str, tuple], ArrayBundle] = {}
         self._session_contexts: dict[str, ArrayBundle] = {}
+        self._last_output_json: Path | None = None
+
+    @property
+    def last_output_json_path(self) -> Path | None:
+        return self._last_output_json
+
+    def _check_cancelled(self) -> None:
+        if self.cancel_event is not None and self.cancel_event.is_set():
+            raise RuntimeCancelled("Execution cancelled")
+
+    @staticmethod
+    def _format_context_action_name(action: ContextAction) -> str:
+        if action.scope == "instruction":
+            if action.mode == "store":
+                return f"%%{action.name}"
+            if action.mode == "load":
+                return f"{action.name}%%"
+            return f"%%{action.name}%%"
+        if action.mode == "store":
+            return f"%{action.name}"
+        if action.mode == "load":
+            return f"{action.name}%"
+        return f"%{action.name}%"
+
+    @staticmethod
+    def _format_error_tail(exc: BaseException) -> str:
+        text = "".join(
+            traceback.format_exception(type(exc), exc, exc.__traceback__)
+        )
+        lines = text.rstrip().splitlines()
+        return "\n".join(lines[-20:])
+
+    def _notify_action_start(self, action_name: str) -> None:
+        if self.callback is not None:
+            self.callback.action_start(action_name)
+
+    def _notify_action_finish(
+        self,
+        action_name: str,
+        output: ArrayBundle,
+        op_dir: Path | None = None,
+    ) -> None:
+        output_json_path: str | None = None
+        if op_dir is not None:
+            path = op_dir / "output.json"
+            self._last_output_json = path
+            output_json_path = str(path.resolve())
+        if self.callback is not None:
+            self.callback.action_finish(
+                action_name, output.as_dict(), output_json_path
+            )
+
+    def _notify_action_error(self, action_name: str, exc: BaseException) -> None:
+        if self.callback is not None:
+            self.callback.action_error(action_name, self._format_error_tail(exc))
 
     def run(self, entry: str | None = None) -> ArrayBundle:
+        self._check_cancelled()
         target = entry or self.program.run_target
         if not target:
             raise ValueError("No run target specified")
@@ -172,9 +257,20 @@ class Runtime:
         )
 
     def _execute_instruction(
-        self, name: str, inputs: ArrayBundle, *, use_cache: bool = True
+        self,
+        name: str,
+        inputs: ArrayBundle,
+        *,
+        use_cache: bool = True,
+        track_progress: bool = True,
     ) -> ArrayBundle:
+        action_name = f"@{name}"
         if name not in self.program.instructions:
+            if track_progress:
+                self._notify_action_start(action_name)
+                self._notify_action_error(
+                    action_name, KeyError(f"Unknown instruction: @{name}")
+                )
             raise KeyError(f"Unknown instruction: @{name}")
         inst = self.program.instructions[name]
         action_expr = parse_actions(inst.actions) if inst.actions else None
@@ -187,74 +283,86 @@ class Runtime:
         if can_cache and cache_key in self._instruction_cache:
             return self._instruction_cache[cache_key].copy()
 
-        op_dir = self.session.next_op_dir(name)
-        self.session.write_bundle(op_dir, inputs, "input")
+        self._check_cancelled()
 
-        work = inputs.copy()
-        body_prepended = False
+        if track_progress:
+            self._notify_action_start(action_name)
 
-        # Body before actions when it is the input prompt for $ externals (e.g. @x: $llm[10]).
-        if (
-            inst.body
-            and inst.actions
-            and not inputs.prompts
-            and action_starts_with_external(action_expr)
-        ):
-            link = self.session.new_link(
-                op_dir, "prompts", ".txt", inst.body + "\n"
-            )
-            work.prompts.append(link)
-            body_prepended = True
+        try:
+            op_dir = self.session.next_op_dir(name)
+            self.session.write_bundle(op_dir, inputs, "input")
 
-        # @image: @good_quality -> $image — merge body before $, not after (prompt consumed).
-        pending_instruction_body: list[str] = []
-        if (
-            inst.body
-            and inst.actions
-            and not body_prepended
-            and not action_starts_with_external(action_expr)
-        ):
-            pending_instruction_body.append(inst.body)
-            body_prepended = True
+            work = inputs.copy()
+            body_prepended = False
 
-        if inst.actions:
-            instruction_contexts: dict[str, ArrayBundle] = {}
-            work = self._eval_action(
-                action_expr,
-                work,
-                op_dir,
-                instruction_body_pending=pending_instruction_body or None,
-                instruction_contexts=instruction_contexts,
-            )
-
-        if inst.body and pending_instruction_body:
-            body = pending_instruction_body[0]
-            if work.prompts:
-                work = self._append_instruction_body_to_prompts(
-                    work, body, op_dir
-                )
-            else:
-                link = self.session.new_link(op_dir, "prompts", ".txt", body + "\n")
-                work.prompts.append(link)
-            pending_instruction_body.clear()
-        elif inst.body and not body_prepended:
-            if work.prompts:
-                work = self._append_instruction_body_to_prompts(
-                    work, inst.body, op_dir
-                )
-            else:
+            # Body before actions when it is the input prompt for $ externals (e.g. @x: $llm[10]).
+            if (
+                inst.body
+                and inst.actions
+                and not inputs.prompts
+                and action_starts_with_external(action_expr)
+            ):
                 link = self.session.new_link(
                     op_dir, "prompts", ".txt", inst.body + "\n"
                 )
                 work.prompts.append(link)
+                body_prepended = True
 
-        outputs = work.copy()
-        outputs = self._apply_changes(outputs, op_dir)
-        self.session.write_bundle(op_dir, outputs, "output")
+            # @image: @good_quality -> $image — merge body before $, not after (prompt consumed).
+            pending_instruction_body: list[str] = []
+            if (
+                inst.body
+                and inst.actions
+                and not body_prepended
+                and not action_starts_with_external(action_expr)
+            ):
+                pending_instruction_body.append(inst.body)
+                body_prepended = True
 
-        if can_cache:
-            self._instruction_cache[cache_key] = outputs.copy()
-        return outputs
+            if inst.actions:
+                instruction_contexts: dict[str, ArrayBundle] = {}
+                work = self._eval_action(
+                    action_expr,
+                    work,
+                    op_dir,
+                    instruction_body_pending=pending_instruction_body or None,
+                    instruction_contexts=instruction_contexts,
+                )
+
+            if inst.body and pending_instruction_body:
+                body = pending_instruction_body[0]
+                if work.prompts:
+                    work = self._append_instruction_body_to_prompts(
+                        work, body, op_dir
+                    )
+                else:
+                    link = self.session.new_link(op_dir, "prompts", ".txt", body + "\n")
+                    work.prompts.append(link)
+                pending_instruction_body.clear()
+            elif inst.body and not body_prepended:
+                if work.prompts:
+                    work = self._append_instruction_body_to_prompts(
+                        work, inst.body, op_dir
+                    )
+                else:
+                    link = self.session.new_link(
+                        op_dir, "prompts", ".txt", inst.body + "\n"
+                    )
+                    work.prompts.append(link)
+
+            outputs = work.copy()
+            outputs = self._apply_changes(outputs, op_dir)
+            self.session.write_bundle(op_dir, outputs, "output")
+
+            if can_cache:
+                self._instruction_cache[cache_key] = outputs.copy()
+            if track_progress:
+                self._notify_action_finish(action_name, outputs, op_dir)
+            return outputs
+        except Exception as exc:
+            if track_progress:
+                self._notify_action_error(action_name, exc)
+            raise
 
     def _merge_pending_instruction_body(
         self,
@@ -322,13 +430,24 @@ class Runtime:
         bundle: ArrayBundle,
         instruction_contexts: dict[str, ArrayBundle],
     ) -> ArrayBundle:
-        if action.mode in ("store", "store_load"):
-            self._context_store(
-                action.name, action.scope, bundle, instruction_contexts
-            )
-        if action.mode == "store":
-            return bundle.copy()
-        return self._context_load(action.name, action.scope, instruction_contexts)
+        action_name = self._format_context_action_name(action)
+        self._notify_action_start(action_name)
+        try:
+            if action.mode in ("store", "store_load"):
+                self._context_store(
+                    action.name, action.scope, bundle, instruction_contexts
+                )
+            if action.mode == "store":
+                result = bundle.copy()
+            else:
+                result = self._context_load(
+                    action.name, action.scope, instruction_contexts
+                )
+            self._notify_action_finish(action_name, result)
+            return result
+        except Exception as exc:
+            self._notify_action_error(action_name, exc)
+            raise
 
     def _eval_action(
         self,
@@ -340,6 +459,7 @@ class Runtime:
         instruction_body_pending: list[str] | None = None,
         instruction_contexts: dict[str, ArrayBundle] | None = None,
     ) -> ArrayBundle:
+        self._check_cancelled()
         pending = instruction_body_pending
         ctx_store = instruction_contexts if instruction_contexts is not None else {}
         if isinstance(expr, ContextAction):
@@ -349,18 +469,31 @@ class Runtime:
             if expr.repeat is not None:
                 if expr.repeat < 1:
                     return ArrayBundle()
-                repeat_op = self.session.next_op_dir(f"{expr.name}_x{expr.repeat}")
-                self.session.write_bundle(repeat_op, bundle, "input")
-                results: list[ArrayBundle] = []
-                for _ in range(expr.repeat):
-                    run_result = self._execute_instruction(
-                        expr.name, bundle.copy(), use_cache=False
-                    )
-                    results.append(self._relocate_images_to_op(run_result, repeat_op))
-                joined = self._join_bundles(results)
-                joined = self._apply_changes(joined, repeat_op)
-                self.session.write_bundle(repeat_op, joined, "output")
-                return joined
+                action_name = f"@{expr.name}[{expr.repeat}]"
+                self._notify_action_start(action_name)
+                try:
+                    repeat_op = self.session.next_op_dir(f"{expr.name}_x{expr.repeat}")
+                    self.session.write_bundle(repeat_op, bundle, "input")
+                    results: list[ArrayBundle] = []
+                    for _ in range(expr.repeat):
+                        self._check_cancelled()
+                        run_result = self._execute_instruction(
+                            expr.name,
+                            bundle.copy(),
+                            use_cache=False,
+                            track_progress=False,
+                        )
+                        results.append(
+                            self._relocate_images_to_op(run_result, repeat_op)
+                        )
+                    joined = self._join_bundles(results)
+                    joined = self._apply_changes(joined, repeat_op)
+                    self.session.write_bundle(repeat_op, joined, "output")
+                    self._notify_action_finish(action_name, joined, repeat_op)
+                    return joined
+                except Exception as exc:
+                    self._notify_action_error(action_name, exc)
+                    raise
             return self._execute_instruction(
                 expr.name, bundle.copy(), use_cache=use_cache
             )
@@ -427,6 +560,7 @@ class Runtime:
             branch_pending = None
         branch_results: list[ArrayBundle] = []
         for branch in step.branches:
+            self._check_cancelled()
             branch_out = self._eval_action(
                 branch,
                 work.copy(),
@@ -454,6 +588,7 @@ class Runtime:
         pending = instruction_body_pending
         ext_seen = externals_in_sequence
         for step in expr.steps:
+            self._check_cancelled()
             if (
                 pending
                 and isinstance(step, ExternalAction)
@@ -579,6 +714,7 @@ class Runtime:
 
         results: list[ArrayBundle] = []
         for i in range(count):
+            self._check_cancelled()
             slice_bundle = ArrayBundle()
             for key in expr.array_keys:
                 getattr(slice_bundle, key).append(getattr(bundle, key)[i])
@@ -728,7 +864,9 @@ class Runtime:
 
     def _resolve_instruction_texts(self, ref_name: str) -> list[str]:
         """Run @ref on empty inputs; return all strings from its output texts array."""
-        result = self._execute_instruction(ref_name, ArrayBundle())
+        result = self._execute_instruction(
+            ref_name, ArrayBundle(), track_progress=False
+        )
         return self._read_bundle_texts(result)
 
     def _resolve_external_args(
@@ -789,28 +927,40 @@ class Runtime:
     ) -> ArrayBundle:
         ext_name = action.name
         repeat = action.repeat if action.repeat and action.repeat > 0 else 1
+        action_name = f"${ext_name}" if repeat == 1 else f"${ext_name}[{repeat}]"
         op_label = f"${ext_name}" if repeat == 1 else f"${ext_name}_x{repeat}"
-        ext_op_dir = self.session.next_op_dir(op_label)
-        self.session.write_bundle(ext_op_dir, bundle, "input")
+        self._notify_action_start(action_name)
+        try:
+            self._check_cancelled()
+            ext_op_dir = self.session.next_op_dir(op_label)
+            self.session.write_bundle(ext_op_dir, bundle, "input")
 
-        prompt_text = "\n".join(self._read_prompt_links_text(bundle.prompts))
-        args, arg_lists = self._resolve_external_args(action, bundle)
-        ctx = ExternalContext(session=self.session, op_dir=ext_op_dir)
-        inp = ExternalInput(
-            bundle=bundle,
-            args=args,
-            prompt_text=prompt_text,
-            repeat=repeat,
-            arg_lists=arg_lists,
-        )
-        write_invoke(ext_op_dir, inp)
-        out = run_external(ext_name, ctx, inp)
+            prompt_text = "\n".join(self._read_prompt_links_text(bundle.prompts))
+            args, arg_lists = self._resolve_external_args(action, bundle)
+            ctx = ExternalContext(
+                session=self.session,
+                op_dir=ext_op_dir,
+                cancel_event=self.cancel_event,
+            )
+            inp = ExternalInput(
+                bundle=bundle,
+                args=args,
+                prompt_text=prompt_text,
+                repeat=repeat,
+                arg_lists=arg_lists,
+            )
+            write_invoke(ext_op_dir, inp)
+            out = run_external(ext_name, ctx, inp)
 
-        out = self._apply_changes(out, ext_op_dir)
-        if external_consumes_prompts(ext_name):
-            out.prompts.clear()
-        self.session.write_bundle(ext_op_dir, out, "output")
-        return out
+            out = self._apply_changes(out, ext_op_dir)
+            if external_consumes_prompts(ext_name):
+                out.prompts.clear()
+            self.session.write_bundle(ext_op_dir, out, "output")
+            self._notify_action_finish(action_name, out, ext_op_dir)
+            return out
+        except Exception as exc:
+            self._notify_action_error(action_name, exc)
+            raise
 
 
 def create_session_dir(sessions_root: Path) -> Path:
@@ -824,11 +974,21 @@ def create_session_dir(sessions_root: Path) -> Path:
     return session_dir
 
 
-def run_program(source: str, sessions_root: Path | None = None) -> tuple[dict, Path]:
+def run_program(
+    source: str,
+    sessions_root: Path | None = None,
+    callback: ActionCallback | None = None,
+    cancel_event: threading.Event | None = None,
+) -> tuple[dict, Path]:
     program = parse_ah_source(source)
     root = sessions_root or Path("sessions")
     session_dir = create_session_dir(root)
-    runtime = Runtime(program, Session(session_dir))
+    runtime = Runtime(
+        program,
+        Session(session_dir),
+        callback=callback,
+        cancel_event=cancel_event,
+    )
     result = runtime.run()
     meta = {
         "session": str(session_dir),

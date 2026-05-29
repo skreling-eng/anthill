@@ -76,7 +76,10 @@ def run_external(
     name: str, ctx: ExternalContext, inp: ExternalInput
 ) -> "ArrayBundle":
     """Dispatch to the handler for $name (subprocess by default)."""
-    from ahlib.ah_runtime import ArrayBundle  # noqa: F401 — return type
+    from ahlib.ah_runtime import ArrayBundle, RuntimeCancelled  # noqa: F401
+
+    if ctx.cancel_event is not None and ctx.cancel_event.is_set():
+        raise RuntimeCancelled(f"$externals {name!r} cancelled")
 
     if subprocess_enabled(name):
         from externals.invoke import run_external_subprocess

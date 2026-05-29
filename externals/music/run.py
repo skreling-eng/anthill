@@ -322,7 +322,9 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     configure_models_environment()
 
     out = inp.bundle.copy()
-    models = read_arg_list(inp, "model", "default")
+    from externals.music.model_list import DEFAULT_MUSIC_MODEL
+
+    models = read_arg_list(inp, "model", DEFAULT_MUSIC_MODEL)
     captions = _read_captions(ctx, inp)
     lyrics_list = _read_lyrics(ctx, inp)
     pairs = _caption_lyrics_pairs(captions, lyrics_list)

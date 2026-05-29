@@ -11,6 +11,8 @@ from externals.music.model_paths import ace_step_dir, resolve_dit_gguf
 
 WeightsFormat = Literal["gguf", "safetensors"]
 
+DEFAULT_MUSIC_MODEL = "st"
+
 
 @dataclass
 class MusicModel:
@@ -202,7 +204,9 @@ _MODELS: dict[str, MusicModel] = {
 def get_music_model(name: str) -> MusicModel:
     if name in _MODELS:
         return _MODELS[name]
-    if name == "default" or not name:
+    if not name:
+        return _MODELS[DEFAULT_MUSIC_MODEL]
+    if name == "default":
         return _MODELS["default"]
     available = ", ".join(sorted(_MODELS))
     raise KeyError(f"Unknown music model {name!r}. Available: {available}")

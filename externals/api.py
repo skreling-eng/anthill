@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
@@ -16,6 +17,7 @@ class ExternalContext:
 
     session: Session
     op_dir: Path
+    cancel_event: threading.Event | None = None
 
     @property
     def base_dir(self) -> Path:

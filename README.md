@@ -135,32 +135,36 @@ Each external call writes `input.json`, `invoke.json`, and `output.json` under t
 
 ## Quick start
 
-### 1. Clone and install base runtime
+### 1. Clone and run init (recommended)
+
+One script installs base + external venvs and downloads model weights from [skreling-eng/anthill](https://huggingface.co/skreling-eng/anthill):
 
 ```powershell
 git clone https://github.com/YOUR_USER/anthill.git
 cd anthill
-uv sync
+powershell -ExecutionPolicy Bypass -File tools\init.ps1
 ```
 
-### 2. Create external venvs (once)
+Options: `-Profile minimal|standard|full`, `-SkipSage`, `-SkipModels`, `-DryRun`. If the anthill bundle is still uploading, use `-UpstreamFallback` or re-run later. Status: `uv run python tools/download_models.py --status`.
 
-GPU/media stacks are isolated on purpose (e.g. ACE-Step vs diffusers torch versions conflict if merged).
+### 2. Manual setup (alternative)
 
 ```powershell
+uv sync
 powershell -ExecutionPolicy Bypass -File tools\setup_external_venvs.ps1
+uv run python tools\download_models.py
 ```
 
-Copy the printed `AH_EXTERNAL_VENV_*` lines into `.env` (see `.env` in the repo for Wan/Kokoro examples). Optional: SageAttention wheels for faster `$image2video`:
+Copy the printed `AH_EXTERNAL_VENV_*` lines into `.env` (or use `.env.template`). Optional SageAttention for faster `$image2video`:
 
 ```powershell
 $env:UV_PROJECT_ENVIRONMENT = ".venvs/media"
 powershell -File tools\setup_sage_windows.ps1
 ```
 
-### 3. Add models
+### 3. Models
 
-Weights live in `models/<family>/`. Each family may have a short README (e.g. `models/wan/README.md`, `models/kokoro/README.md`). Download or snapshot Hugging Face assets into those paths before running pipelines that need them.
+Weights live in `models/<family>/`. Init pulls the [anthill](https://huggingface.co/skreling-eng/anthill) bundle (mirrors your local `models/` tree). Optional RVC voices stay under `models/rvc/` if you add them locally.
 
 ### 4. Run an example
 

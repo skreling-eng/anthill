@@ -18,10 +18,19 @@ from ahlib.ah_parser import (
     parse_ah_source,
     program_to_dict,
 )
-from ahlib.ah_runtime import ArrayBundle, Runtime, Session, create_session_dir, run_program
+from ahlib.ah_runtime import (
+    ActionCallback,
+    ArrayBundle,
+    Runtime,
+    RuntimeCancelled,
+    Session,
+    create_session_dir,
+    run_program,
+)
 
 __all__ = [
     "ARRAY_TYPES",
+    "ActionCallback",
     "ActionExpr",
     "ArrayBundle",
     "ExternalAction",
@@ -31,6 +40,7 @@ __all__ = [
     "ParsedProgram",
     "RefAction",
     "Runtime",
+    "RuntimeCancelled",
     "SequenceAction",
     "Session",
     "create_session_dir",

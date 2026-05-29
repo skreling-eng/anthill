@@ -7,11 +7,32 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 from externals.api import ExternalContext, ExternalInput
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
+
+_active_procs_lock = threading.Lock()
+_active_procs: list[subprocess.Popen] = []
+
+
+def terminate_active_subprocesses() -> None:
+    """Stop any $ external subprocess started by this process."""
+    with _active_procs_lock:
+        procs = list(_active_procs)
+    for proc in procs:
+        if proc.poll() is None:
+            proc.terminate()
+    for proc in procs:
+        if proc.poll() is None:
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=3)
 
 # uv --extra passed when spawning subprocess externals (AH_UV_EXTRA_<name> overrides).
 _DEFAULT_UV_EXTRAS: dict[str, list[str]] = {
@@ -214,7 +235,7 @@ def _subprocess_env(ctx: ExternalContext) -> dict[str, str]:
 def run_external_subprocess(
     name: str, ctx: ExternalContext, inp: ExternalInput
 ) -> "ArrayBundle":
-    from ahlib.ah_runtime import ArrayBundle
+    from ahlib.ah_runtime import ArrayBundle, RuntimeCancelled
 
     write_invoke(ctx.op_dir, inp)
     op_dir = ctx.op_dir.resolve()
@@ -226,23 +247,43 @@ def run_external_subprocess(
         f"$externals: subprocess {name!r} via {runner_cmd_display(cmd)}",
         flush=True,
     )
+    proc = subprocess.Popen(
+        cmd,
+        cwd=_REPO_ROOT,
+        env=_subprocess_env(ctx),
+    )
+    with _active_procs_lock:
+        _active_procs.append(proc)
+    started = time.monotonic()
     try:
-        subprocess.run(
-            cmd,
-            cwd=_REPO_ROOT,
-            env=_subprocess_env(ctx),
-            check=True,
-            timeout=timeout,
-        )
-    except subprocess.CalledProcessError as exc:
-        raise RuntimeError(
-            f"$externals subprocess {name!r} failed (exit {exc.returncode}). "
-            f"See {op_dir / 'error.txt'} and stderr above."
-        ) from exc
-    except subprocess.TimeoutExpired as exc:
-        raise TimeoutError(
-            f"$externals subprocess {name!r} timed out after {timeout}s"
-        ) from exc
+        while proc.poll() is None:
+            if ctx.cancel_event is not None and ctx.cancel_event.is_set():
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait(timeout=5)
+                raise RuntimeCancelled(f"$externals subprocess {name!r} cancelled")
+            if timeout is not None and time.monotonic() - started > timeout:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait(timeout=5)
+                raise TimeoutError(
+                    f"$externals subprocess {name!r} timed out after {timeout}s"
+                )
+            time.sleep(0.1)
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, cmd)
+    finally:
+        with _active_procs_lock:
+            try:
+                _active_procs.remove(proc)
+            except ValueError:
+                pass
 
     out_path = op_dir / "output.json"
     if not out_path.is_file():
