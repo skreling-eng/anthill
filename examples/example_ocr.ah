@@ -1,0 +1,8 @@
+
+
+@text_image: $image
+Create an image of the woman holding a poster that read "I Killed a Mockingbird"
+
+@ocr_text: @text_image -> $ocr
+
+run @ocr_text

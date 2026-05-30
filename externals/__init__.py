@@ -18,6 +18,7 @@ _KNOWN = frozenset(
         "image2image",
         "check_image",
         "clear",
+        "pass",
         "comfy",
         "image2video",
         "image_clip",
@@ -27,8 +28,14 @@ _KNOWN = frozenset(
         "output",
         "sound2text",
         "llm",
+        "code",
+        "search",
+        "serch",
         "texts_to_prompts",
+        "texts2prompts",
         "prompts_to_texts",
+        "prompts2texts",
+        "json2texts",
         "list",
         "music",
         "music_separation",
@@ -39,6 +46,8 @@ _KNOWN = frozenset(
         "join_stems",
         "text2speech",
         "voice_enhance",
+        "ocr",
+        "image2text",
     }
 )
 
@@ -51,9 +60,14 @@ _PROMPT_CONSUMING = frozenset(
         "image2video",
         "comfy",
         "llm",
+        "code",
+        "search",
+        "serch",
         "list",
         "music",
         "prompts_to_texts",
+        "prompts2texts",
+        "image2text",
     }
 )
 
@@ -82,6 +96,11 @@ def run_external(
         raise RuntimeCancelled(f"$externals {name!r} cancelled")
 
     if subprocess_enabled(name):
+        if name == "image2image":
+            from externals.image2image.worker_client import run_via_worker, worker_enabled
+
+            if worker_enabled():
+                return run_via_worker(ctx, inp)
         from externals.invoke import run_external_subprocess
 
         return run_external_subprocess(name, ctx, inp)

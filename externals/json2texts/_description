@@ -1,0 +1,28 @@
+$json2texts — expand JSON array in texts[] into separate text links
+
+SUMMARY
+  Parses each texts[] file as a JSON array and writes one texts[] link per
+  element (or a single joined file). Input JSON texts are replaced, not kept.
+
+SYNTAX
+  $json2texts
+  $json2texts(field='text')
+  $json2texts(join=1)
+
+INPUT
+  texts[] — each file should contain a JSON array, e.g. from $search:
+    [{"url": "https://…", "text": "snippet"}, …]
+
+OUTPUT
+  texts[] — one .txt per array element (string values used as-is; objects
+            use field= or common keys: text, snippet, description, title).
+
+ARGUMENTS
+  field=  — object key to extract (default text)
+  join=1  — merge all elements into one texts[] file (\\n\\n separated)
+
+EXAMPLE
+  @search_birds: $search -> $json2texts -> $llm
+
+PROMPT-CONSUMING
+  No.

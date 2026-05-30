@@ -1,0 +1,64 @@
+$code — local coding LLM (Qwen2.5-Coder-14B-Instruct / llama-cpp)
+
+SUMMARY
+  Runs Qwen2.5-Coder-14B-Instruct on a JSON request built from prompts[],
+  texts[] (code context), and files[]. Writes completions into texts[].
+
+SYNTAX
+  $code
+  $code[3]
+  $code(model='default', max_tokens=2048, temperature=0.2, system='You are…')
+
+INPUT
+  prompts[] — task instructions (JSON "prompts" array).
+  texts[]   — extra context joined into JSON "code_context".
+  files[]   — source files as JSON "files" entries ({path, name, content}).
+
+OUTPUT
+  texts[] — one .txt link per completion variant.
+  request.json — the JSON request written under the op dir (inspectable).
+
+REQUEST JSON
+  {
+    "prompts": ["…"],
+    "code_context": "joined texts…",
+    "files": [{"path": "…", "name": "…", "content": "…"}]
+  }
+
+ARGUMENTS
+  model=        — GGUF profile (externals/code/model_list.py). Default: default
+  max_tokens=   — generation limit (default 2048)
+  temperature=  — sampling temperature (default 0.2)
+  seed=         — RNG seed; offset per variant when repeat > 1
+  system=       — system prompt string
+  gpu_layers= / n_gpu_layers= — layers on GPU (llama-cpp)
+  n_ctx=        — fixed context size (default: auto-sized from request)
+  count=        — variants if [n] suffix not used
+
+CONTEXT
+  n_ctx is chosen automatically: smallest power-of-two that fits the JSON request,
+  max_tokens, and template reserve (e.g. ~35k prompt → n_ctx=65536). YaRN is enabled
+  only when n_ctx > 32768. Caps: AH_CODE_MAX_N_CTX (default 131072), min 4096.
+
+  Large folders: request is trimmed if it still exceeds the chosen window.
+  stderr logs the chosen n_ctx and any truncated/omitted files.
+
+REPEAT SYNTAX
+  $code[n] — n separate completions.
+
+MODEL
+  models/code/Qwen2.5-Coder-14B-Instruct/model.gguf
+  Download: uv run python tools/download_models.py --upstream-fallback
+  Or: from externals.code.model_paths import ensure_model; ensure_model()
+
+ENVIRONMENT
+  AH_EMULATE_CODE=1 — placeholder text files, no model load.
+  LLM_N_GPU_LAYERS — default GPU layer count when arg omitted.
+  Requires: uv pip install llama-cpp-python (CUDA wheel for GPU).
+
+EXAMPLE
+  @refactor: @sources -> $code -> $save('out.py')
+  Refactor the module for clarity.
+
+PROMPT-CONSUMING
+  Yes.

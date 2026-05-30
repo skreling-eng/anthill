@@ -113,11 +113,16 @@ def _parse_args(arg_str: str) -> dict[str, str]:
         ):
             val = val[1:-1]
         args[key] = val
+    quoted = [
+        m.group(1) or m.group(2)
+        for m in re.finditer(r"'([^']*)'|\"([^\"]*)\"", arg_str.strip())
+    ]
+    if quoted and "_path" not in args:
+        args["_path"] = quoted[0]
+        if len(quoted) >= 2 and "_path2" not in args and "pattern" not in args:
+            args["_path2"] = quoted[1]
     if not args and arg_str.strip():
-        m = re.match(r"^['\"](.+?)['\"]$", arg_str.strip())
-        if m:
-            args["_path"] = m.group(1)
-        elif re.fullmatch(r"[\w,\s]+", arg_str.strip()):
+        if re.fullmatch(r"[\w,\s]+", arg_str.strip()):
             args["_arrays"] = arg_str.strip()
     return args
 

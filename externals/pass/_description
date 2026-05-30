@@ -1,0 +1,16 @@
+$pass — pass input through unchanged
+
+SUMMARY
+  Returns the incoming bundle as-is (all arrays and changes copied through).
+
+SYNTAX
+  $pass
+
+INPUT / OUTPUT
+  Same arrays as input — prompts, texts, images, sounds, videos, files, changes.
+
+EXAMPLE
+  @step: @load -> $pass -> @next
+
+PROMPT-CONSUMING
+  No.

@@ -1,0 +1,16 @@
+
+
+@popular_uk_bird: $llm(add_texts=True)
+give me the names of the most popular UK birds
+return the json array of names
+Return only the final result without comments, clarifications, or explanations.
+
+@search_birds: $search
+most popular UK birds
+
+@bird_names: @search_birds -> @popular_uk_bird -> $json2texts -> $texts2prompts
+
+@bird_images: @bird_names -> $image
+create a beautiful image of the bird in the UK Garden
+
+run @bird_images

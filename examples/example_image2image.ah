@@ -1,0 +1,12 @@
+
+
+
+@woman_image: $image
+Create an image of a woman with black hairs
+
+@modified_image: $image2image
+Change the pose of the woman
+
+@gen_modified_image: @woman_image -> @modified_image[10]
+
+run @gen_modified_image

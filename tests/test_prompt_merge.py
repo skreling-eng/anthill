@@ -268,8 +268,53 @@ make this image in the realistic style
         self.assertEqual(len(images[0]), 1)
 
 
+class TestMultiPromptBodyBeforeImage(unittest.TestCase):
+    """@bird_images: @bird_names -> $image — suffix on each prompt, not one join."""
+
+    SOURCE = """
+@bird_names: $llm[4] -> $texts2prompts
+name a UK garden bird
+
+@bird_images: @bird_names -> $image
+create a beautiful image of the bird in the UK Garden
+"""
+
+    def test_image_gets_four_separate_prompts_with_suffix(self) -> None:
+        os.environ["AH_EMULATE_LLM"] = "1"
+        os.environ["AH_EMULATE_IMAGE"] = "1"
+        os.environ["AH_EXTERNAL_INPROCESS"] = "llm,image,texts2prompts"
+        os.environ["AH_EXTERNAL_SUBPROCESS"] = "0"
+
+        program = parse_ah_source(self.SOURCE)
+        session_dir = create_session_dir(Path("sessions"))
+        Runtime(program, Session(session_dir)).run("bird_images")
+
+        for path in session_dir.rglob("input.json"):
+            if "__image" not in path.parent.name.replace("\\", "/"):
+                continue
+            data = json.loads(path.read_text(encoding="utf-8"))
+            prompts = data.get("prompts", [])
+            self.assertEqual(
+                len(prompts),
+                4,
+                f"expected 4 prompts, got {len(prompts)}: {prompts}",
+            )
+            for link in prompts:
+                text = (session_dir / link).read_text(encoding="utf-8")
+                self.assertIn(
+                    "create a beautiful image of the bird in the UK Garden",
+                    text,
+                )
+            texts = [
+                (session_dir / link).read_text(encoding="utf-8") for link in prompts
+            ]
+            self.assertEqual(len(set(texts)), 4, "each prompt should differ")
+            return
+        self.fail("no $image input.json")
+
+
 class TestMergePendingInstructionBody(unittest.TestCase):
-    def test_merge_applies_join_before_return(self) -> None:
+    def test_merge_single_prompt_joins_body(self) -> None:
         program = parse_ah_source("@a\nref\n")
         session_dir = create_session_dir(Path("sessions"))
         session = Session(session_dir)
@@ -287,6 +332,29 @@ class TestMergePendingInstructionBody(unittest.TestCase):
         self.assertIn("from ref", text)
         self.assertIn("running woman", text)
         self.assertEqual(merged.changes, [])
+
+    def test_merge_multi_prompt_appends_body_to_each(self) -> None:
+        program = parse_ah_source("@a\nref\n")
+        session_dir = create_session_dir(Path("sessions"))
+        session = Session(session_dir)
+        rt = Runtime(program, session)
+        op_dir = session.next_op_dir("test")
+        bundle = ArrayBundle()
+        for name in ("robin", "wren"):
+            bundle.prompts.append(
+                session.new_link(op_dir, "prompts", ".txt", name + "\n")
+            )
+        pending = ["garden scene"]
+        merged = rt._merge_pending_instruction_body(bundle, pending, op_dir)
+        self.assertFalse(pending)
+        self.assertEqual(len(merged.prompts), 2)
+        texts = [
+            (session_dir / link).read_text(encoding="utf-8") for link in merged.prompts
+        ]
+        self.assertIn("robin", texts[0])
+        self.assertIn("garden scene", texts[0])
+        self.assertIn("wren", texts[1])
+        self.assertIn("garden scene", texts[1])
 
 
 if __name__ == "__main__":

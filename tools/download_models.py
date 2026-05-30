@@ -46,6 +46,38 @@ CHECKS: dict[str, list[str]] = {
     "roformer_sw": ["roformer/BS-RoFormer-SW.ckpt"],
     "roformer_viperx": ["roformer/model_bs_roformer_ep_317_sdr_12.9755.ckpt"],
     "llm_gemma": ["llm/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-IQ4_XS/model.gguf"],
+    "code_qwen": ["code/Qwen2.5-Coder-14B-Instruct/model.gguf"],
+    "ocr_en": [
+        "ocr/PP-OCRv4/en/det/inference.pdmodel",
+        "ocr/PP-OCRv4/en/rec/inference.pdmodel",
+        "ocr/PP-OCRv4/en/cls/inference.pdmodel",
+    ],
+    "ocr_latin": [
+        "ocr/PP-OCRv4/latin/det/inference.pdmodel",
+        "ocr/PP-OCRv4/latin/rec/inference.pdmodel",
+    ],
+    "ocr_ch": [
+        "ocr/PP-OCRv4/ch/det/inference.pdmodel",
+        "ocr/PP-OCRv4/ch/rec/inference.pdmodel",
+    ],
+    "ocr_arabic": [
+        "ocr/PP-OCRv4/arabic/rec/inference.pdmodel",
+    ],
+    "ocr_cyrillic": [
+        "ocr/PP-OCRv4/cyrillic/rec/inference.pdmodel",
+    ],
+    "qwen2_vl": [
+        "qwen-vl/Qwen2-VL-2B-Instruct/config.json",
+        "qwen-vl/Qwen2-VL-2B-Instruct/model-00001-of-00002.safetensors",
+        "qwen-vl/Qwen2-VL-2B-Instruct/model-00002-of-00002.safetensors",
+    ],
+    "qwen_rapid_base": [
+        "qwen-rapid/Qwen-Image-Edit-2509/model_index.json",
+    ],
+    "qwen_rapid_ckpt": [
+        "qwen-rapid/Qwen-Rapid-AIO-SFW-v23.safetensors",
+        "qwen-rapid/Qwen-Rapid-AIO-NSFW-v23.safetensors",
+    ],
 }
 
 PROFILE_GROUPS: dict[str, frozenset[str]] = {
@@ -145,6 +177,22 @@ def _run_upstream_fallback(*, dry_run: bool, profile: str) -> None:
         from externals.text2speech.assets import ensure_model_assets
 
         ensure_model_assets()
+    if "code_qwen" in missing:
+        from externals.code.model_paths import ensure_model
+
+        ensure_model()
+    if any(g.startswith("ocr_") for g in missing):
+        from externals.ocr.model_paths import ensure_all_core_packs
+
+        ensure_all_core_packs()
+    if "qwen2_vl" in missing:
+        from externals.image2text.model_paths import ensure_model
+
+        ensure_model()
+    if "qwen_rapid_base" in missing:
+        from externals.image2image.qwen_pipeline import ensure_base_assets
+
+        ensure_base_assets()
 
     _log(
         "\nOther missing groups may need manual HF pulls — see models/*/README.md\n"

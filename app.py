@@ -13,7 +13,7 @@ import webview
 from ahlib.ah_parser import parse_ah_source
 from ahlib.ah_runtime import Runtime, RuntimeCancelled, Session, create_session_dir
 from ahlib.run_ah import _bootstrap_env
-from externals.invoke import terminate_active_subprocesses
+from externals.invoke import release_gpu_resources, terminate_active_subprocesses
 
 DEFAULT_SCRIPT = """@hello:
 hello
@@ -280,6 +280,12 @@ class Interface:
     def act(self, action):
         if action == 'run':
             self._run_script()
+        elif action == 'stop':
+            if self._run_thread is not None and self._run_thread.is_alive():
+                self.request_stop_run()
+                self.add_action_results("<b>Stop requested</b>")
+            else:
+                self.add_action_results("<b>No run in progress</b>")
         elif action == 'clear':
             self.data = []
             self.add_action_results('<b>Clear</b>')
@@ -336,9 +342,8 @@ class Interface:
                 "</summary></details>"
             )
 
-        uris_json = html.escape(
-            json.dumps([uri for uri, _, _ in uri_entries]), quote=True
-        )
+        uris_attr = json.dumps([uri for uri, _, _ in uri_entries])
+        uris_attr = uris_attr.replace("&", "&amp;").replace('"', "&quot;")
         preview_imgs = []
         for index, (uri, label, _) in enumerate(
             uri_entries[: self._MEDIA_PREVIEW_COUNT]
@@ -355,7 +360,7 @@ class Interface:
         suffix = " ..." if count > self._MEDIA_PREVIEW_COUNT else ""
         return (
             '<details class="result-fold result-images" '
-            f'data-images="{uris_json}">'
+            f'data-images="{uris_attr}">'
             f'<summary><span class="result-title">Images [{count}]:</span> '
             f'<span class="result-preview-row">{"".join(preview_imgs)}{suffix}</span>'
             f"</summary>"
@@ -566,6 +571,7 @@ class Interface:
                 f"<b>Run failed</b><br><pre>{html.escape(str(exc))}</pre>"
             )
         finally:
+            release_gpu_resources(reason="run finished")
             self._cancel_event = None
             self._run_thread = None
 
@@ -648,7 +654,8 @@ def main() -> None:
   .btn {
     display: inline-block;
     margin-top: 4px;
-    padding: 4px 6px;
+    margin-left: 6px;
+    padding: 4px 10px;
     background-color: #007bff;
     color: white;
     text-decoration: none;
@@ -660,6 +667,12 @@ def main() -> None:
     cursor: pointer;
     -webkit-user-select: none;
     user-select: none;
+  }
+  .btn-stop {
+    background-color: #c9302c;
+  }
+  .btn-stop:hover {
+    background-color: #a94442;
   }
 </style>
 <form style="width:100%; height:100%; margin:0; font-family:Arial, Helvetica, sans-serif;">
@@ -678,6 +691,7 @@ def main() -> None:
     "
 ></textarea>
   <div style="text-align: right; margin-top: 8px;">
+    <a class="btn btn-stop" id='' href="#" onclick="if(confirm('Are you sure you want to stop?')){ window.pywebview.api.on_link_click('stop', ''); }">Stop</a>
     <a class="btn" id='' href="#" onclick="if(confirm('Are you sure you want to clear?')){ window.pywebview.api.on_link_click('clear', ''); }">Clear</a>
     <a class="btn" id='run' href="#">Run</a>
   </div>

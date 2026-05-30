@@ -36,7 +36,7 @@ from externals import (
 )
 
 # Externals that may output multiple prompts[] for downstream $image (do not merge after).
-_PROMPT_MULTI_OUTPUT_EXTS = frozenset({"texts_to_prompts"})
+_PROMPT_MULTI_OUTPUT_EXTS = frozenset({"texts_to_prompts", "texts2prompts"})
 
 # Map changes content_type to array key
 class RuntimeCancelled(Exception):
@@ -185,6 +185,7 @@ class Runtime:
         self.cancel_event = cancel_event
         self._instruction_cache: dict[tuple[str, tuple], ArrayBundle] = {}
         self._session_contexts: dict[str, ArrayBundle] = {}
+        self._instruction_call_stack: list[str] = []
         self._last_output_json: Path | None = None
 
     @property
@@ -273,96 +274,116 @@ class Runtime:
                 )
             raise KeyError(f"Unknown instruction: @{name}")
         inst = self.program.instructions[name]
-        action_expr = parse_actions(inst.actions) if inst.actions else None
-        # Never memorize instructions that call $ externals (including via @ refs).
-        can_cache = use_cache and not expr_uses_external(
-            action_expr, self.program.instructions
-        )
-
-        cache_key = (name, self._input_key(inputs))
-        if can_cache and cache_key in self._instruction_cache:
-            return self._instruction_cache[cache_key].copy()
-
-        self._check_cancelled()
-
-        if track_progress:
-            self._notify_action_start(action_name)
-
+        if name in self._instruction_call_stack:
+            chain = " -> ".join(
+                f"@{n}" for n in self._instruction_call_stack + [name]
+            )
+            raise RecursionError(
+                f"Instruction @{name} is calling itself ({chain}). "
+                f"@{name} runs another instruction; %{name} / {name}% is session "
+                f"context storage — a separate namespace. Use a different @ name, "
+                f"or load context with {name}% instead of @{name}."
+            )
+        self._instruction_call_stack.append(name)
         try:
-            op_dir = self.session.next_op_dir(name)
-            self.session.write_bundle(op_dir, inputs, "input")
+            action_expr = parse_actions(inst.actions) if inst.actions else None
+            # Never memorize instructions that call $ externals (including via @ refs).
+            can_cache = use_cache and not expr_uses_external(
+                action_expr, self.program.instructions
+            )
 
-            work = inputs.copy()
-            body_prepended = False
+            cache_key = (name, self._input_key(inputs))
+            if can_cache and cache_key in self._instruction_cache:
+                return self._instruction_cache[cache_key].copy()
 
-            # Body before actions when it is the input prompt for $ externals (e.g. @x: $llm[10]).
-            if (
-                inst.body
-                and inst.actions
-                and not inputs.prompts
-                and action_starts_with_external(action_expr)
-            ):
-                link = self.session.new_link(
-                    op_dir, "prompts", ".txt", inst.body + "\n"
-                )
-                work.prompts.append(link)
-                body_prepended = True
+            self._check_cancelled()
 
-            # @image: @good_quality -> $image — merge body before $, not after (prompt consumed).
-            pending_instruction_body: list[str] = []
-            if (
-                inst.body
-                and inst.actions
-                and not body_prepended
-                and not action_starts_with_external(action_expr)
-            ):
-                pending_instruction_body.append(inst.body)
-                body_prepended = True
+            if track_progress:
+                self._notify_action_start(action_name)
 
-            if inst.actions:
-                instruction_contexts: dict[str, ArrayBundle] = {}
-                work = self._eval_action(
-                    action_expr,
-                    work,
-                    op_dir,
-                    instruction_body_pending=pending_instruction_body or None,
-                    instruction_contexts=instruction_contexts,
-                )
+            try:
+                op_dir = self.session.next_op_dir(name)
+                self.session.write_bundle(op_dir, inputs, "input")
 
-            if inst.body and pending_instruction_body:
-                body = pending_instruction_body[0]
-                if work.prompts:
-                    work = self._append_instruction_body_to_prompts(
-                        work, body, op_dir
-                    )
-                else:
-                    link = self.session.new_link(op_dir, "prompts", ".txt", body + "\n")
-                    work.prompts.append(link)
-                pending_instruction_body.clear()
-            elif inst.body and not body_prepended:
-                if work.prompts:
-                    work = self._append_instruction_body_to_prompts(
-                        work, inst.body, op_dir
-                    )
-                else:
+                work = inputs.copy()
+                body_prepended = False
+
+                # Body before actions when it is the input prompt for $ externals (e.g. @x: $llm[10]).
+                if (
+                    inst.body
+                    and inst.actions
+                    and not inputs.prompts
+                    and action_starts_with_external(action_expr)
+                ):
                     link = self.session.new_link(
                         op_dir, "prompts", ".txt", inst.body + "\n"
                     )
                     work.prompts.append(link)
+                    body_prepended = True
 
-            outputs = work.copy()
-            outputs = self._apply_changes(outputs, op_dir)
-            self.session.write_bundle(op_dir, outputs, "output")
+                # @image: @good_quality -> $image — merge body before $, not after (prompt consumed).
+                pending_instruction_body: list[str] = []
+                if (
+                    inst.body
+                    and inst.actions
+                    and not body_prepended
+                    and not action_starts_with_external(action_expr)
+                ):
+                    pending_instruction_body.append(inst.body)
+                    body_prepended = True
 
-            if can_cache:
-                self._instruction_cache[cache_key] = outputs.copy()
-            if track_progress:
-                self._notify_action_finish(action_name, outputs, op_dir)
-            return outputs
-        except Exception as exc:
-            if track_progress:
-                self._notify_action_error(action_name, exc)
-            raise
+                if inst.actions:
+                    instruction_contexts: dict[str, ArrayBundle] = {}
+                    work = self._eval_action(
+                        action_expr,
+                        work,
+                        op_dir,
+                        instruction_body_pending=pending_instruction_body or None,
+                        instruction_contexts=instruction_contexts,
+                    )
+
+                if inst.body and pending_instruction_body:
+                    body = pending_instruction_body[0]
+                    if work.prompts:
+                        work = self._append_instruction_body_to_prompts(
+                            work, body, op_dir
+                        )
+                    else:
+                        link = self.session.new_link(
+                            op_dir, "prompts", ".txt", body + "\n"
+                        )
+                        work.prompts.append(link)
+                    pending_instruction_body.clear()
+                elif inst.body and not body_prepended:
+                    if work.prompts:
+                        work = self._append_instruction_body_to_prompts(
+                            work, inst.body, op_dir
+                        )
+                    else:
+                        link = self.session.new_link(
+                            op_dir, "prompts", ".txt", inst.body + "\n"
+                        )
+                        work.prompts.append(link)
+
+                outputs = work.copy()
+                outputs = self._apply_changes(outputs, op_dir)
+                self.session.write_bundle(op_dir, outputs, "output")
+
+                if can_cache:
+                    self._instruction_cache[cache_key] = outputs.copy()
+                if track_progress:
+                    self._notify_action_finish(action_name, outputs, op_dir)
+                return outputs
+            except Exception as exc:
+                if track_progress:
+                    self._notify_action_error(action_name, exc)
+                raise
+        finally:
+            if (
+                self._instruction_call_stack
+                and self._instruction_call_stack[-1] == name
+            ):
+                self._instruction_call_stack.pop()
 
     def _merge_pending_instruction_body(
         self,
@@ -376,7 +397,12 @@ class Runtime:
         body = pending[0]
         pending.clear()
         if bundle.prompts:
-            merged = self._compose_prompt_body(bundle, body, op_dir)
+            if len(bundle.prompts) > 1:
+                merged = self._append_instruction_body_to_prompts(
+                    bundle, body, op_dir
+                )
+            else:
+                merged = self._compose_prompt_body(bundle, body, op_dir)
             return self._apply_changes(merged, op_dir)
         out = bundle.copy()
         link = self.session.new_link(op_dir, "prompts", ".txt", body + "\n")
@@ -754,10 +780,10 @@ class Runtime:
         if not inst or not inst.actions:
             return False
         actions = inst.actions
-        if "$texts_to_prompts" not in actions:
+        if "$texts_to_prompts" not in actions and "$texts2prompts" not in actions:
             return False
         if re.search(
-            r"texts_to_prompts\s*\([^)]*join\s*=\s*['\"]?(?:1|true|yes)['\"]?",
+            r"texts(?:_to_prompts|2prompts)\s*\([^)]*join\s*=\s*['\"]?(?:1|true|yes)['\"]?",
             actions,
             re.IGNORECASE,
         ):
@@ -989,13 +1015,18 @@ def run_program(
         callback=callback,
         cancel_event=cancel_event,
     )
-    result = runtime.run()
-    meta = {
-        "session": str(session_dir),
-        "run": program.run_target,
-        "output": result.as_dict(),
-    }
-    (session_dir / "session.json").write_text(
-        json.dumps(meta, indent=2), encoding="utf-8"
-    )
-    return meta, session_dir
+    try:
+        result = runtime.run()
+        meta = {
+            "session": str(session_dir),
+            "run": program.run_target,
+            "output": result.as_dict(),
+        }
+        (session_dir / "session.json").write_text(
+            json.dumps(meta, indent=2), encoding="utf-8"
+        )
+        return meta, session_dir
+    finally:
+        from externals.invoke import release_gpu_resources
+
+        release_gpu_resources(reason="run finished")

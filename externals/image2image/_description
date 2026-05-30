@@ -1,32 +1,59 @@
-$image2image — image-to-image transform (prompt-guided)
+$image2image — Qwen-Rapid-AIO image edit (comfy_lib in-process)
 
 SUMMARY
-  Takes each link in images[] and produces a new image using the joined
-  prompt text (instruction body and/or prompts[]). Replaces the images array
-  with the new outputs.
+  Edits images[] with a prompt using your local Qwen-Rapid-AIO checkpoint via
+  comfy_lib + Qwen-Rapid-AIO_4.json workflow (native Comfy FP8 load, no server).
+  Default model: sfw-v23 (Qwen-Rapid-AIO-SFW-v23.safetensors)
 
 SYNTAX
   $image2image
-  $image2image(model='default')
+  $image2image(use_all=True)
+  $image2image(gpu=True)
+  $image2image(model='nsfw-v23')
+  $image2image(width=720, height=1280, steps=4, seed=42)
 
 INPUT
-  images[] — source image(s) to transform.
-  prompts[] / prompt_text — guidance text (newline-joined).
+  images[]  — source image(s)
+  prompts[] — edit instruction (or instruction body / prompt= arg)
 
 OUTPUT
-  images[] — one new link per input image (replaces previous images list).
+  images[] — one output per job (see use_all)
 
 ARGUMENTS
-  model= — reserved for future backend selection (current handler emulated).
+  use_all=  — when true, send up to 3 reference images into one edit job (Comfy encode limit)
+  model=    — model name (sfw-v23, nsfw-v23), checkpoint filename, or path under models/qwen-rapid/
+  gpu=      — use CUDA when true (default true; or AH_IMAGE2IMAGE_GPU=0 for CPU)
+  prompt=   — same prompt for every job (overrides prompts[])
+  width=    — output width (default: input image width, snapped to 8px)
+  height=   — output height (default: input image height, snapped to 8px)
+  steps=    — inference steps (default 4)
+  seed=     — fixed seed; omit for random per job
 
-BEHAVIOR
-  Current implementation is emulated: writes placeholder PNGs that record
-  the prompt and source link. If images[] is empty but prompt_text is set,
-  emits one placeholder image from the prompt alone.
+MODELS
+  sfw-v23  — Qwen-Rapid-AIO-SFW-v23.safetensors (default)
+  nsfw-v23 — Qwen-Rapid-AIO-NSFW-v23.safetensors
+  Workflow: comfy_workflows/Qwen-Rapid-AIO_4.json
 
-EXAMPLE
-  @correct_image: $image2image
-  correct hands
+DEPENDENCIES
+  ComfyUI-compatible Python with comfy_aimdo (e.g. G:\ComfyUI_V\.venv).
+  Set AH_COMFY_PYTHON to that python.exe if auto-detect fails.
+
+ENVIRONMENT
+  AH_COMFY_PYTHON — ComfyUI venv python (recommended)
+  AH_IMAGE2IMAGE_GPU=0 — force CPU
+  AH_IMAGE2IMAGE_WORKER=1 — warm subprocess (default)
+  AH_EMULATE_IMAGE2IMAGE=1 — placeholder PNGs, no model load
+
+SAMPLING
+  Matches Comfy Qwen-Rapid-AIO_4.json: TextEncodeQwenImageEditPlus, KSampler
+  sa_solver + beta scheduler, cfg=1, EmptyLatentImage 720×1280.
+
+EXAMPLES
+  @fixed: $image2image
+  correct the hands
+
+  @blend: @photos -> $image2image(use_all=True)
+  combine these references into one portrait
 
 PROMPT-CONSUMING
-  Yes — prompts cleared after call (runtime default for this name).
+  Yes — prompts[] cleared; images[] replaced with outputs.

@@ -8,6 +8,45 @@ import random
 from externals.api import ExternalContext, ExternalInput
 from ahlib.ah_runtime import ArrayBundle
 
+_CONTENT_MARKER = "__CONTENT__"
+
+
+def _truthy(val: str) -> bool:
+    return val.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _add_texts_enabled(inp: ExternalInput) -> bool:
+    return _truthy(inp.args.get("add_texts", ""))
+
+
+def _collect_texts(ctx: ExternalContext, inp: ExternalInput) -> str:
+    parts: list[str] = []
+    for link in inp.bundle.texts:
+        text = ctx.read_link_text(link)
+        if text:
+            parts.append(text)
+    return "\n\n".join(parts)
+
+
+def _build_prompt(inp: ExternalInput, ctx: ExternalContext) -> str:
+    parts: list[str] = []
+    if inp.prompt_text.strip():
+        parts.append(inp.prompt_text.strip())
+    if not _add_texts_enabled(inp):
+        for link in inp.bundle.texts:
+            text = ctx.read_link_text(link)
+            if text:
+                parts.append(text)
+        return "\n\n".join(parts)
+
+    prompt = "\n\n".join(parts)
+    content = _collect_texts(ctx, inp)
+    if content:
+        if prompt:
+            return f"{prompt}\n\n{_CONTENT_MARKER}\n{content}"
+        return f"{_CONTENT_MARKER}\n{content}"
+    return prompt
+
 
 def _variant_count(inp: ExternalInput) -> int:
     if inp.repeat > 1:
@@ -20,17 +59,6 @@ def _gpu_layers_from_args(inp: ExternalInput) -> int | None:
     if raw is None or raw == "":
         return None
     return int(raw)
-
-
-def _build_prompt(inp: ExternalInput, ctx: ExternalContext) -> str:
-    parts: list[str] = []
-    if inp.prompt_text.strip():
-        parts.append(inp.prompt_text.strip())
-    for link in inp.bundle.texts:
-        text = ctx.read_link_text(link)
-        if text:
-            parts.append(text)
-    return "\n\n".join(parts)
 
 
 def _emulate(
@@ -51,6 +79,7 @@ def _emulate(
 
 def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     out = inp.bundle.copy()
+    out.texts.clear()
     model_name = inp.args.get("model", "default")
     max_tokens = int(inp.args.get("max_tokens", "512"))
     temperature = float(inp.args.get("temperature", "0.7"))

@@ -277,10 +277,7 @@
 
     // Listen to all clicks and process only link clicks.
     document.addEventListener("click", async (event) => {
-      if (event.target.closest(".gallery-img")) {
-        return;
-      }
-      if (event.target.closest(".image-lightbox")) {
+      if (event.target.closest(".gallery-img, .image-lightbox")) {
         return;
       }
 
@@ -321,107 +318,6 @@
 
     window.setTemplateFragments = setTemplateFragments;
     window.setTemplateFragment = setTemplateFragment;
-  </script>
-
-  <script>
-    (function () {
-      const lightbox = document.getElementById("image-lightbox");
-      const lightboxImg = lightbox.querySelector(".image-lightbox-img");
-      const lightboxCounter = lightbox.querySelector(".image-lightbox-counter");
-      const btnPrev = lightbox.querySelector(".image-lightbox-prev");
-      const btnNext = lightbox.querySelector(".image-lightbox-next");
-      const btnClose = lightbox.querySelector(".image-lightbox-close");
-      const backdrop = lightbox.querySelector(".image-lightbox-backdrop");
-
-      let images = [];
-      let index = 0;
-
-      function showImage() {
-        if (!images.length) {
-          return;
-        }
-        lightboxImg.src = images[index];
-        lightboxImg.alt = `Image ${index + 1} of ${images.length}`;
-        lightboxCounter.textContent = `${index + 1} / ${images.length}`;
-        btnPrev.disabled = index <= 0;
-        btnNext.disabled = index >= images.length - 1;
-      }
-
-      function openLightbox(gallery, startIndex) {
-        try {
-          images = JSON.parse(gallery.dataset.images || "[]");
-        } catch (err) {
-          images = [];
-        }
-        if (!images.length) {
-          return;
-        }
-        index = Math.max(0, Math.min(startIndex, images.length - 1));
-        lightbox.classList.remove("hidden");
-        lightbox.setAttribute("aria-hidden", "false");
-        showImage();
-      }
-
-      function closeLightbox() {
-        lightbox.classList.add("hidden");
-        lightbox.setAttribute("aria-hidden", "true");
-        lightboxImg.removeAttribute("src");
-        images = [];
-        index = 0;
-      }
-
-      function step(delta) {
-        if (!images.length) {
-          return;
-        }
-        const next = index + delta;
-        if (next < 0 || next >= images.length) {
-          return;
-        }
-        index = next;
-        showImage();
-      }
-
-      document.addEventListener("click", (event) => {
-        const thumb = event.target.closest(".gallery-img");
-        if (thumb) {
-          event.preventDefault();
-          event.stopPropagation();
-          const gallery = thumb.closest(".result-images");
-          if (!gallery || !gallery.dataset.images) {
-            return;
-          }
-          const startIndex = parseInt(thumb.dataset.galleryIndex || "0", 10);
-          openLightbox(gallery, Number.isNaN(startIndex) ? 0 : startIndex);
-          return;
-        }
-
-        if (event.target === backdrop || event.target === btnClose) {
-          closeLightbox();
-          return;
-        }
-        if (event.target === btnPrev) {
-          step(-1);
-          return;
-        }
-        if (event.target === btnNext) {
-          step(1);
-        }
-      });
-
-      document.addEventListener("keydown", (event) => {
-        if (lightbox.classList.contains("hidden")) {
-          return;
-        }
-        if (event.key === "Escape") {
-          closeLightbox();
-        } else if (event.key === "ArrowLeft") {
-          step(-1);
-        } else if (event.key === "ArrowRight") {
-          step(1);
-        }
-      });
-    })();
   </script>
 
     <style>
@@ -537,6 +433,127 @@ document.addEventListener("keydown", (e) => {
     </div>
     <div class="image-lightbox-counter"></div>
   </div>
+
+  <script>
+    (function () {
+      function parseGalleryImages(gallery) {
+        const raw = gallery.getAttribute("data-images") || "[]";
+        try {
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+        } catch (err) {
+          return [];
+        }
+      }
+
+      function initImageLightbox() {
+        const lightbox = document.getElementById("image-lightbox");
+        if (!lightbox) {
+          return;
+        }
+
+        const lightboxImg = lightbox.querySelector(".image-lightbox-img");
+        const lightboxCounter = lightbox.querySelector(".image-lightbox-counter");
+        const btnPrev = lightbox.querySelector(".image-lightbox-prev");
+        const btnNext = lightbox.querySelector(".image-lightbox-next");
+        const btnClose = lightbox.querySelector(".image-lightbox-close");
+        const backdrop = lightbox.querySelector(".image-lightbox-backdrop");
+
+        let images = [];
+        let index = 0;
+
+        function showImage() {
+          if (!images.length) {
+            return;
+          }
+          lightboxImg.src = images[index];
+          lightboxImg.alt = `Image ${index + 1} of ${images.length}`;
+          lightboxCounter.textContent = `${index + 1} / ${images.length}`;
+          btnPrev.disabled = index <= 0;
+          btnNext.disabled = index >= images.length - 1;
+        }
+
+        function openLightbox(gallery, startIndex) {
+          images = parseGalleryImages(gallery);
+          if (!images.length) {
+            return;
+          }
+          index = Math.max(0, Math.min(startIndex, images.length - 1));
+          lightbox.classList.remove("hidden");
+          lightbox.setAttribute("aria-hidden", "false");
+          showImage();
+        }
+
+        function closeLightbox() {
+          lightbox.classList.add("hidden");
+          lightbox.setAttribute("aria-hidden", "true");
+          lightboxImg.removeAttribute("src");
+          images = [];
+          index = 0;
+        }
+
+        function step(delta) {
+          if (!images.length) {
+            return;
+          }
+          const next = index + delta;
+          if (next < 0 || next >= images.length) {
+            return;
+          }
+          index = next;
+          showImage();
+        }
+
+        document.addEventListener("click", (event) => {
+          const thumb = event.target.closest(".gallery-img");
+          if (thumb) {
+            event.preventDefault();
+            event.stopPropagation();
+            const gallery = thumb.closest(".result-images");
+            if (!gallery) {
+              return;
+            }
+            const startIndex = parseInt(thumb.getAttribute("data-gallery-index") || "0", 10);
+            openLightbox(gallery, Number.isNaN(startIndex) ? 0 : startIndex);
+            return;
+          }
+
+          if (!lightbox.classList.contains("hidden")) {
+            if (event.target === backdrop || event.target === btnClose) {
+              closeLightbox();
+              return;
+            }
+            if (event.target === btnPrev) {
+              step(-1);
+              return;
+            }
+            if (event.target === btnNext) {
+              step(1);
+            }
+          }
+        }, true);
+
+        document.addEventListener("keydown", (event) => {
+          if (lightbox.classList.contains("hidden")) {
+            return;
+          }
+          if (event.key === "Escape") {
+            closeLightbox();
+          } else if (event.key === "ArrowLeft") {
+            step(-1);
+          } else if (event.key === "ArrowRight") {
+            step(1);
+          }
+        });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initImageLightbox);
+      } else {
+        initImageLightbox();
+      }
+    })();
+  </script>
 
 </body>
 </html>

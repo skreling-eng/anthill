@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import sys
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -224,6 +225,12 @@ def parse_ah_source(source: str) -> ParsedProgram:
                 i += 1
             body = "\n".join(body_lines).strip()
 
+        if name in program.instructions:
+            print(
+                f"warning: @{name} redefined; earlier definition is replaced",
+                file=sys.stderr,
+                flush=True,
+            )
         program.instructions[name] = Instruction(name=name, actions=actions, body=body)
 
     return program

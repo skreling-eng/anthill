@@ -9,13 +9,16 @@ SYNTAX
   $llm
   $llm[3]
   $llm(model='default', max_tokens=512, temperature=0.7, system='You are…')
+  $llm(add_texts=True)
 
 INPUT
   prompts[] — primary user prompt(s).
-  texts[]   — optional extra context appended to the prompt.
+  texts[]   — optional extra context; appended to prompt, or placed under
+              __CONTENT__ when add_texts=True.
 
 OUTPUT
-  texts[] — one .txt link per completion variant.
+  texts[] — one .txt link per completion variant (input texts[] are consumed,
+            not passed through).
 
 ARGUMENTS
   model=        — GGUF profile name (externals/llm/model_list.py). Default: default
@@ -25,6 +28,8 @@ ARGUMENTS
   system=       — system prompt string
   gpu_layers= / n_gpu_layers= — layers on GPU (llama-cpp)
   count=        — variants if [n] suffix not used
+  add_texts=    — when True, texts[] go under a __CONTENT__ section instead
+                  of being merged into the main prompt
 
 REPEAT SYNTAX
   $llm[n] — n separate completions.
@@ -37,6 +42,9 @@ ENVIRONMENT
 EXAMPLE
   @rand_prompt: $llm[3] -> $texts_to_prompts -> @good_quality_image
   Create a prompt for the image model…
+
+  @format_output: $llm(add_texts=True)
+  Format this output into a human-readable variant.
 
 PROMPT-CONSUMING
   Yes.

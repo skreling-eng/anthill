@@ -78,6 +78,20 @@ image2video-fast = [
     "opencv-python>=4.8.0",
 ]
 draw_text = ["Pillow>=10.0.0"]
+ocr = [
+    "paddleocr>=2.7.3,<3",
+    "paddlepaddle>=3.2.0,<3.3.0",
+    "setuptools>=70.0.0",
+]
+image2text = [
+    "torch==2.7.1",
+    "torchvision",
+    "transformers>=4.57.0",
+    "accelerate>=1.0.0",
+    "huggingface-hub>=0.34.0,<1.0",
+    "pillow",
+    "safetensors>=0.4.0",
+]
 # Image + video in one session (example.ah @create_video):
 media = [
     "torch==2.7.1",
@@ -111,7 +125,7 @@ torchvision = { index = "pytorch-cu128" }
 torchaudio = { index = "pytorch-cu128" }
 ace-step = { git = "https://github.com/ace-step/ACE-Step-1.5.git" }
 
-# ace-step pins torch 2.10+cu128; image/media use torch 2.7.1 — never install both extras in one env.
+# ace-step pins torch 2.10+cu128; image/media use torch 2.7.1 - never install both extras in one env.
 [tool.uv]
 environments = ["sys_platform == 'win32' and platform_machine == 'AMD64'"]
 conflicts = [
@@ -119,6 +133,7 @@ conflicts = [
     [{ extra = "music" }, { extra = "image" }],
     [{ extra = "music" }, { extra = "image2video" }],
     [{ extra = "music" }, { extra = "image2video-fast" }],
+    [{ extra = "music" }, { extra = "image2text" }],
 ]
 
 [[tool.uv.index]]

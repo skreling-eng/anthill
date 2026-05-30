@@ -1,4 +1,4 @@
-$prompts_to_texts — move prompts into texts
+$prompts_to_texts / $prompts2texts — move prompts into texts
 
 SUMMARY
   Copies content from each prompts[] link into texts[] (one file per prompt,

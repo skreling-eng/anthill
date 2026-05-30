@@ -6,7 +6,9 @@ SUMMARY
 
 SYNTAX
   $folder('path/to/dir')
-  $folder(path='test_data/videos')
+  $folder('path/to/dir', '*.py')
+  $folder('path/to/dir', source_path=True)
+  $folder(path='test_data/videos', pattern='*.wav')
 
 INPUT
   prompts, texts, images, sounds, videos, files — unchanged (copied through)
@@ -21,15 +23,20 @@ OUTPUT
 
 ARGUMENTS
   Positional string or path= / _path= — directory to load.
+  Optional second positional or pattern= — glob filter (e.g. '*.py', '*.wav').
+  source_path=True — link to original files (absolute paths); no session copy.
 
 BEHAVIOR
   Resolves the directory relative to cwd, repo root, or session directory.
   Skips subdirectories. File order is sorted by filename.
+  With source_path=True, arrays hold absolute paths to source files on disk.
 
   AH_EMULATE_FOLDER=1 — write placeholder links without reading disk (tests).
 
 EXAMPLE
   @videos: $folder('test_data/videos')
+  @sources: $folder('src', '*.py')
+  @lib: $folder('ahlib', source_path=True)
 
 PROMPT-CONSUMING
   No.

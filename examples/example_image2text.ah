@@ -1,0 +1,9 @@
+
+
+@text_image: $image
+Create an image of the woman holding a poster that read "I Killed a Mockingbird"
+
+@image_description: @text_image -> $image2text
+Describe what you see on the image
+
+run @image_description

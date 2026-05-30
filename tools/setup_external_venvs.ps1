@@ -61,6 +61,7 @@ Sync-Venv ".venvs/music" "music"
 
 Write-Host ""
 Write-Host "Add to .env (or set in shell):"
+Write-Host "  AH_EXTERNAL_VENV_image2text=.venvs/media"
 Write-Host "  AH_EXTERNAL_VENV_image=.venvs/media"
 Write-Host "  AH_EXTERNAL_VENV_image2video=.venvs/media"
 Write-Host "  AH_EXTERNAL_VENV_music=.venvs/music"

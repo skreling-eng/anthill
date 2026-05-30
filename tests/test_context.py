@@ -194,6 +194,39 @@ ccc
         result, session_dir = _run(source, "run")
         self.assertEqual(_read_prompts(session_dir, result.prompts), ["aaa"])
 
+    def test_context_independent_of_same_named_instruction(self) -> None:
+        """%data / data% are session context; @data is an instruction — no collision."""
+        source = """
+@seed
+seed-prompt
+
+@data: @seed -> %data
+
+@read: data% -> $pass
+
+@run: @data -> @read
+"""
+        os.environ["AH_EXTERNAL_INPROCESS"] = "pass"
+        try:
+            result, session_dir = _run(source, "run")
+            self.assertEqual(
+                _read_prompts(session_dir, result.prompts), ["seed-prompt"]
+            )
+        finally:
+            os.environ.pop("AH_EXTERNAL_INPROCESS", None)
+
+    def test_self_ref_instruction_raises_recursion_error(self) -> None:
+        source = """
+@data: @data
+body
+"""
+        runtime, _ = _runtime(source)
+        with self.assertRaises(RecursionError) as ctx:
+            runtime.run("data")
+        msg = str(ctx.exception)
+        self.assertIn("@data", msg)
+        self.assertIn("data%", msg)
+
     def test_load_empty_warns(self) -> None:
         source = """
 @load: track%

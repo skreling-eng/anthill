@@ -1,0 +1,46 @@
+$ocr — optical character recognition (PaddleOCR)
+
+SUMMARY
+  Runs PaddleOCR on each images[] file and writes recognized text into texts[]
+  (one .txt per image).
+
+SYNTAX
+  $ocr
+  $ocr(lang='en')
+  $ocr(lang='es')
+  $ocr(lang='ru', gpu=True)
+
+INPUT
+  images[] — source images (PNG, JPG, …)
+
+OUTPUT
+  texts[] — one text file per image (lines = detected text regions)
+
+ARGUMENTS
+  lang=    — language code (default en). Top packs:
+              en English, zh/ch Chinese, hi Hindi, es Spanish, fr French,
+              ar Arabic, pt Portuguese, ru Russian, ja Japanese, de German,
+              id Indonesian, vi Vietnamese, tr Turkish, it Italian, ko Korean,
+              uk Ukrainian, pl Polish, nl Dutch, ur Urdu, fa Persian
+  gpu=     — use GPU when true (default CPU; or AH_OCR_GPU=1)
+  no_cls=  — disable angle classifier when true
+
+MODELS
+  Shared packs under models/ocr/PP-OCRv4/{pack}/ (en, ch, latin, arabic, …).
+  Latin pack covers es/fr/de/pt/it/id/vi/tr/pl/nl. Cyrillic covers ru/uk.
+  Arabic pack covers ar/ur/fa. Devanagari covers hi.
+  First run downloads automatically.
+
+DEPENDENCIES
+  uv sync --extra ocr   (paddlepaddle 3.2.x — avoid 3.3+ on CPU)
+
+ENVIRONMENT
+  AH_EMULATE_OCR=1 — placeholder text, no Paddle load.
+  AH_OCR_GPU=1     — default gpu=True when arg omitted.
+  CPU inference disables OneDNN and Paddle IR fusion (Windows/Paddle 3.x compat).
+
+EXAMPLE
+  @scan: $file('receipt.png') -> $ocr(lang='es')
+
+PROMPT-CONSUMING
+  No — images[] pass through; input texts[] are replaced.

@@ -90,6 +90,11 @@ Child loads `.env` (`ACESTEP_BACKEND=native`, etc.) via `externals/bootstrap.py`
 | `AH_EXTERNAL_VENV_<name>` | Force venv directory (e.g. `.venvs/media`) |
 | `AH_UV_EXTRA_<name>` | Change `uv run --extra` list |
 | `AH_EXTERNAL_TIMEOUT` | Subprocess timeout (seconds) |
+| `AH_RELEASE_GPU_ON_RUN_END=0` | Keep warm workers (e.g. `$image2image`) after a run finishes |
+
+When a `.ah` run finishes (success, error, or cancel), Anthill calls `release_gpu_resources()`:
+stops the `$image2image` warm worker and any still-running external subprocesses, then
+`torch.cuda.empty_cache()` in the orchestrator if torch is loaded. Default: on (`1`).
 
 ## Manual debug
 

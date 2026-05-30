@@ -1,0 +1,7 @@
+
+
+@image_desc: $file('test_data/abnormal_images/20260530_023358_default_image_0.png') -> $image2text
+Describe this image? Can you see any issues?
+Can you validate fingers on her hands? Can you see any issues with them?
+
+run @image_desc

@@ -27,14 +27,18 @@ class ExternalContext:
         return self.session.new_link(self.op_dir, array_name, ext, content)
 
     def read_link_text(self, link: str) -> str:
-        path = self.base_dir / link
-        if path.exists():
+        path = Path(link)
+        if not path.is_absolute():
+            path = self.base_dir / link
+        if path.is_file():
             return path.read_text(encoding="utf-8", errors="replace").strip()
         return ""
 
     def read_link_bytes(self, link: str) -> bytes:
-        path = self.base_dir / link
-        return path.read_bytes() if path.exists() else b""
+        path = Path(link)
+        if not path.is_absolute():
+            path = self.base_dir / link
+        return path.read_bytes() if path.is_file() else b""
 
 
 @dataclass

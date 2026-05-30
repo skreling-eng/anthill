@@ -1,0 +1,9 @@
+
+
+@format_output: $llm(add_texts=True)
+format this output into the human readable variant
+
+@data: $folder('ahlib', source_path=True) -> $code -> @format_output
+Give me recommendations about this code
+
+run @data

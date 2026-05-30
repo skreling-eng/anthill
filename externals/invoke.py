@@ -21,8 +21,15 @@ _active_procs: list[subprocess.Popen] = []
 
 def terminate_active_subprocesses() -> None:
     """Stop any $ external subprocess started by this process."""
+    try:
+        from externals.image2image.worker_client import terminate_worker
+
+        terminate_worker()
+    except ImportError:
+        pass
     with _active_procs_lock:
         procs = list(_active_procs)
+        _active_procs.clear()
     for proc in procs:
         if proc.poll() is None:
             proc.terminate()
@@ -33,6 +40,27 @@ def terminate_active_subprocesses() -> None:
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait(timeout=3)
+
+
+def release_gpu_resources(*, reason: str = "") -> None:
+    """Stop GPU-holding worker/subprocesses and empty CUDA cache in this process."""
+    raw = os.environ.get("AH_RELEASE_GPU_ON_RUN_END", "1").strip().lower()
+    if raw in ("0", "false", "no", "off"):
+        return
+    suffix = f" ({reason})" if reason else ""
+    print(f"$externals: releasing GPU resources{suffix}", flush=True)
+    terminate_active_subprocesses()
+    try:
+        import gc
+
+        gc.collect()
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+    except ImportError:
+        pass
 
 # uv --extra passed when spawning subprocess externals (AH_UV_EXTRA_<name> overrides).
 _DEFAULT_UV_EXTRAS: dict[str, list[str]] = {
@@ -50,7 +78,10 @@ _DEFAULT_UV_EXTRAS: dict[str, list[str]] = {
     "text2speech": ["text2speech"],
     "voice_enhance": [],
     "llm": [],
+    "code": [],
     "sound2text": ["sound2text"],
+    "ocr": ["ocr"],
+    "image2text": ["media"],
 }
 
 # Isolated venv dirs (see tools/setup_external_venvs.ps1). Used when the path exists.
@@ -68,6 +99,7 @@ _DEFAULT_VENVS: dict[str, str] = {
     "join_stems": ".venvs/media",
     "text2speech": ".venvs/text2speech",
     "voice_enhance": ".venvs/voice_enhance",
+    "image2text": ".venvs/media",
 }
 
 

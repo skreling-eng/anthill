@@ -1,4 +1,83 @@
 
+
+@woman_image: $image
+Create an image of a woman with black hairs
+
+@modified_image: $image2image
+Change the pose of the woman
+
+@gen_modified_image: @woman_image -> @modified_image[10]
+
+run @gen_modified_image
+
+
+
+
+
+
+
+@text_image: $image
+Create an image of a woman with the wrong number of fingers.
+
+@check_fingers: $llm -> $texts_to_prompts
+Create a prompt to validate the number of fingers with the visual model (Qwen VL).
+Short prompt for 50-60 words.
+Return only the final result without comments, clarifications, or explanations.
+
+@test2: @check_fingers -> @text_image -> $image2text
+
+#run @test2
+
+
+
+
+@popular_uk_bird: $llm(add_texts=True)
+give me the names of the most popular UK birds
+return the json array of names
+Return only the final result without comments, clarifications, or explanations.
+
+@search_birds: $search
+most popular UK birds
+
+@bird_names: @search_birds -> @popular_uk_bird -> $json2texts -> $texts2prompts
+
+@bird_images: @bird_names -> $image
+create a beautiful image of the bird in the UK Garden
+
+#run @bird_images
+
+
+
+
+
+
+
+@create_diff: ($pass, data%) -> $code
+Create a diff based on these recommendations.
+
+@data: $folder('ahlib', source_path=True) -> %data
+
+@recommendations: @data -> $code
+Give me recommendations about this code
+
+@changes: @recommendations -> @create_diff
+
+#run @changes
+
+#@format_output: $llm(add_texts=True)
+#format this output into the human readable variant
+
+#@data: $folder('ahlib', source_path=True) -> $code -> @format_output
+
+
+
+@quick_sort: $code
+Give me a simple python quick sort function
+
+#run @quick_sort
+
+
+
 @clear_answer:
 Return only the final result without comments, clarifications, or explanations.
 
@@ -15,6 +94,8 @@ French traditional song
 
 @clip: (@track, @image) -> $image_clip
 
-run @clip
-
+#run @clip
 #run @image
+@test: $input_json('sessions\20260529_050923_34804_359700\9__image_x3\output.json')
+
+#run @test
