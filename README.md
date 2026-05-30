@@ -14,9 +14,7 @@ Programs are written in **`.ah` files**: a small declarative language interprete
 
 Sample output from [`examples/example_animated_clip_with_comfy.ah`](examples/example_animated_clip_with_comfy.ah) — LLM prompts → still images → ComfyUI animation → ACE-Step music → final clip.
 
-*Unmute the player for audio.*
-
-GitHub README does **not** render `<video>` tags (they are stripped; you may see an empty `<p>`). Use a clickable poster, or paste an MP4 URL from [GitHub video upload](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/attaching-files) (`user-images.githubusercontent.com` / repo `assets`) on its own line for an inline player.
+Click to open the video.
 
 <p align="center">
   <a href="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4">
