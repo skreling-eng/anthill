@@ -53,10 +53,23 @@ class ActionCallback(Protocol):
         action_name: str,
         output_context: dict[str, list],
         output_json_path: str | None = None,
+        session_base_dir: str | None = None,
     ) -> None: ...
 
     def action_error(self, action_name: str, error_message: str) -> None: ...
 
+
+_BINARY_MEDIA_SUFFIXES = frozenset(
+    {".wav", ".mp3", ".mp4", ".png", ".jpg", ".jpeg"}
+)
+_MIN_MEDIA_BYTES = {
+    ".wav": 44,
+    ".mp3": 4,
+    ".mp4": 12,
+    ".png": 8,
+    ".jpg": 4,
+    ".jpeg": 4,
+}
 
 _CHANGE_TYPE_MAP = {
     "prompt": "prompts",
@@ -143,18 +156,67 @@ class Session:
             return
         path.parent.mkdir(parents=True, exist_ok=True)
         suffix = path.suffix.lower()
+        if suffix in _BINARY_MEDIA_SUFFIXES:
+            # Real outputs are written by handlers; never plant empty text blobs.
+            return
         placeholder = {
             ".txt": "prompt/text content\n",
-            ".png": b"\x89PNG\r\n\x1a\n",
-            ".jpg": b"\xff\xd8\xff",
-            ".jpeg": b"\xff\xd8\xff",
-            ".mp3": b"ID3",
-            ".mp4": b"\x00\x00\x00\x1cftyp",
         }
-        if suffix in (".png", ".jpg", ".jpeg", ".mp3", ".mp4"):
-            path.write_bytes(placeholder.get(suffix, b""))
-        else:
-            path.write_text(placeholder.get(".txt", ""), encoding="utf-8")
+        path.write_text(placeholder.get(".txt", ""), encoding="utf-8")
+
+    def resolve_link_path(self, link: str) -> Path:
+        path = Path(link)
+        if path.is_absolute():
+            return path.resolve()
+        return (self.base_dir / link).resolve()
+
+    def ensure_bundle_files_ready(
+        self,
+        bundle: ArrayBundle,
+        *,
+        timeout: float = 30.0,
+    ) -> None:
+        """Wait until bundle-linked files exist and have stable non-trivial size."""
+        paths: list[Path] = []
+        for key in ARRAY_TYPES:
+            if key == "changes":
+                continue
+            for link in getattr(bundle, key):
+                path = self.resolve_link_path(link)
+                if path.suffix:
+                    paths.append(path)
+
+        deadline = time.monotonic() + timeout
+        for path in paths:
+            min_size = _MIN_MEDIA_BYTES.get(path.suffix.lower(), 1)
+            self._wait_for_file_ready(path, min_size=min_size, deadline=deadline)
+
+    def _wait_for_file_ready(
+        self, path: Path, *, min_size: int, deadline: float
+    ) -> None:
+        stable_reads = 0
+        last_size = -1
+        while time.monotonic() < deadline:
+            if path.is_file():
+                size = path.stat().st_size
+                if size >= min_size and size == last_size:
+                    stable_reads += 1
+                    if stable_reads >= 2:
+                        return
+                else:
+                    stable_reads = 0
+                last_size = size
+            else:
+                stable_reads = 0
+                last_size = -1
+            time.sleep(0.05)
+        if not path.is_file():
+            raise FileNotFoundError(f"Output file not ready: {path}")
+        size = path.stat().st_size
+        if size < min_size:
+            raise FileNotFoundError(
+                f"Output file incomplete ({size} bytes, need >= {min_size}): {path}"
+            )
 
     def new_link(self, op_dir: Path, array_name: str, ext: str, content: str | bytes) -> str:
         arr_dir = op_dir / array_name
@@ -165,7 +227,10 @@ class Session:
         path = self.base_dir / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         if isinstance(content, bytes):
-            path.write_bytes(content)
+            with open(path, "wb") as handle:
+                handle.write(content)
+                handle.flush()
+                os.fsync(handle.fileno())
         else:
             path.write_text(content, encoding="utf-8")
         return str(rel).replace("\\", "/")
@@ -228,6 +293,7 @@ class Runtime:
         output: ArrayBundle,
         op_dir: Path | None = None,
     ) -> None:
+        self.session.ensure_bundle_files_ready(output)
         output_json_path: str | None = None
         if op_dir is not None:
             path = op_dir / "output.json"
@@ -235,7 +301,10 @@ class Runtime:
             output_json_path = str(path.resolve())
         if self.callback is not None:
             self.callback.action_finish(
-                action_name, output.as_dict(), output_json_path
+                action_name,
+                output.as_dict(),
+                output_json_path,
+                str(self.session.base_dir.resolve()),
             )
 
     def _notify_action_error(self, action_name: str, exc: BaseException) -> None:
@@ -967,6 +1036,7 @@ class Runtime:
                 session=self.session,
                 op_dir=ext_op_dir,
                 cancel_event=self.cancel_event,
+                callback=self.callback,
             )
             inp = ExternalInput(
                 bundle=bundle,

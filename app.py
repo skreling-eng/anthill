@@ -55,14 +55,41 @@ def load_saved_actions(base_dir: Path) -> list[dict[str, str]]:
         return []
     if not isinstance(data, list):
         return []
-    entries: list[dict[str, str]] = []
+    entries: list[dict] = []
     for item in data:
         if isinstance(item, dict) and "tm" in item and "data" in item:
-            entry = {"tm": str(item["tm"]), "data": str(item["data"])}
+            entry: dict = {"tm": str(item["tm"]), "data": str(item["data"])}
             if item.get("input_json_ref"):
                 entry["input_json_ref"] = str(item["input_json_ref"])
+            preview = item.get("finish_preview")
+            if isinstance(preview, dict):
+                if not preview.get("session_base_dir"):
+                    root = session_root_from_input_json_ref(
+                        base_dir, entry.get("input_json_ref")
+                    )
+                    if root is not None:
+                        preview = dict(preview)
+                        preview["session_base_dir"] = str(root)
+                entry["finish_preview"] = preview
             entries.append(entry)
     return entries
+
+
+def session_root_from_input_json_ref(
+    base_dir: Path, ref: str | None
+) -> Path | None:
+    """Parse session folder from input_json('sessions/.../output.json')."""
+    if not ref or "output.json" not in ref:
+        return None
+    start = ref.find("'")
+    end = ref.rfind("'")
+    if start < 0 or end <= start:
+        return None
+    rel = Path(ref[start + 1 : end])
+    path = rel.resolve() if rel.is_absolute() else (base_dir / rel).resolve()
+    if path.name == "output.json":
+        return path.parent.parent
+    return None
 
 
 def save_actions(entries: list[dict[str, str]], base_dir: Path) -> None:
@@ -209,6 +236,14 @@ class LinkApi:
         except Exception:
             return False
 
+    def poll_log_refresh(self) -> str | None:
+        """Return pending action-log HTML (called from the WebView GUI thread)."""
+        ui = self.callback_obj
+        if ui is None or not ui._log_draw_pending:
+            return None
+        ui._log_draw_pending = False
+        return ui.html_page()
+
     def on_link_click(self, link_id: str, link_type: str) -> dict[str, str | int]:
         """Handle any link click callback from HTML and return updated state."""
         if self.callback_obj is not None:
@@ -232,6 +267,7 @@ class Interface:
         self._shutting_down = False
         self._actions_save_timer: threading.Timer | None = None
         self._actions_save_lock = threading.Lock()
+        self._log_draw_pending = False
 
     def begin_shutdown(self) -> None:
         """Stop UI updates and signal any in-flight run to exit."""
@@ -301,18 +337,45 @@ class Interface:
             return html.escape(normalized)
         return html.escape(normalized[:limit]) + "…"
 
-    def _media_uri(self, link: str) -> str | None:
-        if self.session_dir is None:
+    @staticmethod
+    def _resolve_preview_session(
+        output_json_path: str | Path | None,
+        session_base_dir: str | Path | None,
+        fallback: Path | None,
+    ) -> Path | None:
+        """Session root that owns bundle links for one action_finish."""
+        if session_base_dir:
+            return Path(session_base_dir).resolve()
+        if output_json_path:
+            path = Path(output_json_path).resolve()
+            if path.name == "output.json":
+                return path.parent.parent
+        if fallback is not None:
+            return fallback.resolve()
+        return None
+
+    def _resolve_link_path(self, link: str, session_root: Path | None) -> Path:
+        path = Path(link)
+        if path.is_absolute():
+            return path.resolve()
+        if session_root is None:
+            return path
+        return (session_root / link).resolve()
+
+    def _media_uri(self, link: str, session_root: Path | None = None) -> str | None:
+        root = session_root if session_root is not None else self.session_dir
+        if root is None:
             return None
-        path = (self.session_dir / link).resolve()
+        path = self._resolve_link_path(link, root)
         if not path.is_file():
             return None
         return html.escape(path.as_uri())
 
-    def _read_link_text(self, link: str) -> str:
-        if self.session_dir is None:
+    def _read_link_text(self, link: str, session_root: Path | None = None) -> str:
+        root = session_root if session_root is not None else self.session_dir
+        if root is None:
             return link
-        path = self.session_dir / link
+        path = self._resolve_link_path(link, root)
         if not path.is_file():
             return f"[missing: {link}]"
         return path.read_text(encoding="utf-8", errors="replace")
@@ -324,11 +387,13 @@ class Interface:
             f'height="{self._MEDIA_HEIGHT}" alt="{label}" title="{label}">'
         )
 
-    def _format_images_block(self, links: list[str]) -> str:
+    def _format_images_block(
+        self, links: list[str], *, session_root: Path | None = None
+    ) -> str:
         count = len(links)
         uri_entries: list[tuple[str, str, str]] = []
         for link in links:
-            uri = self._media_uri(link)
+            uri = self._media_uri(link, session_root)
             label = html.escape(Path(link).name)
             if uri:
                 uri_entries.append((uri, label, link))
@@ -368,60 +433,72 @@ class Interface:
             "</details>"
         )
 
-    def _format_videos_block(self, links: list[str]) -> str:
+    def _format_videos_block(
+        self, links: list[str], *, session_root: Path | None = None
+    ) -> str:
         count = len(links)
         preview_links = links[: self._MEDIA_PREVIEW_COUNT]
 
         def _video_tag(link: str, css_class: str) -> str:
-            uri = self._media_uri(link)
+            uri = self._media_uri(link, session_root)
             label = html.escape(Path(link).name)
             if not uri:
                 return f"<span class='result-missing'>{label}</span>"
             return (
-                f'<video class="{css_class}" src="{uri}" '
-                f'height="{self._MEDIA_HEIGHT}" controls preload="metadata"></video>'
+                f'<video class="{css_class} lazy-media" data-src="{uri}" '
+                f'height="{self._MEDIA_HEIGHT}" controls preload="none"></video>'
             )
 
-        preview_videos = [_video_tag(link, "result-thumb") for link in preview_links]
+        preview_labels = [
+            html.escape(Path(link).name) for link in preview_links
+        ]
+        preview_row = ", ".join(preview_labels) if preview_labels else ""
         all_videos = [_video_tag(link, "result-media") for link in links]
         suffix = " ..." if count > self._MEDIA_PREVIEW_COUNT else ""
         return (
             '<details class="result-fold result-videos">'
             f'<summary><span class="result-title">Videos [{count}]:</span> '
-            f'<span class="result-preview-row">{"".join(preview_videos)}{suffix}</span>'
+            f'<span class="result-preview-row">{preview_row}{suffix}</span>'
             f"</summary>"
             f'<div class="result-list result-list-videos">{"".join(all_videos)}</div>'
             "</details>"
         )
 
-    def _format_sounds_block(self, links: list[str]) -> str:
+    def _format_sounds_block(
+        self, links: list[str], *, session_root: Path | None = None
+    ) -> str:
         count = len(links)
         preview_links = links[: self._MEDIA_PREVIEW_COUNT]
 
         def _audio_tag(link: str, css_class: str) -> str:
-            uri = self._media_uri(link)
+            uri = self._media_uri(link, session_root)
             label = html.escape(Path(link).name)
             if not uri:
                 return f"<span class='result-missing'>{label}</span>"
             return (
-                f'<audio class="{css_class}" src="{uri}" '
-                f'controls preload="metadata"></audio>'
+                f'<audio class="{css_class} lazy-media" data-src="{uri}" '
+                f'controls preload="none"></audio>'
             )
 
-        preview_sounds = [_audio_tag(link, "result-thumb") for link in preview_links]
+        preview_labels = [
+            html.escape(Path(link).name) for link in preview_links
+        ]
+        preview_row = ", ".join(preview_labels) if preview_labels else ""
         all_sounds = [_audio_tag(link, "result-media") for link in links]
         suffix = " ..." if count > self._MEDIA_PREVIEW_COUNT else ""
         return (
             '<details class="result-fold result-sounds">'
             f'<summary><span class="result-title">Sounds [{count}]:</span> '
-            f'<span class="result-preview-row">{"".join(preview_sounds)}{suffix}</span>'
+            f'<span class="result-preview-row">{preview_row}{suffix}</span>'
             f"</summary>"
             f'<div class="result-list result-list-sounds">{"".join(all_sounds)}</div>'
             "</details>"
         )
 
-    def _format_text_item(self, title: str, link: str) -> str:
-        full_text = self._read_link_text(link)
+    def _format_text_item(
+        self, title: str, link: str, *, session_root: Path | None = None
+    ) -> str:
+        full_text = self._read_link_text(link, session_root)
         compact = self._compact_text(full_text, self._TEXT_PREVIEW_LIMIT)
         return (
             '<details class="result-fold result-text-item">'
@@ -430,37 +507,48 @@ class Interface:
             "</details>"
         )
 
-    def _format_output_preview(self, output_context: dict) -> str:
-        if self.session_dir is None:
+    def _format_output_preview(
+        self, output_context: dict, *, session_root: Path | None = None
+    ) -> str:
+        root = session_root if session_root is not None else self.session_dir
+        if root is None:
             return ""
 
         parts: list[str] = []
         images = output_context.get("images") or []
         if images:
-            parts.append(self._format_images_block(list(images)))
+            parts.append(self._format_images_block(list(images), session_root=root))
 
         videos = output_context.get("videos") or []
         if videos:
-            parts.append(self._format_videos_block(list(videos)))
+            parts.append(self._format_videos_block(list(videos), session_root=root))
 
         sounds = output_context.get("sounds") or []
         if sounds:
-            parts.append(self._format_sounds_block(list(sounds)))
+            parts.append(self._format_sounds_block(list(sounds), session_root=root))
 
         texts = output_context.get("texts") or []
         for index, link in enumerate(texts, start=1):
-            parts.append(self._format_text_item(f"Text{index}", link))
+            parts.append(
+                self._format_text_item(f"Text{index}", link, session_root=root)
+            )
 
         prompts = output_context.get("prompts") or []
         for index, link in enumerate(prompts, start=1):
-            parts.append(self._format_text_item(f"Prompt{index}", link))
+            parts.append(
+                self._format_text_item(f"Prompt{index}", link, session_root=root)
+            )
 
         if not parts:
             return ""
         return '<div class="result-preview">' + "".join(parts) + "</div>"
 
-    def _format_result_block(self, output_context: dict) -> str:
-        preview = self._format_output_preview(output_context)
+    def _format_result_block(
+        self, output_context: dict, *, session_root: Path | None = None
+    ) -> str:
+        preview = self._format_output_preview(
+            output_context, session_root=session_root
+        )
         json_block = self._format_json_block(output_context)
         if preview:
             return preview + json_block
@@ -496,12 +584,24 @@ class Interface:
         action_name: str,
         output_context: dict,
         output_json_path: str | None = None,
+        session_base_dir: str | None = None,
     ) -> None:
-        self.add_action_results(
-            f"<b>FINISH</b> {html.escape(action_name)}"
-            f"<br>{self._format_result_block(output_context)}",
-            input_json_ref=output_json_path,
+        session_root = self._resolve_preview_session(
+            output_json_path, session_base_dir, self.session_dir
         )
+        self.add_action_results(
+            self._format_finish_html(action_name, output_context, session_root),
+            input_json_ref=output_json_path,
+            finish_preview={
+                "action_name": action_name,
+                "output_context": output_context,
+                "session_base_dir": (
+                    str(session_root) if session_root is not None else None
+                ),
+            },
+        )
+        if any(output_context.get(key) for key in ("sounds", "videos", "images")):
+            self._queue_log_draw()
 
     def action_error(self, action_name: str, error_message: str) -> None:
         self.add_action_results(
@@ -558,12 +658,20 @@ class Interface:
                 else None
             )
             self.add_action_results(
-                f"<b>Run finished</b><br>"
-                f"<small>{html.escape(str(self.session_dir))}</small>"
-                f"<br>{self._format_result_block(meta['output'])}"
-                f"<br>{self._format_json_block(meta)}",
+                (
+                    f"<b>Run finished</b><br>"
+                    f"<small>{html.escape(str(self.session_dir))}</small>"
+                    f"<br>{self._format_result_block(meta['output'], session_root=self.session_dir)}"
+                    f"<br>{self._format_json_block(meta)}"
+                ),
                 input_json_ref=output_json,
+                finish_preview={
+                    "action_name": "Run finished",
+                    "output_context": meta["output"],
+                    "session_base_dir": str(self.session_dir.resolve()),
+                },
             )
+            self._queue_log_draw()
         except RuntimeCancelled:
             self.add_action_results("<b>Run cancelled</b>")
         except Exception as exc:
@@ -590,32 +698,127 @@ class Interface:
         )
         return f'<div class="log-head">{tm}{btn}</div>'
 
+    def _format_finish_html(
+        self,
+        action_name: str,
+        output_context: dict,
+        session_root: Path | None,
+    ) -> str:
+        return (
+            f"<b>FINISH</b> {html.escape(action_name)}"
+            f"<br>{self._format_result_block(output_context, session_root=session_root)}"
+        )
+
+    def _preview_session_root(self, entry: dict, preview: dict) -> Path | None:
+        raw_root = preview.get("session_base_dir")
+        if raw_root:
+            return Path(str(raw_root)).resolve()
+        return session_root_from_input_json_ref(
+            self.linkapi.base_dir, entry.get("input_json_ref")
+        )
+
+    def _media_links_ready(self, output_context: dict, session_root: Path) -> bool:
+        for key in ("sounds", "videos", "images"):
+            links = output_context.get(key) or []
+            for link in links:
+                path = self._resolve_link_path(str(link), session_root)
+                if not path.is_file():
+                    return False
+                size = path.stat().st_size
+                if path.suffix.lower() == ".wav" and size < 44:
+                    return False
+                if size < 1:
+                    return False
+        return True
+
+    def _entry_body_html(self, entry: dict) -> str:
+        frozen = str(entry["data"])
+        preview = entry.get("finish_preview")
+        if not isinstance(preview, dict):
+            return frozen
+        action_name = str(preview.get("action_name", "FINISH"))
+        output_context = preview.get("output_context")
+        if not isinstance(output_context, dict):
+            return frozen
+        session_root = self._preview_session_root(entry, preview)
+        has_media = any(
+            output_context.get(key) for key in ("sounds", "videos", "images")
+        )
+        if session_root is None or (
+            has_media and not self._media_links_ready(output_context, session_root)
+        ):
+            return frozen
+        if action_name == "Run finished":
+            session_line = ""
+            if session_root is not None:
+                session_line = (
+                    f"<small>{html.escape(str(session_root))}</small><br>"
+                )
+            return (
+                f"<b>Run finished</b><br>{session_line}"
+                f"{self._format_result_block(output_context, session_root=session_root)}"
+                f"<br>{self._format_json_block(output_context)}"
+            )
+        return self._format_finish_html(action_name, output_context, session_root)
+
     def html_page(self):
         res = []
         for e in self.data[::-1]:
-            res.append(f"{self._format_log_header(e)}<br>{e['data']}")
+            res.append(f"{self._format_log_header(e)}<br>{self._entry_body_html(e)}")
         dlm = '<hr>'
         return dlm.join(res)
 
-    def add_action_results(self, data, *, input_json_ref: str | Path | None = None):
-        entry: dict[str, str] = {
-            'tm': str(datetime.now()),
-            'data': data,
+    def _queue_log_draw(self) -> None:
+        """Request action-log repaint on the WebView GUI thread (see poll_log_refresh)."""
+        if self._shutting_down:
+            return
+        self._log_draw_pending = True
+
+    def add_action_results(
+        self,
+        data,
+        *,
+        input_json_ref: str | Path | None = None,
+        finish_preview: dict | None = None,
+    ):
+        entry: dict = {
+            "tm": str(datetime.now()),
+            "data": data,
         }
         if input_json_ref:
             raw = str(input_json_ref)
             entry["input_json_ref"] = (
                 raw if raw.startswith("input_json(") else self._input_json_ref(raw)
             )
+        if finish_preview is not None:
+            entry["finish_preview"] = finish_preview
         self.data.append(entry)
         if not self._shutting_down:
-            self.draw('top-left', self.html_page())
+            self._queue_log_draw()
         self._schedule_actions_save()
 
     def draw(self, place, htmldata):
         if self._shutting_down:
             return
+        if place == "top-left":
+            self._queue_log_draw()
+            return
         self.linkapi.set_html(place, htmldata)
+
+    def paint_log_now(self) -> None:
+        """Paint action log from the GUI thread (e.g. window loaded)."""
+        if self._shutting_down or not webview.windows:
+            return
+        self._log_draw_pending = False
+        html = self.html_page()
+        try:
+            webview.windows[0].evaluate_js(
+                "setTemplateFragment('top-left', "
+                f"{json.dumps(html)}"
+                ");"
+            )
+        except Exception as exc:
+            print(f"Log paint failed: {exc}", flush=True)
 
 
 def main() -> None:
@@ -708,6 +911,7 @@ def main() -> None:
         )
         api.set_script_source(saved_script)
         ui.load_actions_from_disk()
+        ui.paint_log_now()
         try:
             api.save_all_now()
         except Exception as exc:

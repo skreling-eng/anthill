@@ -21,12 +21,15 @@ _active_procs: list[subprocess.Popen] = []
 
 def terminate_active_subprocesses() -> None:
     """Stop any $ external subprocess started by this process."""
-    try:
-        from externals.image2image.worker_client import terminate_worker
-
-        terminate_worker()
-    except ImportError:
-        pass
+    for name in ("image2image", "image2video"):
+        try:
+            mod = __import__(
+                f"externals.{name}.worker_client",
+                fromlist=["terminate_worker"],
+            )
+            mod.terminate_worker()
+        except ImportError:
+            pass
     with _active_procs_lock:
         procs = list(_active_procs)
         _active_procs.clear()

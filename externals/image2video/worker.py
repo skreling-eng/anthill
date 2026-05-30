@@ -1,7 +1,7 @@
-"""Long-lived $image2image worker — keeps Qwen pipeline on GPU between jobs."""
+"""Long-lived $image2video worker — keeps Wan MEGA pipeline on GPU between jobs."""
 
 from externals.comfy_inprocess.worker_main import worker_main
-from externals.image2image.run import run
+from externals.image2video.run import run
 
 
 def main() -> int:

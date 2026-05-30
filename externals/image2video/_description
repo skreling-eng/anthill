@@ -60,7 +60,7 @@ ARGUMENTS
   attn= / attention= — attention backend (default sage). Use native to force
     PyTorch SDPA only (slower but safest if sage fails).
 
-  backend= — diffusers (default, in-process) or comfy (ComfyUI API; Comfy speed).
+  backend= — comfy_lib (default, in-process Rapid-AIO-Mega) | diffusers | comfy (ComfyUI API)
 
   seed= — RNG seed; offset per output when generating multiple videos.
 
@@ -73,6 +73,8 @@ WEIGHT LAYOUT (Comfy-style AIO split, one file read)
   Single checkpoint (default):
 
     models/wan/wan2.2-rapid-mega-aio-v12.safetensors
+
+  Workflow: comfy_workflows/Rapid-AIO-Mega__3_start_image.json
 
 
 
@@ -130,18 +132,15 @@ ENVIRONMENT
 
   WAN_I2V_FAST_ATTN=1 — also try flash/xformers backends (optional)
 
+  AH_IMAGE2VIDEO_WORKER=1 — warm subprocess (default; keeps Wan on GPU between jobs)
+  AH_IMAGE2VIDEO_BACKEND=comfy_lib — in-process comfy_lib (default)
+  AH_IMAGE2VIDEO_BACKEND=diffusers — diffusers Wan path
+
   AH_EMULATE_IMAGE2VIDEO=1 — placeholder MP4s, no GPU
 
-  Comfy speed (recommended if you already have ComfyUI at ~8 min for 768×1280):
+  ComfyUI HTTP (if you prefer a running Comfy server):
 
     AH_IMAGE2VIDEO_BACKEND=comfy   (or backend=comfy on $image2video)
-
-    COMFYUI_URL=http://127.0.0.1:8188
-
-    COMFYUI_WORKFLOW=G:/ComfyUI/user/.../your_mega_i2v_api.json
-
-    Export workflow from Comfy in *API format* (not the UI graph). Anthill uploads the
-    start image and patches LoadImage / text / sampler nodes by class_type.
 
   Windows sage (for diffusers backend): tools\setup_sage_windows.ps1 after uv sync --extra media
     (triton + sageattention 2.1.1+cu128torch2.7.1; PyPI sageattention 1.0.6 needs triton

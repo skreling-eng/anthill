@@ -26,6 +26,14 @@ def _emulate_enabled() -> bool:
     return os.environ.get("AH_EMULATE_FILE", "").lower() in ("1", "true", "yes")
 
 
+def _truthy(val: str) -> bool:
+    return val.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _source_path_from_args(args: dict[str, str]) -> bool:
+    return _truthy(args.get("source_path", ""))
+
+
 def _resolve_source_path(ctx: ExternalContext, ref: str) -> Path:
     raw = Path(ref)
     candidates: list[Path] = []
@@ -62,14 +70,24 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     path = inp.args.get("_path", inp.args.get("path", "unknown.bin"))
     ext = Path(path).suffix.lower()
     arr_key = _EXT_ARRAY.get(ext, "files")
+    source_path = _source_path_from_args(inp.args)
 
     if _emulate_enabled():
-        link = ctx.new_link(arr_key, ext or ".bin", f"[emulated file: {path}]\n")
+        if source_path:
+            try:
+                src = _resolve_source_path(ctx, path)
+                link = str(src.resolve()).replace("\\", "/")
+            except FileNotFoundError:
+                link = ctx.new_link(arr_key, ext or ".bin", f"[emulated file: {path}]\n")
+        else:
+            link = ctx.new_link(arr_key, ext or ".bin", f"[emulated file: {path}]\n")
         getattr(out, arr_key).append(link)
         return out
 
     src = _resolve_source_path(ctx, path)
-    content = src.read_bytes()
-    link = ctx.new_link(arr_key, ext or src.suffix or ".bin", content)
+    if source_path:
+        link = str(src.resolve()).replace("\\", "/")
+    else:
+        link = ctx.new_link(arr_key, ext or src.suffix or ".bin", src.read_bytes())
     getattr(out, arr_key).append(link)
     return out

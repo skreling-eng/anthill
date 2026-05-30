@@ -5,10 +5,10 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from ahlib.ah_runtime import ArrayBundle, Session
+    from ahlib.ah_runtime import Session
 
 
 @dataclass
@@ -18,6 +18,7 @@ class ExternalContext:
     session: Session
     op_dir: Path
     cancel_event: threading.Event | None = None
+    callback: Any | None = None
 
     @property
     def base_dir(self) -> Path:

@@ -25,8 +25,11 @@ class RecordingCallback:
         action_name: str,
         output_context: dict,
         output_json_path: str | None = None,
+        session_base_dir: str | None = None,
     ) -> None:
-        self.finishes.append((action_name, output_context, output_json_path))
+        self.finishes.append(
+            (action_name, output_context, output_json_path, session_base_dir)
+        )
 
     def action_error(self, action_name: str, error_message: str) -> None:
         self.errors.append((action_name, error_message))

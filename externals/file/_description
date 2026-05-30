@@ -8,6 +8,7 @@ SUMMARY
 SYNTAX
   $file('path/to/asset.mp3')
   $file(path='path/to/image.png')
+  $file('_lang_desc', source_path=True)
 
 INPUT
   prompts, texts, images, sounds, videos, files — unchanged (copied through)
@@ -22,16 +23,22 @@ OUTPUT
 
 ARGUMENTS
   Positional string or path= / _path= — filesystem path to load.
+  source_path=True — link to the original file (absolute path); no session copy.
 
 BEHAVIOR
   Resolves the path relative to the current working directory, repo root,
-  session directory, or sessions/** (for a bare filename). Copies file bytes
-  into a new link under the current op directory.
+  session directory, or sessions/** (for a bare filename). By default copies
+  file bytes into a new link under the current op directory.
+
+  With source_path=True, arrays hold an absolute path to the source file on
+  disk (same as $folder(source_path=True)). Downstream externals read via
+  ctx.read_link_text / read_link_bytes.
 
   AH_EMULATE_FILE=1 — write a placeholder link without reading disk (tests).
 
 EXAMPLE
   @music: $file('music.mp3')
+  @lang: $file('_lang_desc', source_path=True)
 
 PROMPT-CONSUMING
   No — prompts are not cleared after this call.

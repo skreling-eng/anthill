@@ -40,20 +40,23 @@ class TestResultPreview(unittest.TestCase):
         self.assertIn("data-images=", html_out)
         self.assertEqual(html_out.count("gallery-img"), 7)
 
-    def test_videos_preview_uses_video_tags(self) -> None:
+    def test_videos_preview_uses_lazy_video_tags(self) -> None:
         html_out = self.ui._format_videos_block(["clip0.mp4"])
         self.assertIn("Videos [1]:", html_out)
         self.assertIn("<video", html_out)
-        self.assertIn('controls preload="metadata"', html_out)
+        self.assertIn('data-src="', html_out)
+        self.assertIn('preload="none"', html_out)
+        self.assertNotIn('<video class="result-media lazy-media" src=', html_out)
 
-    def test_sounds_preview_shows_first_three_and_ellipsis(self) -> None:
+    def test_sounds_preview_shows_names_and_lazy_players(self) -> None:
         html_out = self.ui._format_sounds_block(
             ["track0.mp3", "track1.mp3", "track2.mp3", "track3.mp3"]
         )
         self.assertIn("Sounds [4]:", html_out)
         self.assertIn("...", html_out)
-        self.assertEqual(html_out.count("<audio"), 7)  # 3 preview + 4 full list
-        self.assertIn('controls preload="metadata"', html_out)
+        self.assertIn("track0.mp3", html_out)
+        self.assertEqual(html_out.count("<audio"), 4)
+        self.assertIn('preload="none"', html_out)
 
     def test_text_and_prompt_escape_html(self) -> None:
         text_html = self.ui._format_text_item("Text1", "note.txt")

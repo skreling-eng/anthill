@@ -1,10 +1,10 @@
-"""Warm subprocess pool for $image2image (avoids reloading ~28GB each job)."""
+"""Warm subprocess pool for $image2video (avoids reloading ~22GB each job)."""
 
 from __future__ import annotations
 
 from externals.comfy_inprocess.warm_worker import WarmWorkerConfig, WarmWorkerPool
 
-_CONFIG = WarmWorkerConfig(name="image2image", worker_module="externals.image2image.worker")
+_CONFIG = WarmWorkerConfig(name="image2video", worker_module="externals.image2video.worker")
 _POOL = WarmWorkerPool(_CONFIG)
 
 

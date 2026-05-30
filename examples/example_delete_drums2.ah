@@ -1,5 +1,4 @@
 
-
 @delete_drums: $music_separation(model=htdemucs_v4, shifts=5) -> $select(sounds=[1,2,3]) -> $join_stems
 @music_without_drums: $file('test_data/music/Cats.wav') -> @delete_drums
 

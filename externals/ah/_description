@@ -1,0 +1,40 @@
+$ah — run Anthill (.ah) source from texts[]
+
+SUMMARY
+  Parses and executes .ah program text from texts[], using the same session
+  and UI callback as the parent run. Returns the nested program's output
+  bundle (images[], videos[], prompts[], etc.).
+
+SYNTAX
+  $ah
+  $ah(entry='gen_clip')
+
+INPUT
+  texts[] — required; one or more links containing .ah source (e.g. output of $code).
+  Other input arrays are not passed into the nested run (entry starts with empty arrays).
+
+OUTPUT
+  The final ArrayBundle from running the nested script (replaces the input bundle).
+  Writes script.ah and nested_run.json under the op dir for inspection.
+
+ARGUMENTS
+  entry= — run this @instruction instead of the script's `run @…` target.
+
+BEHAVIOR
+  Always runs in-process (nested Runtime + ActionCallback).
+  Nested work is stored under <op_dir>/nested/; returned bundle links are
+  reparented to the parent session so later steps can read them.
+  Nested @instructions and $externals emit the same action_start/finish/error
+  callbacks as the main app flow (UI resolves previews from each op's session).
+
+  Optional fence stripping: if texts[] starts with ``` or ```ah, the fence is removed.
+
+ENVIRONMENT
+  AH_EMULATE_AH=1 — placeholder texts[] output, no nested execution.
+
+EXAMPLE
+  @ah_code: $file('_lang_desc', source_path=True) -> $folder('examples', source_path=True) -> $code -> $ah
+  Create a script that builds an image clip about cats.
+
+PROMPT-CONSUMING
+  No — reads texts[], not prompts[].

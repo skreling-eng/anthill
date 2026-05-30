@@ -1,0 +1,7 @@
+
+# for bs_roformer_sw we get the following in the output: [ vocals,  drums,  bass,  guitar,  piano,  other ]
+
+@delete_drums: $music_separation(model=bs_roformer_sw, shifts=5) -> $select(sounds=[0,2,3,4,5]) -> $join_stems
+@music_without_drums: $file('test_data/music/Cats.wav') -> @delete_drums
+
+run @music_without_drums

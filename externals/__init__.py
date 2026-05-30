@@ -29,6 +29,7 @@ _KNOWN = frozenset(
         "sound2text",
         "llm",
         "code",
+        "ah",
         "search",
         "serch",
         "texts_to_prompts",
@@ -95,12 +96,12 @@ def run_external(
     if ctx.cancel_event is not None and ctx.cancel_event.is_set():
         raise RuntimeCancelled(f"$externals {name!r} cancelled")
 
-    if subprocess_enabled(name):
-        if name == "image2image":
-            from externals.image2image.worker_client import run_via_worker, worker_enabled
-
-            if worker_enabled():
-                return run_via_worker(ctx, inp)
+    # $ah runs nested Runtime with the parent callback — must stay in-process.
+    if subprocess_enabled(name) and name != "ah":
+        if name in ("image2image", "image2video"):
+            mod = importlib.import_module(f"externals.{name}.worker_client")
+            if mod.worker_enabled():
+                return mod.run_via_worker(ctx, inp)
         from externals.invoke import run_external_subprocess
 
         return run_external_subprocess(name, ctx, inp)

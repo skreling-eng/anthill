@@ -32,19 +32,16 @@ imgens_list = [
         "meme_peter_face",
         gentype="flux",
         lora="lora/opt-meme_peter_face_v0_rank4_bf16.safetensors",
-        desc="https://civitai.com/models/702897?modelVersionId=786315",
     ),
     ImageGen(
         "linedesign_flux",
         gentype="flux",
         lora="lora/linedesign_flux.safetensors",
-        desc="https://civitai.com/models/729264/line-design?modelVersionId=815510",
     ),
     ImageGen(
         "crazy_librarian",
         gentype="flux",
         lora="lora/DonM__Crazy_Librarian_Character_Flux-000001.safetensors",
-        desc="https://civitai.com/models/793758/donm-crazy-librarian-character-flux",
     ),
     ImageGen(
         "crazy_desire",

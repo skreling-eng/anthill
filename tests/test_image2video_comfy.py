@@ -1,0 +1,82 @@
+"""Tests for comfy_lib $image2video backend."""
+
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+
+from externals.image2video.comfy_workflow import (
+    build_i2v_prompt_for_model,
+    load_i2v_workflow,
+    resolve_output_size,
+)
+
+
+class TestI2VOutputSize(unittest.TestCase):
+    def test_resolve_from_image_when_omitted(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            from PIL import Image
+
+            img = Path(tmp) / "wide.png"
+            Image.new("RGB", (768, 1280), (0, 0, 0)).save(img)
+            w, h = resolve_output_size(img, width=None, height=None)
+            self.assertEqual((w, h), (768, 1280))
+
+    def test_explicit_overrides_image(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            from PIL import Image
+
+            img = Path(tmp) / "src.png"
+            Image.new("RGB", (640, 480), (0, 0, 0)).save(img)
+            w, h = resolve_output_size(img, width=832, height=480)
+            self.assertEqual((w, h), (832, 480))
+
+
+class TestI2VWorkflow(unittest.TestCase):
+    def test_load_i2v_workflow(self) -> None:
+        wf = load_i2v_workflow()
+        types = {n.get("class_type") for n in wf.values()}
+        self.assertIn("CheckpointLoaderSimple", types)
+        self.assertIn("WanVaceToVideo", types)
+        self.assertIn("WanVideoVACEStartToEndFrame", types)
+        self.assertIn("VAEDecode", types)
+
+    def test_build_i2v_prompt_patches(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            img = Path(tmp) / "src.png"
+            img.write_bytes(
+                b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+                b"\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00"
+                b"\x00\x00\x0cIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n"
+                b"\xdb\x00\x00\x00\x00IEND\xaeB`\x82"
+            )
+            inp = Path(tmp) / "input"
+            try:
+                wf, seed = build_i2v_prompt_for_model(
+                    prompt="woman running",
+                    image_path=img,
+                    input_dir=inp,
+                    model_arg="wan",
+                    seed=42,
+                    width=768,
+                    height=1280,
+                    steps=4,
+                    num_frames=81,
+                )
+            except FileNotFoundError:
+                self.skipTest("Wan checkpoint not installed")
+            self.assertEqual(seed, 42)
+            ks = next(n for n in wf.values() if n.get("class_type") == "KSampler")
+            self.assertEqual(ks["inputs"]["steps"], 4)
+            pos = next(
+                n
+                for n in wf.values()
+                if n.get("class_type") == "CLIPTextEncode"
+                and "negative" not in (n.get("_meta") or {}).get("title", "").lower()
+            )
+            self.assertEqual(pos["inputs"]["text"], "woman running")
+
+
+if __name__ == "__main__":
+    unittest.main()

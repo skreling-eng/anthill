@@ -305,8 +305,58 @@
   </script>
 
   <script>
+    function teardownMedia(root) {
+      root.querySelectorAll("audio, video").forEach((el) => {
+        try {
+          el.pause();
+        } catch (e) {
+          /* ignore */
+        }
+        el.removeAttribute("src");
+        el.load();
+      });
+    }
+
+    function activateLazyMedia(container) {
+      container.querySelectorAll("audio.lazy-media, video.lazy-media").forEach((el) => {
+        const uri = el.getAttribute("data-src");
+        if (!uri || el.getAttribute("src")) {
+          return;
+        }
+        el.setAttribute("src", uri);
+        el.load();
+      });
+    }
+
+    function bindLazyMedia(root) {
+      root.querySelectorAll("details.result-fold").forEach((details) => {
+        if (details.dataset.lazyMediaBound === "1") {
+          return;
+        }
+        details.dataset.lazyMediaBound = "1";
+        details.addEventListener("toggle", () => {
+          if (details.open) {
+            activateLazyMedia(details);
+          }
+        });
+      });
+    }
+
+    let _lastActionLogHtml = "";
+
     function setTemplateFragment(fragmentName, fragmentHTML) {
-      document.getElementById(fragmentName).innerHTML = fragmentHTML;
+      const root = document.getElementById(fragmentName);
+      if (fragmentName === "top-left") {
+        if (fragmentHTML === _lastActionLogHtml) {
+          return;
+        }
+        _lastActionLogHtml = fragmentHTML;
+        teardownMedia(root);
+      }
+      root.innerHTML = fragmentHTML;
+      if (fragmentName === "top-left") {
+        bindLazyMedia(root);
+      }
     }
 
     function setTemplateFragments(topLeft, topRight, bottomLeft, bottomRight) {
@@ -318,6 +368,24 @@
 
     window.setTemplateFragments = setTemplateFragments;
     window.setTemplateFragment = setTemplateFragment;
+
+    (function () {
+      async function refreshActionLog() {
+        if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.poll_log_refresh) {
+          return;
+        }
+        try {
+          const html = await window.pywebview.api.poll_log_refresh();
+          if (typeof html === "string" && html.length > 0) {
+            setTemplateFragment("top-left", html);
+          }
+        } catch (err) {
+          /* ignore poll errors */
+        }
+      }
+      window.setInterval(refreshActionLog, 400);
+      window.addEventListener("load", refreshActionLog);
+    })();
   </script>
 
     <style>

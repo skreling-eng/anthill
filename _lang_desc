@@ -201,20 +201,24 @@ After each step, the runtime applies pending `changes[]` and clears the array.
 
 ## 6. Externals (`$`)
 
-Registered handlers (see `externals/__init__.py`):
+Registered handlers (see `externals/__init__.py`). Per-external detail: `externals/<name>/_description`. Subprocess and GPU lifecycle: `externals/SUBPROCESS.md`.
 
 | External | Role |
 |----------|------|
 | `$file`, `$folder` | Load file(s) from disk into arrays by extension |
 | `$save` | Write array data to a path by extension |
 | `$output` | Session output helper |
-| `$image`, `$image2image`, `$image_variation` | Image generation |
-| `$comfy` | ComfyUI workflow |
+| `$image` | FLUX / LoRA text-to-image (diffusers) |
+| `$image2image` | Qwen-Rapid-AIO prompt-guided edit (`comfy_lib` in-process; warm GPU worker) |
+| `$image2video` | Wan MEGA image→video (`comfy_lib` in-process by default; warm GPU worker) |
+| `$image2text` | Qwen2-VL vision-language |
+| `$comfy` | ComfyUI **server** HTTP API (workflow JSON on a running Comfy instance) |
 | `$llm` | LLM text generation |
+| `$code` | Local coding LLM (generates text, often .ah scripts) |
+| `$ah` | Execute .ah source from texts[] (nested run; same session + callback) |
 | `$texts_to_prompts`, `$prompts_to_texts` | Convert between texts and prompts |
 | `$music`, `$music_separation`, `$change_voice`, `$join_stems`, `$text2speech`, `$voice_enhance` | Music / stems / RVC / mix / TTS / Resemble Enhance |
 | `$image_clip`, `$video_clip`, `$clip` | Video from images/sounds or joined videos + sound |
-| `$image2video` | Image to video |
 | `$sound2text` | Speech-to-text (optional JSON word timestamps) |
 | `$draw_text` | Overlay multiline text on `images[]` (Pillow) |
 | `$only` | Keep only listed arrays, e.g. `$only(images, prompts)` |
@@ -223,11 +227,57 @@ Registered handlers (see `externals/__init__.py`):
 | `$clear` | Clear arrays |
 | `$list`, `$first_image`, `$input_json` | Utilities |
 
-**Prompt-consuming externals** (`$image`, `$llm`, `$music`, …) clear `prompts[]` on output after the call.
-
-**Emulation (tests):** `AH_EMULATE_*=1`, `AH_EXTERNAL_INPROCESS=…`, `AH_EXTERNAL_SUBPROCESS=0`.
+**Prompt-consuming externals** (`$image`, `$image2image`, `$image2video`, `$llm`, `$music`, …) clear `prompts[]` on output after the call.
 
 Each `$` call gets an op folder with `input.json`, `invoke.json`, and `output.json`.
+
+### 6.1 GPU-heavy comfy in-process externals
+
+`$image2image` and `$image2video` share `externals/comfy_inprocess/`:
+
+- Run Comfy **workflow JSON** from `comfy_workflows/` via embedded `comfy_lib` (no Comfy server).
+- Use **ComfyUI-compatible Python** with `comfy_aimdo` when available (`AH_COMFY_PYTHON`, default tries `G:\ComfyUI_V\.venv\Scripts\python.exe`).
+- **Warm worker** (default): one long-lived subprocess keeps the model on GPU between jobs in the same run (`AH_*_WORKER=1`). Avoids reloading ~20–28 GB per op.
+- At run end, `release_gpu_resources()` stops warm workers and empties CUDA cache (`AH_RELEASE_GPU_ON_RUN_END=1`, default).
+
+| External | Workflow | Default checkpoint |
+|----------|----------|-------------------|
+| `$image2image` | `Qwen-Rapid-AIO_4.json` | `models/qwen-rapid/` (e.g. `sfw-v23`) |
+| `$image2video` | `Rapid-AIO-Mega__3_start_image.json` | `models/wan/` or ComfyUI `checkpoints/WAN/` |
+
+**`$image2image`:** edits `images[]` with prompts; args include `use_all=`, `model=`, `width=`/`height=`, `steps=`, `seed=`, `gpu=`.
+
+**`$image2video`:** one MP4 per input image (start frame); requires prompt. Args include `model=` (default `wan`), `width=`/`height=`, `steps=`, `frames=`, `guidance=`/`cfg=`, `seed=`, `neg=`.
+
+**`$image2video` backends** (`backend=` or `AH_IMAGE2VIDEO_BACKEND`):
+
+| Value | Path |
+|-------|------|
+| `comfy_lib` (default) | In-process Rapid-AIO-Mega via `comfy_lib` |
+| `diffusers` | Wan diffusers pipeline (`wan_i2v.py`; needs `uv sync --extra media`) |
+| `comfy` | ComfyUI HTTP API (`COMFYUI_URL`, `COMFYUI_WORKFLOW`) |
+
+**Subprocess / emulation env (tests and overrides):**
+
+| Variable | Effect |
+|----------|--------|
+| `AH_EMULATE_IMAGE2IMAGE=1`, `AH_EMULATE_IMAGE2VIDEO=1` | Placeholder outputs, no GPU |
+| `AH_EXTERNAL_INPROCESS=all` or per-name list | Skip subprocess; run in orchestrator |
+| `AH_EXTERNAL_SUBPROCESS=0` | Same as in-process |
+| `AH_IMAGE2IMAGE_WORKER=0`, `AH_IMAGE2VIDEO_WORKER=0` | One-shot subprocess per op (no warm worker) |
+| `AH_RELEASE_GPU_ON_RUN_END=0` | Keep warm workers alive after run |
+
+Isolated venvs: `AH_EXTERNAL_VENV_<name>` (see `.env.template`, `tools/setup_external_venvs.ps1`).
+
+Example pipelines:
+
+```ah
+@edit: @photo -> $image2image(model='sfw-v23')
+fix the hands and lighting
+
+@animate: @still -> $image2video(model='wan', width=768, height=1280)
+woman running in the park
+```
 
 ---
 
@@ -248,6 +298,7 @@ Implementation: `ahlib/ah_runtime.py`, action AST: `ahlib/ah_actions.py`.
 | File | Focus |
 |------|--------|
 | `example.ah` | LLM prompts, `$image`, parallel clip |
+| `examples/example_image2image.ah` | Qwen-Rapid-AIO `$image2image` edit |
 | `example_comfy.ah` | ComfyUI parallel workflows |
 | `example_clip.ah`, `example_clip2.ah` | Clip / video pipelines |
 
