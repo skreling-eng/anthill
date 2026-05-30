@@ -10,6 +10,12 @@ Each `$` external runs in its own subprocess. For **conflicting stacks** (torch 
 powershell -ExecutionPolicy Bypass -File tools\setup_external_venvs.ps1
 ```
 
+Linux:
+
+```bash
+bash tools/setup_external_venvs.sh
+```
+
 Creates:
 
 | Path | `uv sync` extra | Used for |

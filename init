@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Fresh checkout: install deps, external venvs, and models from skreling-eng/anthill.
+#   ./init
+#   ./init --profile minimal
+#   ./init --skip-sage --dry-run
+set -euo pipefail
+Root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec bash "$Root/tools/init.sh" "$@"

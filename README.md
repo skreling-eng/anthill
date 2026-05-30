@@ -125,9 +125,10 @@ Each external call writes `input.json`, `invoke.json`, and `output.json` under t
 
 ## Requirements
 
-- **Windows** (primary target; paths and setup scripts assume it)
-- **Python 3.11** (3.12 not supported — see `pyproject.toml`)
+- **Windows** (primary target; paths and setup scripts assume it) or **Linux** (use `tools/init.sh`; GPU externals need NVIDIA + CUDA drivers)
+- **Python 3.11–3.12** (`>=3.11,<3.13` in `pyproject.toml`)
 - **[uv](https://docs.astral.sh/uv/)** for dependency management
+- **[Hugging Face CLI](https://huggingface.co/docs/huggingface_hub/guides/cli)** (`hf`) for model downloads
 - **NVIDIA GPU** recommended for `$image`, `$image2video`, `$music`, and related externals
 - **Model weights** under `models/` (not in this repo — see [Models](#models))
 
@@ -139,13 +140,25 @@ Each external call writes `input.json`, `invoke.json`, and `output.json` under t
 
 One script installs base + external venvs and downloads model weights from [skreling-eng/anthill](https://huggingface.co/skreling-eng/anthill):
 
+**Windows**
+
 ```powershell
 git clone https://github.com/YOUR_USER/anthill.git
 cd anthill
 powershell -ExecutionPolicy Bypass -File tools\init.ps1
+# or:  init.bat
 ```
 
-Options: `-Profile minimal|standard|full`, `-SkipSage`, `-SkipModels`, `-DryRun`. If the anthill bundle is still uploading, use `-UpstreamFallback` or re-run later. Status: `uv run python tools/download_models.py --status`.
+**Linux**
+
+```bash
+git clone https://github.com/YOUR_USER/anthill.git
+cd anthill
+bash tools/init.sh
+# or:  chmod +x init && ./init
+```
+
+Options (both platforms): `-Profile minimal|standard|full`, `-SkipSage`, `-SkipModels`, `-DryRun` on Windows; `--profile`, `--skip-sage`, `--skip-models`, `--dry-run` on Linux. If the anthill bundle is still uploading, add `-UpstreamFallback` / `--upstream-fallback` or re-run later. Status: `uv run python tools/download_models.py --status`.
 
 ### 2. Manual setup (alternative)
 
@@ -220,28 +233,6 @@ Prompt-consuming externals clear `prompts[]` after they run. Tests can emulate h
 
 Per-external docs: `externals/<name>/_description`. Subprocess and GPU lifecycle: [`externals/SUBPROCESS.md`](externals/SUBPROCESS.md).
 
-### `$image2image`
-
-Edits `images[]` with a text prompt using **Qwen-Rapid-AIO** checkpoints under `models/qwen-rapid/`. Runs the bundled [`comfy_workflows/Qwen-Rapid-AIO_4.json`](comfy_workflows/Qwen-Rapid-AIO_4.json) workflow via vendored **ComfyUI core** in [`comfy_lib/`](comfy_lib/) — native FP8 load, no separate Comfy server.
-
-| Model name | Checkpoint |
-|------------|------------|
-| `sfw-v23` (default) | `Qwen-Rapid-AIO-SFW-v23.safetensors` |
-| `nsfw-v23` | `Qwen-Rapid-AIO-NSFW-v23.safetensors` |
-
-```ah
-@fixed: $image2image
-correct the hands
-
-@nsfw_edit: $image2image(model='nsfw-v23')
-apply the edit described in the prompt
-```
-
-- **Output size** — `width=` / `height=` optional; omitted dimensions are taken from the input image (snapped to 8px).
-- **Warm worker** — `AH_IMAGE2IMAGE_WORKER=1` (default) keeps the Qwen pipeline loaded between edits in one session.
-- **Comfy Python** — set `AH_COMFY_PYTHON` to a ComfyUI venv with `comfy_aimdo` (e.g. `G:\ComfyUI_V\.venv\Scripts\python.exe`); auto-detect is attempted.
-- **GPU after run** — by default, finishing any `.ah` run stops the warm worker and frees VRAM so a following `$image` call is not starved. Set `AH_RELEASE_GPU_ON_RUN_END=0` to keep the worker warm.
-
 ---
 
 ## Examples
@@ -249,13 +240,30 @@ apply the edit described in the prompt
 | File | Focus |
 |------|--------|
 | [`example.ah`](example.ah) | LLM → image → clip; music; image2video snippets |
+| **Image & vision** | |
 | [`examples/example_simple_image_generation.ah`](examples/example_simple_image_generation.ah) | Multi-model `$image` + `$draw_text` |
 | [`examples/example_image2image.ah`](examples/example_image2image.ah) | Qwen-Rapid-AIO `$image2image` edit |
+| [`examples/example_image2text.ah`](examples/example_image2text.ah) | `$image` → `$image2text` (Qwen2-VL caption) |
+| [`examples/example_image2text2.ah`](examples/example_image2text2.ah) | `$image2text` on a file; hand/finger validation prompt |
+| [`examples/example_ocr.ah`](examples/example_ocr.ah) | `$image` with poster text → `$ocr` |
+| **Video & clip** | |
 | [`examples/example_image_clip.ah`](examples/example_image_clip.ah) | Image slideshow + audio |
-| [`examples/example_animated_clip_with_comfy.ah`](examples/example_animated_clip_with_comfy.ah) | ComfyUI animation |
+| [`examples/example_image_clip2.ah`](examples/example_image_clip2.ah) | Multi-model images, `$draw_text`, ACE-Step music → `$image_clip` |
+| [`examples/example_video_clip.ah`](examples/example_video_clip.ah) | Mux video folder + WAV with `$video_clip` |
+| [`examples/example_combine_data.ah`](examples/example_combine_data.ah) | `$video_clip` → `$output` from test_data |
+| [`examples/example_animated_clip_with_comfy.ah`](examples/example_animated_clip_with_comfy.ah) | ComfyUI animation pipeline |
+| **Audio & voice** | |
 | [`examples/example_text2speech.ah`](examples/example_text2speech.ah) | Kokoro TTS |
 | [`examples/example_music_to_stems.ah`](examples/example_music_to_stems.ah) | Stem separation |
+| [`examples/example_music_enhance.ah`](examples/example_music_enhance.ah) | Separate vocals → `$voice_enhance` → `$join_stems` |
+| [`examples/example_voice_enhance.ah`](examples/example_voice_enhance.ah) | Same enhance/rejoin pattern (alternate sample WAV) |
 | [`examples/example_replace_voice.ah`](examples/example_replace_voice.ah) | RVC voice change |
+| [`examples/example_replace_voice2.ah`](examples/example_replace_voice2.ah) | `$music` → separate → `$change_voice` (multi model) → enhance |
+| [`examples/example_replace_voice3.ah`](examples/example_replace_voice3.ah) | `$text2speech` → RVC → light enhance → rejoin stems |
+| **LLM, code & search** | |
+| [`examples/example_code.ah`](examples/example_code.ah) | `$code` — generate Python (quick sort) |
+| [`examples/example_code2.ah`](examples/example_code2.ah) | Folder → `$code` review → `$llm` formatting |
+| [`examples/example_search.ah`](examples/example_search.ah) | `$search` → LLM JSON → `$image` (UK birds) |
 
 ---
 
@@ -271,7 +279,7 @@ anthill/
 ├── comfy_workflows/    # ComfyUI JSON workflows
 ├── models/             # Local weights (gitignored; README stubs only)
 ├── sessions/           # Run artifacts (gitignored)
-├── tools/              # Setup: venvs, GPU torch, model downloads
+├── tools/              # Setup: init, venvs, GPU torch, model downloads
 ├── tests/              # pytest suite
 ├── run_ah.py           # CLI entry
 ├── pyproject.toml      # Base deps + optional extras
