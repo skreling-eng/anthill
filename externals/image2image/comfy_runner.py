@@ -8,15 +8,31 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
 
 from externals.image2image.comfy_bootstrap import bootstrap_comfy, get_nodes_module
 from externals.image2image.comfy_executor import execute_prompt, find_node_id
 from externals.image2image.comfy_workflow import build_edit_prompt
 from externals.image2image.model_paths import resolve_checkpoint
 
+_PIL_INSTALL_HINT = (
+    "Pillow is required for $image2image. "
+    "Fresh checkout: powershell -File tools\\init.ps1 "
+    "(creates .venvs/media with --extra media). "
+    "Or: powershell -File tools\\setup_external_venvs.ps1 "
+    "and set AH_EXTERNAL_VENV_image2image=.venvs/media in .env"
+)
 
-def _tensor_to_pil(image_tensor) -> Image.Image:
+
+def _pil_image():
+    try:
+        from PIL import Image
+    except ImportError as exc:
+        raise ImportError(_PIL_INSTALL_HINT) from exc
+    return Image
+
+
+def _tensor_to_pil(image_tensor):
+    Image = _pil_image()
     arr = image_tensor.detach().cpu().numpy()
     if arr.ndim == 4:
         arr = arr[0]

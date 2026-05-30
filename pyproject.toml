@@ -50,6 +50,7 @@ image = [
     "protobuf>=4.25.0",
     "sentencepiece>=0.2.0",
     "peft>=0.13.0",
+    "pillow>=10.0.0",
 ]
 image2video = [
     "torch==2.7.1",
@@ -63,6 +64,7 @@ image2video = [
     "accelerate>=1.0.0",
     "safetensors>=0.4.0",
     "opencv-python>=4.8.0",
+    "pillow>=10.0.0",
 ]
 image2video-fast = [
     "torch==2.7.1",
@@ -76,6 +78,7 @@ image2video-fast = [
     "accelerate>=1.0.0",
     "safetensors>=0.4.0",
     "opencv-python>=4.8.0",
+    "pillow>=10.0.0",
 ]
 draw_text = ["Pillow>=10.0.0"]
 ocr = [
@@ -111,6 +114,7 @@ media = [
     "peft>=0.13.0",
     "opencv-python>=4.8.0",
     "moviepy>=2.0",
+    "pillow>=10.0.0",
 ]
 #   tools\setup_external_venvs.ps1   (creates .venvs/media + .venvs/music; do not merge extras)
 #   uv sync --extra media          (only inside UV_PROJECT_ENVIRONMENT=.venvs/media)
