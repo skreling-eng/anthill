@@ -6,6 +6,7 @@
 
 # Runtime artifacts
 sessions/
+saves/
 output/
 __pycache__/
 *.py[cod]
