@@ -16,18 +16,19 @@ Sample output from [`examples/example_animated_clip_with_comfy.ah`](examples/exa
 
 *Unmute the player for audio.*
 
+GitHub README does **not** render `<video>` tags (they are stripped; you may see an empty `<p>`). Use a clickable poster, or paste an MP4 URL from [GitHub video upload](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/attaching-files) (`user-images.githubusercontent.com` / repo `assets`) on its own line for an inline player.
+
 <p align="center">
-  <video
-    src="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4"
-    poster="test_data/clip/demo-poster.png"
-    controls
-    width="360"
-    playsinline
-    preload="metadata"
-  >
-    <a href="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4">Play sample output (MP4)</a>
-  </video>
+  <a href="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4">
+    <img
+      src="test_data/clip/demo-poster.png"
+      alt="Anthill demo — animated witch clip (click to play)"
+      width="360"
+    />
+  </a>
 </p>
+
+https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4
 
 Full-quality file in the repo: [`test_data/clip/0000_20260526_023714_video_clip_0.mp4`](test_data/clip/0000_20260526_023714_video_clip_0.mp4) (~38&nbsp;MB). Requires local models, ComfyUI on port `8000`, and `comfy_workflows/Rapid-AIO-Mega__3_start_image.json`.
 
