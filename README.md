@@ -107,7 +107,7 @@ uv run python run_ah.py examples\example_animated_clip_with_comfy.ah
 
 ## How it works
 
-Programs are **instructions** (`@name`) connected by **`->`**. Data flows as seven parallel arrays (prompts, texts, images, sounds, videos, files, and pending changes). **Externals** (`$image`, `$music`, `$llm`, …) are Python handlers under `externals/`; heavy ones run in dedicated venvs (`.venvs/media`, `.venvs/music`, …) so conflicting PyTorch stacks never share one environment.
+Programs are **instructions** (`@name`) connected by **`->`**. Data flows as seven parallel arrays (prompts, texts, images, sounds, videos, files, and pending changes). **Externals** (`$image`, `$music`, `$llm`, …) are Python handlers under `externals/`; heavy ones run in dedicated venvs (`.venvs/media`, `.venvs/music`, …) so conflicting PyTorch stacks never share one environment. When a run finishes, Anthill releases GPU memory (warm workers and CUDA cache) unless you opt out with `AH_RELEASE_GPU_ON_RUN_END=0`.
 
 ```mermaid
 flowchart LR
@@ -203,9 +203,11 @@ Handlers live in `externals/<name>/` with a `run.py` entry point.
 | `$file`, `$folder`, `$save`, `$output` | Load / write session files |
 | `$llm` | Local LLM (llama.cpp) |
 | `$texts_to_prompts`, `$prompts_to_texts` | Prompt ↔ text conversion |
-| `$image`, `$image2image`, `$image_variation` | Image generation (diffusers) |
+| `$image` | FLUX / LoRA text-to-image (diffusers) |
+| `$image2image` | Qwen-Rapid-AIO prompt-guided edit ([`comfy_lib/`](comfy_lib/), in-process — no Comfy server) |
+| `$image2text` | Qwen2-VL vision-language |
 | `$image2video` | Wan-based image → video |
-| `$comfy` | ComfyUI API workflows (`comfy_workflows/`) |
+| `$comfy` | ComfyUI **server** API workflows (`comfy_workflows/`) |
 | `$music`, `$music_separation`, `$join_stems` | Music gen / stem split |
 | `$text2speech`, `$voice_enhance`, `$change_voice` | TTS / enhance / RVC |
 | `$image_clip`, `$video_clip`, `$clip` | Slideshow / mux video |
@@ -216,6 +218,30 @@ Handlers live in `externals/<name>/` with a `run.py` entry point.
 
 Prompt-consuming externals clear `prompts[]` after they run. Tests can emulate handlers with `AH_EMULATE_*=1`.
 
+Per-external docs: `externals/<name>/_description`. Subprocess and GPU lifecycle: [`externals/SUBPROCESS.md`](externals/SUBPROCESS.md).
+
+### `$image2image`
+
+Edits `images[]` with a text prompt using **Qwen-Rapid-AIO** checkpoints under `models/qwen-rapid/`. Runs the bundled [`comfy_workflows/Qwen-Rapid-AIO_4.json`](comfy_workflows/Qwen-Rapid-AIO_4.json) workflow via vendored **ComfyUI core** in [`comfy_lib/`](comfy_lib/) — native FP8 load, no separate Comfy server.
+
+| Model name | Checkpoint |
+|------------|------------|
+| `sfw-v23` (default) | `Qwen-Rapid-AIO-SFW-v23.safetensors` |
+| `nsfw-v23` | `Qwen-Rapid-AIO-NSFW-v23.safetensors` |
+
+```ah
+@fixed: $image2image
+correct the hands
+
+@nsfw_edit: $image2image(model='nsfw-v23')
+apply the edit described in the prompt
+```
+
+- **Output size** — `width=` / `height=` optional; omitted dimensions are taken from the input image (snapped to 8px).
+- **Warm worker** — `AH_IMAGE2IMAGE_WORKER=1` (default) keeps the Qwen pipeline loaded between edits in one session.
+- **Comfy Python** — set `AH_COMFY_PYTHON` to a ComfyUI venv with `comfy_aimdo` (e.g. `G:\ComfyUI_V\.venv\Scripts\python.exe`); auto-detect is attempted.
+- **GPU after run** — by default, finishing any `.ah` run stops the warm worker and frees VRAM so a following `$image` call is not starved. Set `AH_RELEASE_GPU_ON_RUN_END=0` to keep the worker warm.
+
 ---
 
 ## Examples
@@ -224,6 +250,7 @@ Prompt-consuming externals clear `prompts[]` after they run. Tests can emulate h
 |------|--------|
 | [`example.ah`](example.ah) | LLM → image → clip; music; image2video snippets |
 | [`examples/example_simple_image_generation.ah`](examples/example_simple_image_generation.ah) | Multi-model `$image` + `$draw_text` |
+| [`examples/example_image2image.ah`](examples/example_image2image.ah) | Qwen-Rapid-AIO `$image2image` edit |
 | [`examples/example_image_clip.ah`](examples/example_image_clip.ah) | Image slideshow + audio |
 | [`examples/example_animated_clip_with_comfy.ah`](examples/example_animated_clip_with_comfy.ah) | ComfyUI animation |
 | [`examples/example_text2speech.ah`](examples/example_text2speech.ah) | Kokoro TTS |
@@ -238,6 +265,7 @@ Prompt-consuming externals clear `prompts[]` after they run. Tests can emulate h
 anthill/
 ├── ahlib/              # Parser, runtime, action executor
 ├── externals/          # $ handlers (one folder per external)
+├── comfy_lib/          # Vendored ComfyUI core ($image2image in-process)
 ├── examples/           # Sample .ah programs
 ├── test_data/clip/     # Sample outputs for the README
 ├── comfy_workflows/    # ComfyUI JSON workflows
@@ -254,7 +282,9 @@ anthill/
 
 ## Models
 
-Code resolves paths relative to the repo root, e.g. `models/kokoro/`, `models/wan/i2v-base/`, `models/rvc/<voice>/`. Override with environment variables where documented (`WAN_I2V_BASE_DIR`, `AH_KOKORO_DIR`, `ACESTEP_CHECKPOINTS_DIR`, …).
+Code resolves paths relative to the repo root, e.g. `models/kokoro/`, `models/wan/i2v-base/`, `models/qwen-rapid/`, `models/rvc/<voice>/`. Override with environment variables where documented (`WAN_I2V_BASE_DIR`, `AH_KOKORO_DIR`, `ACESTEP_CHECKPOINTS_DIR`, …).
+
+**Qwen-Rapid-AIO** (`$image2image`): both SFW and NSFW v23 checkpoints live under `models/qwen-rapid/` and are included in the `qwen_rapid_ckpt` group from `tools/download_models.py`.
 
 **This repository does not ship weights.** Host them on [Hugging Face](https://huggingface.co) (or pull from upstream repos) and mirror the layout under `models/`, or point env vars at another directory. See per-family READMEs under `models/` for download commands.
 
@@ -276,14 +306,15 @@ uv run python run_ah.py example.ah --dump-parse   # inspect parsed program JSON
 
 Optional extras in `pyproject.toml`: `clip`, `sound2text`, `music`, `image`, `image2video`, `media`, etc. Do not install `music` and `media` in the same uv environment — conflicts are declared in `[tool.uv.conflicts]`.
 
-Subprocess vs in-process externals: `AH_EXTERNAL_SUBPROCESS`, `AH_EXTERNAL_INPROCESS` (see `_lang_desc` §6).
+Subprocess vs in-process externals: `AH_EXTERNAL_SUBPROCESS`, `AH_EXTERNAL_INPROCESS` (see `_lang_desc` §6). GPU release at run end: `AH_RELEASE_GPU_ON_RUN_END` (default `1`; see [`externals/SUBPROCESS.md`](externals/SUBPROCESS.md)).
 
 ---
 
 ## Configuration
 
 - **`.env`** — loaded by `run_ah.py` (venv paths, Wan dirs, ACE-Step backend, …). Never commit secrets.
-- **ComfyUI** — run Comfy separately; `$comfy(port=…, json='…')` targets `comfy_workflows/`.
+- **ComfyUI server** — run Comfy separately for `$comfy(port=…, json='…')`; workflows live in `comfy_workflows/`. **`$image2image` does not need a running server** — it uses `comfy_lib/` in-process; point `AH_COMFY_PYTHON` at a ComfyUI venv for `comfy_aimdo`.
+- **GPU lifecycle** — `AH_RELEASE_GPU_ON_RUN_END=1` (default) stops warm workers (including `$image2image`) when a run ends; set `0` to keep Qwen loaded for back-to-back edits.
 - **LLM** — place GGUF under `models/llm/` for `$llm`.
 
 ---
