@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ".ah agentic system language interpreter"
 requires-python = ">=3.11,<3.13"
 dependencies = [
+    "huggingface-hub>=0.34.0,<1.0",
     "llama-cpp-python>=0.3.0",
     "pywebview>=5.0",
 ]

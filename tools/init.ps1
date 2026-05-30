@@ -1,14 +1,17 @@
-# Fresh Anthill checkout: install Python deps, external venvs, and model weights.
+# Fresh Anthill checkout: install Python deps, external venvs, and HF bundle.
 # Run from repo root:
 #   powershell -ExecutionPolicy Bypass -File tools\init.ps1
-#   powershell -ExecutionPolicy Bypass -File tools\init.ps1 -Profile minimal -SkipSage
+#   init.bat -Profile minimal -SkipSage
+#   init.bat -UploadTestData              # maintainer: push test_data/ to skreling-eng/anthill
 param(
     [ValidateSet("minimal", "standard", "full")]
     [string]$Profile = "standard",
     [switch]$SkipVenvs,
     [switch]$SkipModels,
+    [switch]$SkipTestData,
     [switch]$SkipSage,
     [switch]$UpstreamFallback,
+    [switch]$UploadTestData,
     [switch]$DryRun
 )
 
@@ -66,17 +69,27 @@ if (-not $SkipSage) {
     Write-Host "=== 3/4 SageAttention: skipped (-SkipSage) ===" -ForegroundColor Yellow
 }
 
+if ($UploadTestData) {
+    Write-Host ""
+    Write-Host "=== Upload test_data/ -> skreling-eng/anthill ===" -ForegroundColor Cyan
+    $upArgs = @("tools/upload_to_hf.py", "--bundle", "test-data")
+    if ($DryRun) { $upArgs += "--dry-run" }
+    uv run python @upArgs
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
 if (-not $SkipModels) {
     Write-Host ""
-    Write-Host "=== 4/4 Model weights (models/) ===" -ForegroundColor Cyan
+    Write-Host "=== 4/4 Anthill bundle (models/ + test_data/) ===" -ForegroundColor Cyan
     $dlArgs = @("tools/download_models.py", "--profile", $Profile)
     if ($DryRun) { $dlArgs += "--dry-run" }
     if ($UpstreamFallback) { $dlArgs += "--upstream-fallback" }
+    if ($SkipTestData) { $dlArgs += "--skip-test-data" }
     uv run python @dlArgs
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 } else {
     Write-Host ""
-    Write-Host "=== 4/4 Models: skipped (-SkipModels) ===" -ForegroundColor Yellow
+    Write-Host "=== 4/4 Anthill bundle: skipped (-SkipModels) ===" -ForegroundColor Yellow
 }
 
 Write-Host ""
@@ -85,8 +98,9 @@ Write-Host @"
 
 Next steps:
   1. Ensure .env has AH_EXTERNAL_VENV_* lines (printed by setup_external_venvs.ps1)
-  2. If models are still missing: wait for anthill upload, or init.ps1 -UpstreamFallback
-  3. Run:  uv run python run_ah.py examples\example_simple_image_generation.ah
+  2. If models/test_data missing: wait for anthill upload, or init.bat -UpstreamFallback
+  3. Maintainer publish test_data:  init.bat -UploadTestData  (Write HF token)
+  4. Run:  uv run python run_ah.py examples\example_simple_image_generation.ah
 
-Model status:  uv run python tools/download_models.py --status
+Bundle status:  uv run python tools/download_models.py --status
 "@

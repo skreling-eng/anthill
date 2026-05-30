@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Download Anthill model weights from skreling-eng/anthill into models/.
+"""Download Anthill bundle from skreling-eng/anthill (models/ + test_data/).
 
-The anthill Hugging Face repo mirrors the local models/ tree. One snapshot
-pull is enough when the bundle is complete.
+The Hub repo mirrors local trees:
+  models/     → pulled into ./models/
+  test_data/  → pulled into ./test_data/  (unless --skip-test-data)
 
   uv run python tools/download_models.py
   uv run python tools/download_models.py --status
-  uv run python tools/download_models.py --upstream-fallback   # only if anthill is incomplete
+  uv run python tools/download_models.py --upstream-fallback
 
-Requires: hf auth login  (read token is fine)
+Publish test_data (Write token):  init.bat -UploadTestData
+
+Requires: hf auth login  (read token is fine for download)
 """
 
 from __future__ import annotations
@@ -20,7 +23,15 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODELS_DIR = REPO_ROOT / "models"
+TEST_DATA_DIR = REPO_ROOT / "test_data"
 ANTHILL_REPO = os.environ.get("ANTHILL_HF_REPO_ID", "skreling-eng/anthill")
+
+# Spot-check that example media was pulled from the Hub.
+TEST_DATA_CHECKS: list[str] = [
+    "test_data/clip/demo-poster.png",
+    "test_data/music/Cats.wav",
+    "test_data/app/app_screenshot_1.png",
+]
 
 # Key files used to report readiness after download.
 CHECKS: dict[str, list[str]] = {
@@ -124,6 +135,35 @@ def download_anthill(*, dry_run: bool) -> None:
     _log("  ok")
 
 
+def download_test_data(*, dry_run: bool) -> None:
+    _log(f"\n=== {ANTHILL_REPO} -> test_data/ ===")
+    if dry_run:
+        _log("  (dry-run — would hf download test_data/**)")
+        return
+    from huggingface_hub import snapshot_download
+
+    os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+    TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    snapshot_download(
+        ANTHILL_REPO,
+        repo_type="model",
+        local_dir=str(REPO_ROOT),
+        allow_patterns=["test_data/**"],
+    )
+    _log("  ok")
+
+
+def test_data_ready() -> bool:
+    return all((REPO_ROOT / rel).is_file() for rel in TEST_DATA_CHECKS)
+
+
+def print_test_data_status() -> None:
+    _log("\ntest_data (from anthill test_data/**):")
+    for rel in TEST_DATA_CHECKS:
+        ok = (REPO_ROOT / rel).is_file()
+        _log(f"  [{'ok' if ok else 'MISSING':7}] {rel}")
+
+
 def print_status(profile: str) -> None:
     groups = PROFILE_GROUPS[profile]
     _log(f"\nModel status ({profile}):")
@@ -219,6 +259,11 @@ def main() -> int:
         action="store_true",
         help="After anthill pull, fetch remaining files from upstream HF repos",
     )
+    parser.add_argument(
+        "--skip-test-data",
+        action="store_true",
+        help="Do not download test_data/** from anthill (default: download)",
+    )
     args = parser.parse_args()
 
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -227,10 +272,16 @@ def main() -> int:
 
     if args.status:
         print_status(args.profile)
+        print_test_data_status()
         print_notes()
         return 0
 
     download_anthill(dry_run=args.dry_run)
+
+    if not args.skip_test_data:
+        download_test_data(dry_run=args.dry_run)
+        if not args.dry_run:
+            print_test_data_status()
 
     if args.upstream_fallback and not args.dry_run:
         _run_upstream_fallback(dry_run=False, profile=args.profile)

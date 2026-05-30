@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
-"""Upload local models/ weights to a Hugging Face model repo (incremental).
+"""Upload local trees to skreling-eng/anthill (incremental). Library for upload_to_hf.py.
 
-Skips cache and junk directories (.cache, __pycache__, huggingface, openvino-cache, …).
-Only uploads files whose path is not already present on the Hub repo.
+Prefer the unified CLI:
+  uv run python tools/upload_to_hf.py --token hf_...
+  uv run python tools/upload_to_hf.py --bundle models --dry-run
+  uv run python tools/upload_to_hf.py --bundle test-data
 
-Run from repo root:
-  uv run python tools/upload_models_to_hf.py --dry-run
-  uv run python tools/upload_models_to_hf.py
-
-Requires a **Write** token (not Read-only):
-  https://huggingface.co/settings/tokens  →  New token  →  type: Write
-  hf auth login --token hf_...
-  # or:  $env:HF_TOKEN = "hf_..."
+Requires a **Write** token (not Read-only).
 """
 
 from __future__ import annotations
@@ -23,6 +18,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MODELS_DIR = REPO_ROOT / "models"
+DEFAULT_TEST_DATA_DIR = REPO_ROOT / "test_data"
 DEFAULT_REPO_ID = "skreling-eng/anthill"
 
 # Directory names anywhere under models/ — skipped entirely.
@@ -57,23 +53,33 @@ def _in_skip_dir(rel: Path) -> bool:
     return any(part in SKIP_DIR_NAMES for part in rel.parts)
 
 
-def iter_upload_candidates(models_dir: Path) -> list[tuple[Path, str]]:
+def _repo_path(rel: Path, *, path_prefix: str) -> str:
+    prefix = path_prefix.strip().strip("/")
+    rel_posix = rel.as_posix()
+    return f"{prefix}/{rel_posix}" if prefix else rel_posix
+
+
+def iter_upload_candidates(
+    local_dir: Path,
+    *,
+    path_prefix: str = "",
+) -> list[tuple[Path, str]]:
     """Return (absolute_path, path_in_repo) for files to consider uploading."""
-    if not models_dir.is_dir():
-        raise SystemExit(f"models directory not found: {models_dir}")
+    if not local_dir.is_dir():
+        raise SystemExit(f"directory not found: {local_dir}")
 
     out: list[tuple[Path, str]] = []
-    for path in sorted(models_dir.rglob("*")):
+    for path in sorted(local_dir.rglob("*")):
         if not path.is_file():
             continue
-        rel = path.relative_to(models_dir)
+        rel = path.relative_to(local_dir)
         if _in_skip_dir(rel):
             continue
         if rel.name in SKIP_FILE_NAMES:
             continue
         if rel.suffix == ".metadata":
             continue
-        out.append((path, rel.as_posix()))
+        out.append((path, _repo_path(rel, path_prefix=path_prefix)))
     return out
 
 
@@ -207,7 +213,42 @@ def upload_missing(
     return uploaded, skipped
 
 
-def main() -> int:
+def upload_bundle(
+    *,
+    local_dir: Path,
+    path_prefix: str = "",
+    repo_id: str = DEFAULT_REPO_ID,
+    token: str | None = None,
+    dry_run: bool = False,
+    force: bool = False,
+    remote_paths: set[str] | None = None,
+    label: str = "",
+) -> tuple[int, int]:
+    """Upload one local tree. Returns (uploaded_count, skipped_count)."""
+    title = label or (path_prefix.strip("/") or local_dir.name)
+    print(f"\n=== {title} ===")
+    candidates = iter_upload_candidates(local_dir, path_prefix=path_prefix)
+    print(f"Local:  {local_dir}  ({len(candidates)} file(s) after filters)")
+    if path_prefix:
+        print(f"Prefix: {path_prefix.strip('/')}/")
+
+    if remote_paths is None:
+        remote_paths = fetch_remote_paths(repo_id, token)
+
+    uploaded, skipped = upload_missing(
+        candidates=candidates,
+        remote_paths=remote_paths,
+        repo_id=repo_id,
+        token=token,
+        dry_run=dry_run,
+        force=force,
+    )
+    if uploaded and not dry_run:
+        print(f"Uploaded {uploaded} file(s) for {title}")
+    return uploaded, skipped
+
+
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--repo-id",
@@ -215,10 +256,20 @@ def main() -> int:
         help=f"Target model repo (default: {DEFAULT_REPO_ID})",
     )
     parser.add_argument(
-        "--models-dir",
+        "--local-dir",
         type=Path,
         default=DEFAULT_MODELS_DIR,
-        help="Local models root (default: models/)",
+        help="Local directory to upload (default: models/)",
+    )
+    parser.add_argument(
+        "--path-prefix",
+        default="",
+        help="Prefix for paths on the Hub (default: none; use test_data for test_data/)",
+    )
+    parser.add_argument(
+        "--models-dir",
+        type=Path,
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--dry-run",
@@ -235,31 +286,39 @@ def main() -> int:
         default=None,
         help="HF token (default: HF_TOKEN env, else cached hf auth login)",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
-    models_dir = args.models_dir.resolve()
+    local_dir = (args.models_dir or args.local_dir).resolve()
     token = resolve_token(args.token)
-
     check_write_access(args.repo_id, token)
-
-    candidates = iter_upload_candidates(models_dir)
-    print(f"Local:  {models_dir}  ({len(candidates)} file(s) after filters)")
     print(f"Remote: https://huggingface.co/{args.repo_id}")
-
     remote_paths = fetch_remote_paths(args.repo_id, token)
     print(f"Hub:    {len(remote_paths)} file(s) already in repo")
 
-    uploaded, skipped = upload_missing(
-        candidates=candidates,
-        remote_paths=remote_paths,
+    upload_bundle(
+        local_dir=local_dir,
+        path_prefix=args.path_prefix,
         repo_id=args.repo_id,
         token=token,
         dry_run=args.dry_run,
         force=args.force,
+        remote_paths=remote_paths,
     )
-    if uploaded and not args.dry_run:
-        print(f"\nUploaded {uploaded} file(s) to {args.repo_id}")
     return 0
+
+
+def main_test_data(argv: list[str] | None = None) -> int:
+    """Upload test_data/ with Hub prefix test_data/."""
+    extra = list(argv or sys.argv[1:])
+    return main(
+        [
+            "--local-dir",
+            str(DEFAULT_TEST_DATA_DIR),
+            "--path-prefix",
+            "test_data",
+            *extra,
+        ]
+    )
 
 
 if __name__ == "__main__":

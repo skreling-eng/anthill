@@ -12,8 +12,10 @@ cd "$Root"
 Profile="standard"
 SkipVenvs=0
 SkipModels=0
+SkipTestData=0
 SkipSage=0
 UpstreamFallback=0
+UploadTestData=0
 DryRun=0
 
 usage() {
@@ -23,8 +25,10 @@ Usage: bash tools/init.sh [options]
 Options:
   --profile minimal|standard|full   Model download profile (default: standard)
   --skip-venvs                      Skip .venvs/* setup
-  --skip-models                     Skip model download
+  --skip-models                     Skip model + test_data download
+  --skip-test-data                  Skip test_data download only
   --skip-sage                       Skip optional SageAttention install
+  --upload-test-data                Maintainer: upload test_data/ to skreling-eng/anthill
   --upstream-fallback               Use upstream repos when anthill bundle is incomplete
   --dry-run                         Print model download plan only
   -h, --help                        Show this help
@@ -39,7 +43,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-venvs) SkipVenvs=1; shift ;;
     --skip-models) SkipModels=1; shift ;;
+    --skip-test-data) SkipTestData=1; shift ;;
     --skip-sage) SkipSage=1; shift ;;
+    --upload-test-data) UploadTestData=1; shift ;;
     --upstream-fallback) UpstreamFallback=1; shift ;;
     --dry-run) DryRun=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -107,9 +113,19 @@ else
   echo "=== 3/4 SageAttention: skipped (--skip-sage) ==="
 fi
 
+if [[ "$UploadTestData" -eq 1 ]]; then
+  echo ""
+  echo "=== Upload test_data/ -> skreling-eng/anthill ==="
+  up_args=(tools/upload_to_hf.py --bundle test-data)
+  if [[ "$DryRun" -eq 1 ]]; then
+    up_args+=(--dry-run)
+  fi
+  uv run python "${up_args[@]}"
+fi
+
 if [[ "$SkipModels" -eq 0 ]]; then
   echo ""
-  echo "=== 4/4 Model weights (models/) ==="
+  echo "=== 4/4 Anthill bundle (models/ + test_data/) ==="
   dl_args=(tools/download_models.py --profile "$Profile")
   if [[ "$DryRun" -eq 1 ]]; then
     dl_args+=(--dry-run)
@@ -117,10 +133,13 @@ if [[ "$SkipModels" -eq 0 ]]; then
   if [[ "$UpstreamFallback" -eq 1 ]]; then
     dl_args+=(--upstream-fallback)
   fi
+  if [[ "$SkipTestData" -eq 1 ]]; then
+    dl_args+=(--skip-test-data)
+  fi
   uv run python "${dl_args[@]}"
 else
   echo ""
-  echo "=== 4/4 Models: skipped (--skip-models) ==="
+  echo "=== 4/4 Anthill bundle: skipped (--skip-models) ==="
 fi
 
 echo ""
@@ -129,8 +148,9 @@ cat <<EOF
 
 Next steps:
   1. Ensure .env has AH_EXTERNAL_VENV_* lines (printed by setup_external_venvs.sh)
-  2. If models are still missing: wait for anthill upload, or bash tools/init.sh --upstream-fallback
-  3. Run:  uv run python run_ah.py examples/example_simple_image_generation.ah
+  2. If models/test_data missing: wait for anthill upload, or bash tools/init.sh --upstream-fallback
+  3. Maintainer publish test_data:  bash tools/init.sh --upload-test-data
+  4. Run:  uv run python run_ah.py examples/example_simple_image_generation.ah
 
-Model status:  uv run python tools/download_models.py --status
+Bundle status:  uv run python tools/download_models.py --status
 EOF

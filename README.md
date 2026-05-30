@@ -188,7 +188,7 @@ bash tools/init.sh
 # or:  chmod +x init && ./init
 ```
 
-Options (both platforms): `-Profile minimal|standard|full`, `-SkipSage`, `-SkipModels`, `-DryRun` on Windows; `--profile`, `--skip-sage`, `--skip-models`, `--dry-run` on Linux. If the anthill bundle is still uploading, add `-UpstreamFallback` / `--upstream-fallback` or re-run later. Status: `uv run python tools/download_models.py --status`.
+Options (both platforms): `-Profile minimal|standard|full`, `-SkipSage`, `-SkipModels`, `-SkipTestData`, `-DryRun` on Windows; `--profile`, `--skip-sage`, `--skip-models`, `--skip-test-data`, `--dry-run` on Linux. Init downloads **models/** and **test_data/** from [skreling-eng/anthill](https://huggingface.co/skreling-eng/anthill). Maintainers publish to the Hub: `uv run python tools/upload_to_hf.py --token hf_...` (models + test_data), or `init.bat -UploadTestData` (test_data only). If the bundle is incomplete, add `-UpstreamFallback` / `--upstream-fallback`. Status: `uv run python tools/download_models.py --status`.
 
 ### 2. Manual setup (alternative)
 
@@ -207,7 +207,7 @@ powershell -File tools\setup_sage_windows.ps1
 
 ### 3. Models
 
-Weights live in `models/<family>/`. Init pulls the [anthill](https://huggingface.co/skreling-eng/anthill) bundle (mirrors your local `models/` tree). Optional RVC voices stay under `models/rvc/` if you add them locally.
+Weights live in `models/<family>/`. Example images, audio, and clips live under `test_data/` (mostly gitignored; init pulls them from the same [anthill](https://huggingface.co/skreling-eng/anthill) bundle as `test_data/**` on the Hub). Optional RVC voices stay under `models/rvc/` if you add them locally.
 
 ### 4. Run an example
 
