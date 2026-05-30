@@ -93,6 +93,47 @@ uv run python run_ah.py examples\example_animated_clip_with_comfy.ah
 
 ---
 
+## Desktop app
+
+Anthill includes a **desktop UI** ([`app.py`](app.py), [pywebview](https://pywebview.flowrl.com/)): edit `.ah` scripts in the lower pane, click **Run**, and follow progress in the action log. Finished runs show inline **image**, **video**, and **audio** previews, expandable JSON, and links to copy session paths for replay with `$input_json`.
+
+```powershell
+uv run python app.py
+# or:  app_start.bat
+```
+
+**Script editor and run log** — `$image`, `$music`, `$image_clip` in one session; thumbnails, video player, and lyrics in the log.
+
+<p align="center">
+  <img
+    src="test_data/app/app_screenshot_1.png"
+    alt="Anthill desktop app — script editor and run log with image, video, and audio previews"
+    width="720"
+  />
+</p>
+
+**Image lightbox** — click a thumbnail to browse generated images full-size.
+
+<p align="center">
+  <img
+    src="test_data/app/app_screenshot_2.png"
+    alt="Anthill desktop app — full-size image viewer with prev/next navigation"
+    width="720"
+  />
+</p>
+
+**Pipeline example** — [`examples/example_search.ah`](examples/example_search.ah): `$search` → `$llm` → `$image` (UK garden birds).
+
+<p align="center">
+  <img
+    src="test_data/app/app_screenshot_3.png"
+    alt="Anthill desktop app — search and image generation pipeline with bird thumbnails"
+    width="720"
+  />
+</p>
+
+---
+
 
 ## How it works
 
@@ -170,10 +211,18 @@ Weights live in `models/<family>/`. Init pulls the [anthill](https://huggingface
 
 ### 4. Run an example
 
+**CLI**
+
 ```powershell
 uv run python run_ah.py examples\example_simple_image_generation.ah
 # or
 .\run.bat
+```
+
+**Desktop app**
+
+```powershell
+uv run python app.py
 ```
 
 `run.bat` expects `.venvs\media` and runs `example.ah` by default. Session output appears under `sessions/<timestamp>_…/`.
@@ -270,6 +319,7 @@ anthill/
 ├── sessions/           # Run artifacts (gitignored)
 ├── tools/              # Setup: init, venvs, GPU torch, model downloads
 ├── tests/              # pytest suite
+├── app.py              # Desktop UI (pywebview)
 ├── run_ah.py           # CLI entry
 ├── pyproject.toml      # Base deps + optional extras
 └── _lang_desc          # .ah language reference
