@@ -16,27 +16,17 @@ Sample output from [`examples/example_animated_clip_with_comfy.ah`](examples/exa
 
 *Unmute the player for audio.*
 
-https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4
-
 <p align="center">
   <video
     src="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4"
+    poster="test_data/clip/demo-poster.png"
     controls
     width="360"
     playsinline
+    preload="metadata"
   >
     <a href="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4">Play sample output (MP4)</a>
   </video>
-</p>
-
-<p align="center">
-  <a href="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/0000_20260526_023714_video_clip_0_readme.mp4">
-    <img
-      src="https://github.com/skreling-eng/anthill/releases/download/_gh-attach-assets/demo-poster.jpg"
-      alt="Anthill demo — animated witch clip (click to play)"
-      width="360"
-    />
-  </a>
 </p>
 
 Full-quality file in the repo: [`test_data/clip/0000_20260526_023714_video_clip_0.mp4`](test_data/clip/0000_20260526_023714_video_clip_0.mp4) (~38&nbsp;MB). Requires local models, ComfyUI on port `8000`, and `comfy_workflows/Rapid-AIO-Mega__3_start_image.json`.
