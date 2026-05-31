@@ -1,4 +1,4 @@
-"""Comfy-in-process Wan MEGA I2V runner (comfy_lib + Rapid-AIO-Mega workflow)."""
+"""Comfy-in-process Wan I2V runner (comfy_lib + Wan_i2v_rapid workflow)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,33 @@ from externals.image2video.comfy_nodes import register_i2v_node_handlers
 from externals.image2video.comfy_workflow import build_i2v_prompt_for_model
 
 
+def _empty_cuda_cache_before_inference() -> None:
+    import gc
+
+    gc.collect()
+    try:
+        import comfy.model_management as mm
+
+        mm.soft_empty_cache(force=True)
+    except ImportError:
+        pass
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except ImportError:
+        pass
+
+
 def _tensor_to_frames(image_tensor) -> list[np.ndarray]:
+    from externals.comfy_inprocess.prompt_executor import _unwrap_output_slot
+
+    image_tensor = _unwrap_output_slot(image_tensor)
+    if not hasattr(image_tensor, "detach"):
+        raise RuntimeError(
+            f"VAEDecode output is not a tensor (got {type(image_tensor).__name__})"
+        )
     arr = image_tensor.detach().cpu().numpy()
     if arr.ndim == 4:
         frames = arr
@@ -62,7 +88,11 @@ class ComfyI2VRunner:
         self.work_dir = self.work_dir.resolve()
         self.input_dir = self.work_dir / "input"
         self.output_dir = self.work_dir / "output"
-        bootstrap_comfy(input_dir=self.input_dir, output_dir=self.output_dir)
+        bootstrap_comfy(
+            input_dir=self.input_dir,
+            output_dir=self.output_dir,
+            load_wan_wrapper=True,
+        )
 
     @property
     def nodes(self):
@@ -103,6 +133,17 @@ class ComfyI2VRunner:
             guidance=guidance,
             workflow_ref=workflow_ref,
         )
+        from externals.comfy_inprocess.vram_config import apply_comfy_vram_settings
+
+        apply_comfy_vram_settings()
+        _empty_cuda_cache_before_inference()
+        try:
+            import comfy.model_management as mm
+
+            mm.unload_all_models()
+            mm.soft_empty_cache(force=True)
+        except ImportError:
+            pass
         outputs = execute_prompt(prompt_dict, nodes_module=self.nodes)
         decode_id = find_node_id(prompt_dict, "VAEDecode")
         if decode_id is None:
@@ -118,11 +159,14 @@ _RUNNER_KEY: tuple[str, int] | None = None
 
 def get_runner(*, work_dir: Path, fps: int = 16) -> ComfyI2VRunner:
     global _RUNNER, _RUNNER_KEY
+    from externals.comfy_inprocess.vram_config import apply_comfy_vram_settings
+
     key = (str(work_dir.resolve()), fps)
     if _RUNNER is None or _RUNNER_KEY != key:
         print(f"$image2video: comfy_lib backend ({work_dir})", flush=True)
         _RUNNER = ComfyI2VRunner(work_dir=work_dir, fps=fps)
         _RUNNER_KEY = key
+    apply_comfy_vram_settings()
     return _RUNNER
 
 
@@ -141,6 +185,7 @@ def run_comfy_i2v(
     negative_prompt: str = "",
     guidance: float | None = None,
     fps: int = 16,
+    workflow_ref: str = "",
 ) -> Path:
     runner = get_runner(work_dir=work_dir, fps=fps)
     t0 = time.perf_counter()
@@ -156,6 +201,7 @@ def run_comfy_i2v(
         num_frames=num_frames,
         negative_prompt=negative_prompt,
         guidance=guidance,
+        workflow_ref=workflow_ref,
     )
     print(
         f"$image2video: comfy I2V finished in {time.perf_counter() - t0:.1f}s",

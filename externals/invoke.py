@@ -70,7 +70,7 @@ _DEFAULT_UV_EXTRAS: dict[str, list[str]] = {
     "image": ["media"],
     "image2image": ["media"],
     "check_image": ["media"],
-    "image2video": ["media"],
+    "image2video": ["media", "comfy-wan", "clip"],
     "image_clip": ["media"],
     "video_clip": ["media"],
     "clip": ["clip"],
@@ -92,7 +92,7 @@ _DEFAULT_VENVS: dict[str, str] = {
     "image": ".venvs/media",
     "image2image": ".venvs/media",
     "check_image": ".venvs/media",
-    "image2video": ".venvs/media",
+    "image2video": ".venvs/comfy-wan",
     "image_clip": ".venvs/media",
     "video_clip": ".venvs/media",
     "clip": ".venvs/media",
@@ -261,6 +261,9 @@ def _subprocess_env(ctx: ExternalContext) -> dict[str, str]:
     env = os.environ.copy()
     env["AH_SESSION_BASE_DIR"] = str(ctx.base_dir.resolve())
     env["PYTHONUNBUFFERED"] = "1"
+    # expandable_segments helps VRAM on Linux; PyTorch warns on Windows (unsupported).
+    if os.name != "nt" and "PYTORCH_CUDA_ALLOC_CONF" not in env:
+        env["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     root = str(_REPO_ROOT)
     prev = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = root if not prev else f"{root}{os.pathsep}{prev}"

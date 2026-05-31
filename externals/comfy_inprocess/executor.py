@@ -2,12 +2,33 @@
 
 from __future__ import annotations
 
+import copy
 from collections import deque
 from collections.abc import Callable
 from typing import Any
 
 _NODE_HANDLERS: dict[str, Callable[[dict[str, Any]], tuple[Any, ...]]] = {}
-_SKIP_NODES = frozenset({"SaveImage", "PreviewImage", "VHS_VideoCombine"})
+SKIP_NODES = frozenset({"SaveImage", "PreviewImage", "VHS_VideoCombine"})
+_SKIP_NODES = SKIP_NODES  # alias for internal use
+
+
+def strip_skipped_workflow_nodes(prompt: dict[str, Any]) -> dict[str, Any]:
+    """Drop nodes Anthill handles elsewhere (VHS export, previews).
+
+    PromptExecutor still walks every node id in the prompt; unregistered types
+    like ``VHS_VideoCombine`` cause KeyError in ``execution._is_intermediate_output``.
+    """
+    removed = [
+        nid
+        for nid, node in prompt.items()
+        if (node.get("class_type") or "") in SKIP_NODES
+    ]
+    if not removed:
+        return prompt
+    out = copy.deepcopy(prompt)
+    for nid in removed:
+        del out[nid]
+    return out
 
 
 class ComfyWorkflowError(RuntimeError):
@@ -112,11 +133,50 @@ def execute_prompt(
     output_node_ids: list[str] | None = None,
 ) -> dict[str, tuple[Any, ...]]:
     """Run a Comfy /prompt-style workflow dict; return all node outputs."""
+    if should_use_comfy_executor(prompt):
+        try:
+            from externals.comfy_inprocess.prompt_executor import execute_prompt_comfy
+
+            return execute_prompt_comfy(
+                prompt,
+                nodes_module=nodes_module,
+                output_node_ids=output_node_ids,
+            )
+        except ImportError as exc:
+            import logging
+
+            logging.warning(
+                "AH_COMFY_EXECUTOR=comfy unavailable (%s); using legacy executor",
+                exc,
+            )
+
+    return _execute_prompt_legacy(
+        prompt,
+        nodes_module=nodes_module,
+        output_node_ids=output_node_ids,
+    )
+
+
+def _execute_prompt_legacy(
+    prompt: dict[str, Any],
+    *,
+    nodes_module,
+    output_node_ids: list[str] | None = None,
+) -> dict[str, tuple[Any, ...]]:
+    """Legacy topo executor (fallback when PromptExecutor is disabled or fails)."""
     if output_node_ids is None:
         output_node_ids = []
+    from externals.comfy_inprocess.comfy_memory import (
+        comfy_memory_enabled,
+        finalize_node,
+        handle_execution_oom,
+        prepare_node,
+    )
+
     order = _topo_order(prompt)
     outputs: dict[str, tuple[Any, ...]] = {}
     mappings = nodes_module.NODE_CLASS_MAPPINGS
+    memory_mode = comfy_memory_enabled(prompt)
 
     for nid in order:
         node = prompt[nid]
@@ -129,23 +189,47 @@ def execute_prompt(
             outputs[nid] = (None,)
             continue
 
-        handler = _NODE_HANDLERS.get(class_type)
-        if handler is not None:
-            outputs[nid] = handler(inputs)
-            continue
+        prepare_node(class_type, enabled=memory_mode)
 
-        if class_type not in mappings:
-            outputs[nid] = (None,)
-            continue
-
-        cls = mappings[class_type]
-        instance = cls()
-        func = getattr(instance, cls.FUNCTION)
-        filtered = _filter_node_inputs(class_type, cls, inputs)
-        result = func(**filtered)
-        outputs[nid] = _normalize_outputs(result)
+        try:
+            if class_type in mappings:
+                cls = mappings[class_type]
+                instance = cls()
+                func = getattr(instance, cls.FUNCTION)
+                filtered = _filter_node_inputs(class_type, cls, inputs)
+                result = func(**filtered)
+                outputs[nid] = _normalize_outputs(result)
+            elif class_type in _NODE_HANDLERS:
+                outputs[nid] = _NODE_HANDLERS[class_type](inputs)
+            else:
+                outputs[nid] = (None,)
+        except Exception as exc:
+            err = str(exc).lower()
+            if "outofmemoryerror" in err or "out of memory" in err:
+                handle_execution_oom()
+            raise
+        finally:
+            finalize_node(class_type, enabled=memory_mode)
 
     return outputs
+
+
+def should_use_comfy_executor(prompt: dict[str, Any] | None = None) -> bool:
+    from externals.comfy_inprocess.prompt_executor import should_use_comfy_executor as _should
+
+    return _should(prompt)
+
+
+# Keep public name for callers that imported execute_prompt body.
+def execute_prompt_legacy(
+    prompt: dict[str, Any],
+    *,
+    nodes_module,
+    output_node_ids: list[str] | None = None,
+) -> dict[str, tuple[Any, ...]]:
+    return _execute_prompt_legacy(
+        prompt, nodes_module=nodes_module, output_node_ids=output_node_ids
+    )
 
 
 def find_node_id(prompt: dict[str, Any], class_type: str) -> str | None:

@@ -28,6 +28,28 @@ def _redirect_worker_logs_to_stderr() -> None:
     builtins.print = _print  # type: ignore[misc, assignment]
 
 
+def _release_worker_gpu() -> None:
+    """Best-effort VRAM cleanup after a failed or heavy GPU job."""
+    import gc
+
+    gc.collect()
+    try:
+        import comfy.model_management as mm
+
+        mm.unload_all_models()
+        mm.soft_empty_cache(force=True)
+    except Exception:
+        pass
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+    except Exception:
+        pass
+
+
 def run_job(op_dir: Path, run_fn: Callable) -> None:
     from ahlib.ah_runtime import ArrayBundle, Session
     from externals.api import ExternalContext, ExternalInput
@@ -87,6 +109,8 @@ def worker_main(run_fn: Callable) -> int:
             if not err_text.endswith("\n"):
                 sys.stderr.write("\n")
             sys.stderr.flush()
+            if "OutOfMemoryError" in err_text or "out of memory" in err_text.lower():
+                _release_worker_gpu()
             _emit(
                 {
                     "status": "error",

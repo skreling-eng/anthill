@@ -24,6 +24,9 @@ function Sync-Venv($RelPath, $Extras) {
 Write-Host "Anthill external venvs under .venvs/"
 Sync-Venv ".venvs/media" "media,clip,music_separation"
 
+# WanVideoWrapper + VHS under comfy_lib/ (heavier sklearn stack; do not merge with music)
+Sync-Venv ".venvs/comfy-wan" "media,comfy-wan,clip"
+
 Write-Host ""
 Write-Host "=== .venvs/change_voice (Python 3.10 + rvc-python; do NOT uv sync here) ==="
 $cvVenv = Join-Path $Root ".venvs\change_voice"
@@ -64,7 +67,8 @@ Write-Host "Add to .env (or set in shell):"
 Write-Host "  AH_EXTERNAL_VENV_image2text=.venvs/media"
 Write-Host "  AH_EXTERNAL_VENV_image=.venvs/media"
 Write-Host "  AH_EXTERNAL_VENV_image2image=.venvs/media"
-Write-Host "  AH_EXTERNAL_VENV_image2video=.venvs/media"
+Write-Host "  AH_EXTERNAL_VENV_image2video=.venvs/comfy-wan"
+Write-Host "  AH_EXTERNAL_VENV_image2video=.venvs/media   # optional lighter venv"
 Write-Host "  AH_EXTERNAL_VENV_music=.venvs/music"
 Write-Host "  AH_EXTERNAL_VENV_music_separation=.venvs/media"
 Write-Host "  AH_EXTERNAL_VENV_change_voice=.venvs/change_voice"

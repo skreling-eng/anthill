@@ -42,6 +42,7 @@ sync_venv() {
 
 echo "Anthill external venvs under .venvs/"
 sync_venv ".venvs/media" "media,clip,music_separation"
+sync_venv ".venvs/comfy-wan" "media,comfy-wan,clip"
 
 echo ""
 echo "=== .venvs/change_voice (Python 3.10 + rvc-python; do NOT uv sync here) ==="
@@ -85,7 +86,8 @@ echo "Add to .env (or export in shell):"
 echo "  AH_EXTERNAL_VENV_image2text=.venvs/media"
 echo "  AH_EXTERNAL_VENV_image=.venvs/media"
 echo "  AH_EXTERNAL_VENV_image2image=.venvs/media"
-echo "  AH_EXTERNAL_VENV_image2video=.venvs/media"
+echo "  AH_EXTERNAL_VENV_image2video=.venvs/comfy-wan"
+echo "  AH_EXTERNAL_VENV_image2video=.venvs/media   # optional lighter venv"
 echo "  AH_EXTERNAL_VENV_music=.venvs/music"
 echo "  AH_EXTERNAL_VENV_music_separation=.venvs/media"
 echo "  AH_EXTERNAL_VENV_change_voice=.venvs/change_voice"

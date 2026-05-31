@@ -38,8 +38,8 @@ class TestI2VWorkflow(unittest.TestCase):
         wf = load_i2v_workflow()
         types = {n.get("class_type") for n in wf.values()}
         self.assertIn("CheckpointLoaderSimple", types)
-        self.assertIn("WanVaceToVideo", types)
-        self.assertIn("WanVideoVACEStartToEndFrame", types)
+        self.assertIn("WanImageToVideo", types)
+        self.assertIn("CLIPVisionEncode", types)
         self.assertIn("VAEDecode", types)
 
     def test_build_i2v_prompt_patches(self) -> None:
@@ -67,8 +67,15 @@ class TestI2VWorkflow(unittest.TestCase):
             except FileNotFoundError:
                 self.skipTest("Wan checkpoint not installed")
             self.assertEqual(seed, 42)
+            ckpt = next(
+                n for n in wf.values() if n.get("class_type") == "CheckpointLoaderSimple"
+            )
+            self.assertIn("i2v-rapid-aio-v10", ckpt["inputs"]["ckpt_name"])
+            wan = next(n for n in wf.values() if n.get("class_type") == "WanImageToVideo")
+            self.assertEqual(wan["inputs"]["length"], 81)
             ks = next(n for n in wf.values() if n.get("class_type") == "KSampler")
             self.assertEqual(ks["inputs"]["steps"], 4)
+            self.assertEqual(ks["inputs"]["sampler_name"], "sa_solver")
             pos = next(
                 n
                 for n in wf.values()

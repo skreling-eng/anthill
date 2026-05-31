@@ -20,13 +20,15 @@ Creates:
 
 | Path | `uv sync` extra | Used for |
 |------|-----------------|----------|
-| `.venvs/media` | `media` | `$image`, `$image2video`, … |
+| `.venvs/media` | `media` | `$image`, `$image2image`, … |
+| `.venvs/comfy-wan` | `media` + `comfy-wan` | **`$image2video`** (default; vendored Wrapper/VHS deps) |
 | `.venvs/music` | `music` | `$music` (`ace-step`, `model=st`) |
 
 Point Anthill at them (in `.env` or shell):
 
 ```ini
 AH_EXTERNAL_VENV_image=.venvs/media
+AH_EXTERNAL_VENV_image2video=.venvs/comfy-wan
 AH_EXTERNAL_VENV_image2video=.venvs/media
 AH_EXTERNAL_VENV_music=.venvs/music
 ```

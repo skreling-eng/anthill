@@ -243,7 +243,7 @@ Each `$` call gets an op folder with `input.json`, `invoke.json`, and `output.js
 | External | Workflow | Default checkpoint |
 |----------|----------|-------------------|
 | `$image2image` | `Qwen-Rapid-AIO_4.json` | `models/qwen-rapid/` (e.g. `sfw-v23`) |
-| `$image2video` | `Rapid-AIO-Mega__3_start_image.json` | `models/wan/` or ComfyUI `checkpoints/WAN/` |
+| `$image2video` | `Wan_i2v_rapid__start_image.json` | `models/wan/wan2.2-i2v-rapid-aio-v10.safetensors` |
 
 **`$image2image`:** edits `images[]` with prompts; args include `use_all=`, `model=`, `width=`/`height=`, `steps=`, `seed=`, `gpu=`.
 
@@ -253,7 +253,7 @@ Each `$` call gets an op folder with `input.json`, `invoke.json`, and `output.js
 
 | Value | Path |
 |-------|------|
-| `comfy_lib` (default) | In-process Rapid-AIO-Mega via `comfy_lib` |
+| `comfy_lib` (default) | In-process Wan I2V rapid (`WanImageToVideo`, same as WanVideo_111) |
 | `diffusers` | Wan diffusers pipeline (`wan_i2v.py`; needs `uv sync --extra media`) |
 | `comfy` | ComfyUI HTTP API (`COMFYUI_URL`, `COMFYUI_WORKFLOW`) |
 

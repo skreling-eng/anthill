@@ -44,15 +44,16 @@ def worker_enabled(config: WarmWorkerConfig) -> bool:
 def default_comfy_worker_cmd(config: WarmWorkerConfig) -> list[str]:
     from externals.comfy_inprocess.bootstrap import resolve_comfy_python
 
-    comfy_py = resolve_comfy_python()
-    if comfy_py is not None:
-        return [str(comfy_py), "-m", config.worker_module]
+    # Prefer Anthill isolated venv (e.g. .venvs/comfy-wan for image2video) over ComfyUI install.
     custom = external_python(config.name)
     if custom:
         return [custom, "-m", config.worker_module]
     isolated = venv_python(config.name, None)
     if isolated:
         return [isolated, "-m", config.worker_module]
+    comfy_py = resolve_comfy_python()
+    if comfy_py is not None:
+        return [str(comfy_py), "-m", config.worker_module]
     if not _use_uv():
         return [sys.executable, "-m", config.worker_module]
     uv_bin = shutil.which(os.environ.get("UV", "uv")) or "uv"
@@ -209,6 +210,8 @@ class WarmWorkerPool:
                         if err_path.is_file()
                         else msg.get("error", "")
                     )
+                    if "OutOfMemoryError" in detail or "out of memory" in detail.lower():
+                        self.terminate()
                     raise RuntimeError(f"${label} worker failed:\n{detail}")
                 if status not in ("ok", "error"):
                     continue

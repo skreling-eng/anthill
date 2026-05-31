@@ -44,21 +44,41 @@ def _apply_rope(xq: Tensor, xk: Tensor, freqs_cis: Tensor):
     return apply_rope1(xq, freqs_cis), apply_rope1(xk, freqs_cis)
 
 
+def _kitchen_rope_available() -> bool:
+    """comfy_kitchen rope ops (opt-in; extra VRAM). Need cu130+ and AH_COMFY_KITCHEN_ROPE=1."""
+    import os
+
+    raw = os.environ.get("AH_COMFY_KITCHEN_ROPE", "0").strip().lower()
+    if raw not in ("1", "true", "yes", "on"):
+        return False
+    if not torch.version.cuda:
+        return False
+    try:
+        cuda_version = tuple(map(int, str(torch.version.cuda).split(".")))
+    except ValueError:
+        return False
+    return cuda_version >= (13,)
+
+
 try:
     import comfy.quant_ops
-    q_apply_rope = comfy.quant_ops.ck.apply_rope
-    q_apply_rope1 = comfy.quant_ops.ck.apply_rope1
-    def apply_rope(xq, xk, freqs_cis):
-        if comfy.model_management.in_training:
-            return _apply_rope(xq, xk, freqs_cis)
-        else:
+
+    if _kitchen_rope_available() and hasattr(comfy.quant_ops, "ck"):
+        q_apply_rope = comfy.quant_ops.ck.apply_rope
+        q_apply_rope1 = comfy.quant_ops.ck.apply_rope1
+
+        def apply_rope(xq, xk, freqs_cis):
+            if comfy.model_management.in_training:
+                return _apply_rope(xq, xk, freqs_cis)
             return apply_rope1(xq, freqs_cis), apply_rope1(xk, freqs_cis)
-    def apply_rope1(x, freqs_cis):
-        if comfy.model_management.in_training:
-            return _apply_rope1(x, freqs_cis)
-        else:
+
+        def apply_rope1(x, freqs_cis):
+            if comfy.model_management.in_training:
+                return _apply_rope1(x, freqs_cis)
             return q_apply_rope1(x, freqs_cis)
-except:
+    else:
+        raise ImportError("comfy_kitchen rope disabled (need cu130+)")
+except Exception:
     logging.warning("No comfy kitchen, using old apply_rope functions.")
     apply_rope = _apply_rope
     apply_rope1 = _apply_rope1

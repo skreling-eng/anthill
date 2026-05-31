@@ -1,4 +1,4 @@
-"""Wan MEGA checkpoint resolution for $image2video (comfy_lib in-process)."""
+"""Wan checkpoint resolution for $image2video (comfy_lib in-process)."""
 
 from __future__ import annotations
 
@@ -9,13 +9,23 @@ from externals.comfy_inprocess.bootstrap import comfyui_models_root
 from externals.image.model_paths import models_roots
 
 MODEL_ALIASES: dict[str, str] = {
-    "wan": "wan2.2-rapid-mega-aio-v12.safetensors",
     "default": "wan2.2-rapid-mega-aio-v12.safetensors",
     "mega": "wan2.2-rapid-mega-aio-v12.safetensors",
     "mega-nsfw": "wan2.2-rapid-mega-aio-nsfw-v12.2.safetensors",
+    "wan": "wan2.2-i2v-rapid-aio-v10.safetensors",
+    "rapid": "wan2.2-i2v-rapid-aio-v10.safetensors",
+    "i2v": "wan2.2-i2v-rapid-aio-v10.safetensors",
 }
 
-DEFAULT_MODEL = "wan"
+MEGA_WORKFLOW = "Rapid-AIO-Mega__3_start_image.json"
+DEFAULT_CLIP_VISION = "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+
+
+def is_mega_model(model_arg: str) -> bool:
+    name = _resolve_filename(model_arg).lower()
+    return "mega" in name
+
+DEFAULT_MODEL = "mega"
 WAN_SUBDIR = Path("WAN")
 
 

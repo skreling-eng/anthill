@@ -1,4 +1,9 @@
-"""Optional import stubs so comfy_lib loads without a full ComfyUI install."""
+"""Optional import stubs so comfy_lib loads without a full ComfyUI install.
+
+Anthill in-process bootstrap loads only a small comfy_extras whitelist (see
+``bootstrap._ANTHILL_COMFY_EXTRA_MODULES``). Newer ComfyUI extras need the
+``comfy_api`` package and are skipped unless ``AH_COMFY_LOAD_ALL_EXTRAS=1``.
+"""
 
 from __future__ import annotations
 

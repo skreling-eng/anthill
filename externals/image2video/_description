@@ -15,8 +15,7 @@ SUMMARY
 SYNTAX
 
   $image2video
-
-  $image2video(model='wan')
+  $image2video(model='mega')
 
   $image2video(model='wan', seed=42)
 
@@ -43,7 +42,7 @@ OUTPUT
 
 ARGUMENTS
 
-  model= — profile name (default wan).
+  model= — profile name (default mega → wan2.2-rapid-mega-aio-v12).
 
   width= / height= — output size in pixels (snapped to VAE/patch grid). If only one
     is set, the other follows the input image aspect ratio. If neither is set, the
@@ -52,7 +51,15 @@ ARGUMENTS
 
   steps= — denoising steps (default 4 for wan — matches Comfy MEGA rapid).
 
-  frames= — output frame count (default 81). Lower (e.g. 49) for faster tests.
+  frames= — output frame count (default 81). On ≤18GB GPUs, auto-capped to ≤33 unless
+    WAN_I2V_NO_FRAME_CAP=1.
+
+  tiled_vae= — 1 for tiled VAE encode/decode only (lower VRAM, slower). Not the DiT sampler.
+    Aliases: vae_tiles=, tiled=. Env: WAN_I2V_TILED_VAE=1
+
+  vram= — Comfy weight offload: low (default for tight GPUs) or novram (slowest).
+    lowvram=1 is an alias. Env: WAN_I2V_VRAM=low
+    DiT OOM: vram=low or novram; optional frame/resolution cap (WAN_I2V_AUTO_CAP=1).
 
   guidance= / cfg= — classifier-free guidance scale (default 1.0 for wan; use 1
     for Comfy-style speed, not 5).
@@ -60,7 +67,9 @@ ARGUMENTS
   attn= / attention= — attention backend (default sage). Use native to force
     PyTorch SDPA only (slower but safest if sage fails).
 
-  backend= — comfy_lib (default, in-process Rapid-AIO-Mega) | diffusers | comfy (ComfyUI API)
+  backend= — comfy_lib (default, ComfyUI PromptExecutor in-process) | diffusers | comfy (HTTP API)
+
+  AH_COMFY_EXECUTOR=comfy — vendored ComfyUI execution.py (default). legacy = simple topo executor.
 
   seed= — RNG seed; offset per output when generating multiple videos.
 
@@ -72,9 +81,18 @@ WEIGHT LAYOUT (Comfy-style AIO split, one file read)
 
   Single checkpoint (default):
 
-    models/wan/wan2.2-rapid-mega-aio-v12.safetensors
+    models/wan/wan2.2-rapid-mega-aio-v12.safetensors (default)
+    models/wan/wan2.2-i2v-rapid-aio-v10.safetensors (model=wan)
 
-  Workflow: comfy_workflows/Rapid-AIO-Mega__3_start_image.json
+  Workflow: comfy_workflows/Wan_i2v_rapid__start_image.json (same graph as WanVideo_111)
+
+  MEGA (heavier): model=mega-nsfw (auto-picks Rapid-AIO-Mega__3_start_image.json;
+    Comfy-like VRAM unload via AH_COMFY_MEMORY=1, default on for VACE).
+    Loads comfy_lib/ComfyUI-WanVideoWrapper on worker start (node 34 VACE helper, etc.);
+    WanVaceToVideo / WanImageToVideo still from wan_legacy_nodes when not in Wrapper.
+    AH_COMFY_WAN_WRAPPER=0 disables Wrapper import (Anthill fallback for VACE node).
+    On ~16GB GPUs: auto novram for MEGA; area/frame caps only if WAN_I2V_AUTO_CAP=1.
+    tiled_vae=1 is optional; WAN_I2V_TILED_VAE_FULL=1 only if you need forced full VAE load.
 
 
 
@@ -108,7 +126,8 @@ WEIGHT LAYOUT (Comfy-style AIO split, one file read)
 
 DEPENDENCIES
 
-  uv sync --extra media   (image + image2video together, for @create_video-style runs)
+  uv sync --extra media   (image + image2video + comfy_lib: torchsde, scipy, einops, …)
+  tools/setup_external_venvs.ps1   (creates .venvs/comfy-wan for $image2video — re-run after pyproject changes)
   uv sync --extra image2video  (ftfy, sageattention, diffusers, huggingface-hub<1.0)
 
   Do not install the `kernels` package — it upgrades huggingface-hub to 1.x and breaks

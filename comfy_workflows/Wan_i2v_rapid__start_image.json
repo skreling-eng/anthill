@@ -1,0 +1,115 @@
+{
+  "ckpt": {
+    "inputs": {
+      "ckpt_name": "WAN\\wan2.2-i2v-rapid-aio-v10.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "image": {
+    "inputs": {
+      "image": "INPUT_IMAGE"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Start Frame"
+    }
+  },
+  "clip_vision": {
+    "inputs": {
+      "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    },
+    "class_type": "CLIPVisionLoader",
+    "_meta": {
+      "title": "CLIP Vision"
+    }
+  },
+  "clip_vision_encode": {
+    "inputs": {
+      "clip_vision": ["clip_vision", 0],
+      "image": ["image", 0],
+      "crop": "center"
+    },
+    "class_type": "CLIPVisionEncode",
+    "_meta": {
+      "title": "CLIP Vision Encode"
+    }
+  },
+  "pos": {
+    "inputs": {
+      "text": "INPUT_PROMPT",
+      "clip": ["ckpt", 1]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "neg": {
+    "inputs": {
+      "text": "",
+      "clip": ["ckpt", 1]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Negative Prompt"
+    }
+  },
+  "wan_i2v": {
+    "inputs": {
+      "positive": ["pos", 0],
+      "negative": ["neg", 0],
+      "vae": ["ckpt", 2],
+      "width": 832,
+      "height": 480,
+      "length": 81,
+      "batch_size": 1,
+      "clip_vision_output": ["clip_vision_encode", 0],
+      "start_image": ["image", 0]
+    },
+    "class_type": "WanImageToVideo",
+    "_meta": {
+      "title": "WanImageToVideo"
+    }
+  },
+  "sampling": {
+    "inputs": {
+      "shift": 8,
+      "model": ["ckpt", 0]
+    },
+    "class_type": "ModelSamplingSD3",
+    "_meta": {
+      "title": "ModelSamplingSD3"
+    }
+  },
+  "sampler": {
+    "inputs": {
+      "seed": "INPUT_SEED",
+      "steps": 4,
+      "cfg": 1,
+      "sampler_name": "sa_solver",
+      "scheduler": "beta",
+      "denoise": 1,
+      "model": ["sampling", 0],
+      "positive": ["wan_i2v", 0],
+      "negative": ["wan_i2v", 1],
+      "latent_image": ["wan_i2v", 2]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "decode": {
+    "inputs": {
+      "samples": ["sampler", 0],
+      "vae": ["ckpt", 2]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  }
+}

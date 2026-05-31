@@ -132,8 +132,13 @@ def _run_comfy_lib(
     prompt: str,
     image_paths: list[Path],
 ) -> None:
+    from externals.comfy_inprocess.vae_tiling import configure_tiled_vae_for_job
+    from externals.comfy_inprocess.vram_config import configure_comfy_vram_for_job
     from externals.image2video.comfy_runner import run_comfy_i2v
     from externals.image2video.model_list import get_video_model
+
+    configure_tiled_vae_for_job(inp.args)
+    configure_comfy_vram_for_job(inp.args)
 
     width = _optional_int(inp.args, "width")
     height = _optional_int(inp.args, "height")
@@ -148,7 +153,24 @@ def _run_comfy_lib(
     videos_dir.mkdir(parents=True, exist_ok=True)
     track = 0
 
+    import gc
+
+    gc.collect()
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except ImportError:
+        pass
+
     for model_name in models:
+        from externals.comfy_inprocess.memory_guard import configure_mega_runtime_defaults
+        from externals.comfy_inprocess.vram_config import apply_comfy_vram_settings
+        from externals.image2video.model_paths import is_mega_model
+
+        configure_mega_runtime_defaults(model_name, inp.args)
+        apply_comfy_vram_settings()
         profile = get_video_model(model_name)
         job_steps = steps if steps is not None else profile.num_inference_steps
         job_guidance = guidance if guidance is not None else profile.guidance_scale
@@ -165,12 +187,45 @@ def _run_comfy_lib(
             job_width, job_height = resolve_output_size(
                 image_path, width=width, height=height
             )
+            from externals.comfy_inprocess.memory_guard import apply_wan_memory_limits
+
+            req_w, req_h, req_f = job_width, job_height, job_frames
+            job_width, job_height, job_frames = apply_wan_memory_limits(
+                width=job_width,
+                height=job_height,
+                num_frames=job_frames,
+                mega=is_mega_model(model_name),
+            )
+            if (req_w, req_h, req_f) != (job_width, job_height, job_frames):
+                print(
+                    f"$image2video: VRAM cap applied "
+                    f"(requested {req_w}x{req_h}, {req_f} frames → "
+                    f"{job_width}x{job_height}, {job_frames} frames; "
+                    "WAN_I2V_AUTO_CAP=0 to disable).",
+                    flush=True,
+                )
             out_path = videos_dir / _output_name(model_name, track)
             run_seed = seed + track if seed else seed
+            extras: list[str] = []
+            if os.environ.get("WAN_I2V_TILED_VAE", "").strip().lower() in (
+                "1",
+                "true",
+                "yes",
+                "on",
+            ):
+                extras.append("tiled_vae=1")
+            vram_mode = os.environ.get("WAN_I2V_VRAM", "").strip().lower()
+            if vram_mode and vram_mode not in ("normal", "default", "off", "0"):
+                extras.append(f"vram={vram_mode}")
+            extra_note = (" " + " ".join(extras)) if extras else ""
             print(
                 f"$image2video: I2V {track + 1} model={model_name} "
-                f"{job_width}x{job_height} frames={job_frames} steps={job_steps}",
+                f"{job_width}x{job_height} frames={job_frames} steps={job_steps}{extra_note}",
                 flush=True,
+            )
+            workflow_ref = (
+                inp.args.get("workflow", "").strip()
+                or inp.args.get("json", "").strip()
             )
             run_comfy_i2v(
                 work_dir=work_dir,
@@ -186,6 +241,7 @@ def _run_comfy_lib(
                 negative_prompt=neg or DEFAULT_NEGATIVE_PROMPT,
                 guidance=job_guidance,
                 fps=profile.fps,
+                workflow_ref=workflow_ref,
             )
             out.videos.append(_path_to_link(ctx, out_path))
             track += 1
@@ -298,12 +354,20 @@ def _help() -> str:
     from externals.image2video.model_paths import available_models
 
     return (
-        "$image2video uses comfy_lib (in-process) with Rapid-AIO-Mega__3_start_image.json.\n"
-        "  Set AH_COMFY_PYTHON to ComfyUI venv python (needs comfy_aimdo).\n"
+        "$image2video uses comfy_lib (in-process) with Wan_i2v_rapid__start_image.json.\n"
+        "  model= — default mega (wan2.2-rapid-mega-aio-v12); rapid: model=wan or model=rapid.\n"
+        "  model=mega-nsfw — NSFW MEGA checkpoint (v12.2).\n"
+        "  Worker venv: .venvs/comfy-wan (tools/setup_external_venvs.ps1 or init.bat).\n"
+        "  Re-sync after pyproject changes: "
+        "UV_PROJECT_ENVIRONMENT=.venvs/comfy-wan uv sync --extra media,comfy-wan,clip\n"
+        "  Optional ComfyUI python: AH_COMFY_PYTHON (comfy_aimdo / comfy_kitchen).\n"
         "  Checkpoint: models/wan/ or ComfyUI models/checkpoints/WAN/ "
         f"({available_models()})\n"
         "  backend=diffusers — diffusers Wan path\n"
         "  backend=comfy — ComfyUI HTTP API (COMFYUI_WORKFLOW)\n"
+        "  width/height/frames from $image2video(...) are used as-is (WAN_I2V_AUTO_CAP off by default).\n"
+        "  Optional WAN_I2V_AUTO_CAP=1 shrinks resolution/frames on ≤18GB GPUs.\n"
+        "  16GB MEGA: WAN_I2V_VRAM=novram still auto-set unless overridden; use vram=novram if OOM.\n"
         "Test without GPU/model: AH_EMULATE_IMAGE2VIDEO=1"
     )
 
@@ -311,7 +375,7 @@ def _help() -> str:
 def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     out = inp.bundle.copy()
     out.prompts.clear()
-    models = read_arg_list(inp, "model", "wan")
+    models = read_arg_list(inp, "model", "mega")
     prompt = _prompt_text(ctx, inp)
     image_paths = _image_paths(ctx, inp.bundle)
     backend = _resolve_backend(inp)

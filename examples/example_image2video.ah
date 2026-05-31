@@ -1,0 +1,11 @@
+
+
+@image: $image
+Beautiful grown up woman
+
+@video: $image2video(model=mega-nsfw, width=768, height=1280, frames=81, steps=4, guidance=1)
+Beautiful adult woman, smiling, moving her head, wind blowing
+
+@clip: @image -> @video
+
+run @clip

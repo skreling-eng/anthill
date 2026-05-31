@@ -53,7 +53,10 @@ CHECKS: dict[str, list[str]] = {
     "flux_nf4": ["flux.1-dev-nf4-pkg/transformer/diffusion_pytorch_model.safetensors"],
     "wan_i2v_aux": ["wan/i2v-base/vae/diffusion_pytorch_model.safetensors"],
     "wan_t2v_config": ["wan/Wan2.2-T2V-A14B-Diffusers/transformer/config.json"],
-    "wan_aio": ["wan/wan2.2-rapid-mega-aio-v12.safetensors"],
+    "wan_aio": [
+        "wan/wan2.2-i2v-rapid-aio-v10.safetensors",
+        "wan/wan2.2-rapid-mega-aio-v12.safetensors",
+    ],
     "roformer_sw": ["roformer/BS-RoFormer-SW.ckpt"],
     "roformer_viperx": ["roformer/model_bs_roformer_ep_317_sdr_12.9755.ckpt"],
     "llm_gemma": ["llm/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-IQ4_XS/model.gguf"],

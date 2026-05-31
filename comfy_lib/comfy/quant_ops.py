@@ -25,7 +25,10 @@ try:
     for k, v in ck.list_backends().items():
         logging.info(f"Found comfy_kitchen backend {k}: {v}")
 except ImportError as e:
-    logging.error(f"Failed to import comfy_kitchen, Error: {e}, fp8 and fp4 support will not be available.")
+    logging.debug(
+        "comfy_kitchen not installed (%s); fp8/fp4 fast paths disabled (OK for $image2video).",
+        e,
+    )
     _CK_AVAILABLE = False
 
     class QuantizedTensor:

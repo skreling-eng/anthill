@@ -1,8 +1,9 @@
-"""Build and patch Rapid-AIO-Mega I2V Comfy workflow JSON."""
+"""Build and patch Wan I2V Comfy workflow JSON (API /prompt format)."""
 
 from __future__ import annotations
 
 import copy
+import os
 import random
 import shutil
 from pathlib import Path
@@ -24,9 +25,14 @@ from externals.image2image.comfy_workflow import (
     read_image_size,
     snap_latent_size,
 )
-from externals.image2video.model_paths import comfy_ckpt_name
+from externals.image2video.model_paths import (
+    DEFAULT_CLIP_VISION,
+    MEGA_WORKFLOW,
+    comfy_ckpt_name,
+    is_mega_model,
+)
 
-DEFAULT_WORKFLOW = "Rapid-AIO-Mega__3_start_image.json"
+DEFAULT_WORKFLOW = "Wan_i2v_rapid__start_image.json"
 _LATENT_ALIGN = 16
 
 
@@ -95,10 +101,18 @@ def build_i2v_prompt(
         inputs = node.setdefault("inputs", {})
         if ctype == "CheckpointLoaderSimple":
             inputs["ckpt_name"] = checkpoint_name
-        elif ctype == "WanVaceToVideo":
+        elif ctype in ("WanImageToVideo", "WanVaceToVideo"):
             inputs["width"] = width
             inputs["height"] = height
-            inputs["strength"] = 1
+            inputs["length"] = num_frames
+            if ctype == "WanVaceToVideo":
+                inputs["strength"] = 1
+        elif ctype == "CLIPVisionLoader":
+            clip_name = os.environ.get("WAN_I2V_CLIP_VISION", "").strip()
+            if clip_name:
+                inputs["clip_name"] = clip_name
+            else:
+                inputs["clip_name"] = DEFAULT_CLIP_VISION
         elif ctype == "KSampler":
             inputs["steps"] = steps
             if guidance is not None:
@@ -114,11 +128,12 @@ def build_i2v_prompt(
             inputs["value"] = num_frames
 
     for nid, node in wf.items():
-        if node.get("class_type") == "LoadImage":
-            meta = (node.get("_meta") or {}).get("title", "")
-            if "Start" in meta or nid == "16":
-                node["inputs"]["image"] = staged
-            break
+        if node.get("class_type") != "LoadImage":
+            continue
+        meta = (node.get("_meta") or {}).get("title", "")
+        if "End" in meta and "Start" not in meta:
+            continue
+        node["inputs"]["image"] = staged
 
     return wf, run_seed
 
@@ -138,6 +153,9 @@ def build_i2v_prompt_for_model(
     guidance: float | None = None,
     workflow_ref: str = "",
 ) -> tuple[dict[str, Any], int]:
+    wf_ref = workflow_ref
+    if not wf_ref and is_mega_model(model_arg):
+        wf_ref = MEGA_WORKFLOW
     return build_i2v_prompt(
         prompt=prompt,
         image_path=image_path,
@@ -150,5 +168,5 @@ def build_i2v_prompt_for_model(
         num_frames=num_frames,
         negative_prompt=negative_prompt,
         guidance=guidance,
-        workflow_ref=workflow_ref,
+        workflow_ref=wf_ref,
     )

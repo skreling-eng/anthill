@@ -7,8 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from externals.image.model_paths import resolve_model_path
+from externals.image2video.model_paths import MODEL_ALIASES
 
-DEFAULT_CHECKPOINT = "wan/wan2.2-rapid-mega-aio-v12.safetensors"
+I2V_RAPID_CHECKPOINT = "wan/wan2.2-i2v-rapid-aio-v10.safetensors"
+MEGA_CHECKPOINT = "wan/wan2.2-rapid-mega-aio-v12.safetensors"
+MEGA_NSFW_CHECKPOINT = "wan/wan2.2-rapid-mega-aio-nsfw-v12.2.safetensors"
+DEFAULT_CHECKPOINT = MEGA_CHECKPOINT
 DEFAULT_BASE_REPO = os.environ.get(
     "WAN_I2V_BASE_REPO", "Wan-AI/Wan2.1-I2V-14B-480P-Diffusers"
 )
@@ -61,23 +65,25 @@ class VideoModel:
 
 
 _video_models_list = [
-    VideoModel(
-        name="wan",
-        checkpoint=DEFAULT_CHECKPOINT,
-    ),
-    VideoModel(
-        name="default",
-        checkpoint=DEFAULT_CHECKPOINT,
-    ),
+    VideoModel(name="mega", checkpoint=MEGA_CHECKPOINT),
+    VideoModel(name="default", checkpoint=MEGA_CHECKPOINT),
+    VideoModel(name="mega-nsfw", checkpoint=MEGA_NSFW_CHECKPOINT),
+    VideoModel(name="wan", checkpoint=I2V_RAPID_CHECKPOINT),
+    VideoModel(name="rapid", checkpoint=I2V_RAPID_CHECKPOINT),
+    VideoModel(name="i2v", checkpoint=I2V_RAPID_CHECKPOINT),
 ]
 
 _video_models: dict[str, VideoModel] = {m.name: m for m in _video_models_list}
 
 
 def get_video_model(name: str) -> VideoModel:
-    if name in _video_models:
-        return _video_models[name]
-    if name == "default" or not name:
-        return _video_models["wan"]
-    available = ", ".join(sorted(_video_models))
+    raw = (name or "mega").strip()
+    if not raw or raw == "default":
+        return _video_models["mega"]
+    if raw in _video_models:
+        return _video_models[raw]
+    alias = MODEL_ALIASES.get(raw)
+    if alias:
+        return VideoModel(name=raw, checkpoint=f"wan/{alias}")
+    available = ", ".join(sorted(set(_video_models) | set(MODEL_ALIASES)))
     raise KeyError(f"Unknown image2video model {name!r}. Available: {available}")
