@@ -10,6 +10,7 @@ import threading
 import time
 import traceback
 from dataclasses import dataclass, field
+from itertools import product
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -22,7 +23,6 @@ from ahlib.ah_actions import (
     ParallelAction,
     RefAction,
     SequenceAction,
-    action_starts_with_external,
     expr_uses_external,
     parse_actions,
 )
@@ -31,6 +31,7 @@ from externals import (
     ExternalContext,
     ExternalInput,
     external_consumes_prompts,
+    external_handles_repeat,
     run_external,
     write_invoke,
 )
@@ -131,11 +132,14 @@ class Session:
     def __init__(self, base_dir: Path):
         self.base_dir = base_dir
         self._op_counter = 0
+        self._op_lock = threading.Lock()
 
     def next_op_dir(self, name: str) -> Path:
-        self._op_counter += 1
+        with self._op_lock:
+            self._op_counter += 1
+            counter = self._op_counter
         safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
-        op_dir = self.base_dir / f"{self._op_counter}_{safe}"
+        op_dir = self.base_dir / f"{counter}_{safe}"
         op_dir.mkdir(parents=True, exist_ok=True)
         return op_dir
 
@@ -374,32 +378,13 @@ class Runtime:
                 op_dir = self.session.next_op_dir(name)
                 self.session.write_bundle(op_dir, inputs, "input")
 
+                prompt_body = (inst.body or "").strip()
+
                 work = inputs.copy()
-                body_prepended = False
-
-                # Body before actions when it is the input prompt for $ externals (e.g. @x: $llm[10]).
-                if (
-                    inst.body
-                    and inst.actions
-                    and not inputs.prompts
-                    and action_starts_with_external(action_expr)
-                ):
-                    link = self.session.new_link(
-                        op_dir, "prompts", ".txt", inst.body + "\n"
+                if prompt_body:
+                    work = self._compose_instruction_body_into_prompts(
+                        inputs, prompt_body, op_dir
                     )
-                    work.prompts.append(link)
-                    body_prepended = True
-
-                # @image: @good_quality -> $image — merge body before $, not after (prompt consumed).
-                pending_instruction_body: list[str] = []
-                if (
-                    inst.body
-                    and inst.actions
-                    and not body_prepended
-                    and not action_starts_with_external(action_expr)
-                ):
-                    pending_instruction_body.append(inst.body)
-                    body_prepended = True
 
                 if inst.actions:
                     instruction_contexts: dict[str, ArrayBundle] = {}
@@ -407,32 +392,8 @@ class Runtime:
                         action_expr,
                         work,
                         op_dir,
-                        instruction_body_pending=pending_instruction_body or None,
                         instruction_contexts=instruction_contexts,
                     )
-
-                if inst.body and pending_instruction_body:
-                    body = pending_instruction_body[0]
-                    if work.prompts:
-                        work = self._append_instruction_body_to_prompts(
-                            work, body, op_dir
-                        )
-                    else:
-                        link = self.session.new_link(
-                            op_dir, "prompts", ".txt", body + "\n"
-                        )
-                        work.prompts.append(link)
-                    pending_instruction_body.clear()
-                elif inst.body and not body_prepended:
-                    if work.prompts:
-                        work = self._append_instruction_body_to_prompts(
-                            work, inst.body, op_dir
-                        )
-                    else:
-                        link = self.session.new_link(
-                            op_dir, "prompts", ".txt", inst.body + "\n"
-                        )
-                        work.prompts.append(link)
 
                 outputs = work.copy()
                 outputs = self._apply_changes(outputs, op_dir)
@@ -465,18 +426,7 @@ class Runtime:
             return bundle
         body = pending[0]
         pending.clear()
-        if bundle.prompts:
-            if len(bundle.prompts) > 1:
-                merged = self._append_instruction_body_to_prompts(
-                    bundle, body, op_dir
-                )
-            else:
-                merged = self._compose_prompt_body(bundle, body, op_dir)
-            return self._apply_changes(merged, op_dir)
-        out = bundle.copy()
-        link = self.session.new_link(op_dir, "prompts", ".txt", body + "\n")
-        out.prompts.append(link)
-        return out
+        return self._compose_instruction_body_into_prompts(bundle, body, op_dir)
 
     @staticmethod
     def _bundle_is_empty(bundle: ArrayBundle) -> bool:
@@ -551,11 +501,9 @@ class Runtime:
         parent_op_dir: Path,
         *,
         externals_in_sequence: bool = False,
-        instruction_body_pending: list[str] | None = None,
         instruction_contexts: dict[str, ArrayBundle] | None = None,
     ) -> ArrayBundle:
         self._check_cancelled()
-        pending = instruction_body_pending
         ctx_store = instruction_contexts if instruction_contexts is not None else {}
         if isinstance(expr, ContextAction):
             return self._eval_context_action(expr, bundle, ctx_store)
@@ -590,20 +538,17 @@ class Runtime:
                     self._notify_action_error(action_name, exc)
                     raise
             return self._execute_instruction(
-                expr.name, bundle.copy(), use_cache=use_cache
+                expr.name,
+                bundle.copy(),
+                use_cache=use_cache,
             )
         if isinstance(expr, ExternalAction):
-            if pending and external_consumes_prompts(expr.name):
-                bundle = self._merge_pending_instruction_body(
-                    bundle, pending, parent_op_dir
-                )
             return self._call_external(expr, bundle, parent_op_dir)
         if isinstance(expr, ParallelAction):
             return self._eval_parallel(
                 expr,
                 bundle,
                 parent_op_dir,
-                pending=pending,
                 instruction_contexts=ctx_store,
             )
         if isinstance(expr, ForAction):
@@ -628,7 +573,6 @@ class Runtime:
                 bundle,
                 parent_op_dir,
                 externals_in_sequence=externals_in_sequence,
-                instruction_body_pending=pending,
                 instruction_contexts=ctx_store,
             )
         raise TypeError(f"Unknown action type: {type(expr)}")
@@ -639,20 +583,10 @@ class Runtime:
         bundle: ArrayBundle,
         parent_op_dir: Path,
         *,
-        pending: list[str] | None = None,
         instruction_contexts: dict[str, ArrayBundle] | None = None,
     ) -> ArrayBundle:
         """Run parallel branches on copies of input; append all arrays into one bundle."""
         work = bundle.copy()
-        branch_pending = pending
-        if pending and any(
-            isinstance(b, ExternalAction) and external_consumes_prompts(b.name)
-            for b in step.branches
-        ):
-            work = self._merge_pending_instruction_body(
-                bundle.copy(), pending, parent_op_dir
-            )
-            branch_pending = None
         branch_results: list[ArrayBundle] = []
         for branch in step.branches:
             self._check_cancelled()
@@ -661,7 +595,6 @@ class Runtime:
                 work.copy(),
                 parent_op_dir,
                 externals_in_sequence=False,
-                instruction_body_pending=branch_pending,
                 instruction_contexts=instruction_contexts,
             )
             branch_out = self._apply_changes(branch_out, parent_op_dir)
@@ -675,29 +608,18 @@ class Runtime:
         parent_op_dir: Path,
         *,
         externals_in_sequence: bool = False,
-        instruction_body_pending: list[str] | None = None,
         instruction_contexts: dict[str, ArrayBundle] | None = None,
     ) -> ArrayBundle:
         """Evaluate -> steps left to right."""
         current = bundle
-        pending = instruction_body_pending
         ext_seen = externals_in_sequence
         for step in expr.steps:
             self._check_cancelled()
-            if (
-                pending
-                and isinstance(step, ExternalAction)
-                and external_consumes_prompts(step.name)
-            ):
-                current = self._merge_pending_instruction_body(
-                    current, pending, parent_op_dir
-                )
             current = self._eval_action(
                 step,
                 current,
                 parent_op_dir,
                 externals_in_sequence=ext_seen,
-                instruction_body_pending=pending,
                 instruction_contexts=instruction_contexts,
             )
             if expr_uses_external(step, self.program.instructions):
@@ -893,21 +815,29 @@ class Runtime:
         bundle.changes.append(("prompt", "join", {"sources": sources, "text": ""}))
         return self._apply_changes(bundle, op_dir)
 
-    def _compose_prompt_body(
-        self, bundle: ArrayBundle, body: str, op_dir: Path
+    def _compose_instruction_body_into_prompts(
+        self,
+        bundle: ArrayBundle,
+        body: str,
+        op_dir: Path,
     ) -> ArrayBundle:
-        """Merge body with existing prompts via changes (del + join), not array append."""
-        if bundle.prompts:
-            sources = list(bundle.prompts)
-            for link in sources:
-                bundle.changes.append(("prompt", "del", link))
-            bundle.changes.append(
-                ("prompt", "join", {"sources": sources, "text": body})
-            )
-        else:
-            link = self.session.new_link(op_dir, "prompts", ".txt", body + "\n")
-            bundle.prompts.append(link)
-        return bundle
+        """
+        Apply @instruction body to prompts[] on a bundle copy.
+
+        1. Body + input prompts with text — concatenate body into every prompt link.
+        2. Body + empty prompts — single new prompt link with body only.
+        3. No body — pass through input prompts unchanged.
+        """
+        body = (body or "").strip()
+        out = bundle.copy()
+        if not body:
+            return out
+        if self._bundle_has_prompt_text(bundle):
+            return self._append_instruction_body_to_prompts(bundle, body, op_dir)
+        out.prompts = [
+            self.session.new_link(op_dir, "prompts", ".txt", body + "\n")
+        ]
+        return out
 
     def _append_instruction_body_to_prompts(
         self, bundle: ArrayBundle, body: str, op_dir: Path
@@ -947,6 +877,10 @@ class Runtime:
                     parts.append(text)
         return parts
 
+    def _bundle_has_prompt_text(self, bundle: ArrayBundle) -> bool:
+        """True when prompts[] links contain non-whitespace text."""
+        return bool(self._read_prompt_links_text(bundle.prompts))
+
     def _read_bundle_texts(self, bundle: ArrayBundle) -> list[str]:
         texts: list[str] = []
         for link in bundle.texts:
@@ -984,6 +918,25 @@ class Runtime:
                 args[key] = val
         return args, arg_lists
 
+    @staticmethod
+    def _external_arg_variants(arg_lists: dict[str, list[str]]) -> list[dict[str, str]]:
+        """Cartesian product of all key=@ref lists; empty when no list args."""
+        if not arg_lists:
+            return []
+        keys = sorted(arg_lists.keys())
+        combos = product(*(arg_lists[key] for key in keys))
+        return [dict(zip(keys, combo, strict=True)) for combo in combos]
+
+    @staticmethod
+    def _branch_external_args(
+        action: ExternalAction, variant: dict[str, str]
+    ) -> dict[str, str]:
+        """Literal args for one fan-out branch (replace @ref values in the AST args)."""
+        branch_args = dict(action.args)
+        for key, val in variant.items():
+            branch_args[key] = val
+        return branch_args
+
     def _apply_changes(self, bundle: ArrayBundle, op_dir: Path) -> ArrayBundle:
         if not bundle.changes:
             return bundle
@@ -1020,8 +973,107 @@ class Runtime:
     def _call_external(
         self, action: ExternalAction, bundle: ArrayBundle, op_dir: Path
     ) -> ArrayBundle:
+        args, arg_lists = self._resolve_external_args(action, bundle)
+        variants = self._external_arg_variants(arg_lists)
+        if len(variants) > 1:
+            return self._call_external_arg_fanout(
+                action, bundle, op_dir, args, variants
+            )
+        if variants:
+            merged_args = {**args, **variants[0]}
+            branch_action = ExternalAction(
+                name=action.name,
+                args=self._branch_external_args(action, variants[0]),
+                repeat=action.repeat,
+            )
+            return self._invoke_external(branch_action, bundle, op_dir, merged_args, {})
+        return self._invoke_external(action, bundle, op_dir, args, arg_lists)
+
+    def _call_external_arg_fanout(
+        self,
+        action: ExternalAction,
+        bundle: ArrayBundle,
+        parent_op_dir: Path,
+        args: dict[str, str],
+        variants: list[dict[str, str]],
+    ) -> ArrayBundle:
+        """key=@ref list args → parallel ($ext(...), …) with Cartesian product of values."""
+        branch_results: list[ArrayBundle] = []
+        for variant in variants:
+            self._check_cancelled()
+            branch_args = {**args, **variant}
+            branch_action = ExternalAction(
+                name=action.name,
+                args=self._branch_external_args(action, variant),
+                repeat=action.repeat,
+            )
+            branch_out = self._invoke_external(
+                branch_action,
+                bundle.copy(),
+                parent_op_dir,
+                branch_args,
+                {},
+            )
+            branch_results.append(self._apply_changes(branch_out, parent_op_dir))
+        return self._join_bundles(branch_results)
+
+    def _invoke_external(
+        self,
+        action: ExternalAction,
+        bundle: ArrayBundle,
+        op_dir: Path,
+        args: dict[str, str],
+        arg_lists: dict[str, list[str]],
+    ) -> ArrayBundle:
         ext_name = action.name
         repeat = action.repeat if action.repeat and action.repeat > 0 else 1
+        if repeat > 1 and not external_handles_repeat(ext_name):
+            return self._call_external_repeat_fanout(
+                action, bundle, op_dir, args, arg_lists, repeat
+            )
+        return self._invoke_external_once(
+            action, bundle, op_dir, args, arg_lists, repeat
+        )
+
+    def _call_external_repeat_fanout(
+        self,
+        action: ExternalAction,
+        bundle: ArrayBundle,
+        parent_op_dir: Path,
+        args: dict[str, str],
+        arg_lists: dict[str, list[str]],
+        repeat: int,
+    ) -> ArrayBundle:
+        """$ext(...)[n] when handler ignores repeat → n parallel invocations, joined."""
+        branch_results: list[ArrayBundle] = []
+        for _ in range(repeat):
+            self._check_cancelled()
+            branch_action = ExternalAction(
+                name=action.name,
+                args=action.args,
+                repeat=None,
+            )
+            branch_out = self._invoke_external_once(
+                branch_action,
+                bundle.copy(),
+                parent_op_dir,
+                args,
+                arg_lists,
+                repeat=1,
+            )
+            branch_results.append(self._apply_changes(branch_out, parent_op_dir))
+        return self._join_bundles(branch_results)
+
+    def _invoke_external_once(
+        self,
+        action: ExternalAction,
+        bundle: ArrayBundle,
+        op_dir: Path,
+        args: dict[str, str],
+        arg_lists: dict[str, list[str]],
+        repeat: int,
+    ) -> ArrayBundle:
+        ext_name = action.name
         action_name = f"${ext_name}" if repeat == 1 else f"${ext_name}[{repeat}]"
         op_label = f"${ext_name}" if repeat == 1 else f"${ext_name}_x{repeat}"
         self._notify_action_start(action_name)
@@ -1031,7 +1083,6 @@ class Runtime:
             self.session.write_bundle(ext_op_dir, bundle, "input")
 
             prompt_text = "\n".join(self._read_prompt_links_text(bundle.prompts))
-            args, arg_lists = self._resolve_external_args(action, bundle)
             ctx = ExternalContext(
                 session=self.session,
                 op_dir=ext_op_dir,

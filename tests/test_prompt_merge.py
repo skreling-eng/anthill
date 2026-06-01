@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from ahlib.ah_actions import action_starts_with_external, parse_actions
+from ahlib.ah_bundle_compact import bundle_compact_dict, bundle_compact_str
 from ahlib.ah_parser import parse_ah_source
 from ahlib.ah_runtime import ArrayBundle, Runtime, Session, create_session_dir
 
@@ -37,29 +38,23 @@ def _run(
     return result, session_dir
 
 
-def _find_invoke(session_dir: Path, external: str) -> dict:
-    matches = sorted(session_dir.rglob("invoke.json"))
-    for path in matches:
+def _compact(bundle: ArrayBundle | dict, session_dir: Path) -> str:
+    return bundle_compact_str(bundle, session_dir)
+
+
+def _compact_dict(bundle: ArrayBundle | dict, session_dir: Path) -> dict:
+    return bundle_compact_dict(bundle, session_dir)
+
+
+def _external_input_compact(session_dir: Path, external: str) -> str:
+    for path in sorted(session_dir.rglob("input.json")):
         if f"__{external}" in path.parent.name.replace("\\", "/"):
-            return json.loads(path.read_text(encoding="utf-8"))
-    names = [p.parent.name for p in matches]
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return _compact(data, session_dir)
+    ops = [p.parent.name for p in session_dir.rglob("invoke.json")]
     raise AssertionError(
-        f"No invoke.json for ${external} under {session_dir} (ops: {names})"
+        f"No input.json for ${external} under {session_dir} (ops: {ops})"
     )
-
-
-def _prompt_text_from_invoke(invoke: dict, session_dir: Path, input_bundle: dict) -> str:
-    text = (invoke.get("prompt_text") or "").strip()
-    if text:
-        return text
-    parts: list[str] = []
-    for link in input_bundle.get("prompts", []):
-        path = Path(link)
-        if not path.is_absolute():
-            path = session_dir / link
-        if path.is_file():
-            parts.append(path.read_text(encoding="utf-8").strip())
-    return "\n".join(parts)
 
 
 class TestPromptMergeBeforeExternal(unittest.TestCase):
@@ -74,32 +69,20 @@ running woman
 """
 
     def test_ref_then_image_prompt_concatenated(self) -> None:
+        """Merged prompt text, caller-before-ref order, single prompts[] link, no changes."""
         _, session_dir = _run(self.SOURCE, "image", emulate_image=True)
-        invoke = _find_invoke(session_dir, "image")
-        prompt = invoke["prompt_text"]
-        self.assertIn("High Angle Shot", prompt)
-        self.assertIn("Best Quality", prompt)
-        self.assertIn("running woman", prompt)
+        compact = _external_input_compact(session_dir, "image")
+        data = json.loads(compact)
+        self.assertEqual(len(data["prompts"]), 1)
+        self.assertNotIn("changes", data)
+        self.assertIn("High Angle Shot", compact)
+        self.assertIn("Best Quality", compact)
+        self.assertIn("running woman", compact)
         self.assertLess(
-            prompt.index("High Angle Shot"),
-            prompt.index("running woman"),
-            "ref prompt should appear before @image body",
+            data["prompts"][0].index("running woman"),
+            data["prompts"][0].index("High Angle Shot"),
+            "@image body is on pipeline input before @ref appends its body",
         )
-
-    def test_external_receives_single_joined_prompt_link(self) -> None:
-        _, session_dir = _run(self.SOURCE, "image", emulate_image=True)
-        for path in session_dir.rglob("input.json"):
-            if "__image" not in path.parent.name:
-                continue
-            data = json.loads(path.read_text(encoding="utf-8"))
-            self.assertEqual(len(data.get("prompts", [])), 1)
-            link = data["prompts"][0]
-            text = (session_dir / link).read_text(encoding="utf-8")
-            self.assertIn("High Angle Shot", text)
-            self.assertIn("running woman", text)
-            self.assertEqual(data.get("changes", []), [])
-            return
-        self.fail("no $image input.json in session")
 
 
 class TestExternalFirstBodyPrepend(unittest.TestCase):
@@ -112,8 +95,47 @@ instruction body for llm
 
     def test_body_prepended_before_llm(self) -> None:
         _, session_dir = _run(self.SOURCE, "task", emulate_llm=True)
-        invoke = _find_invoke(session_dir, "llm")
-        self.assertIn("instruction body for llm", invoke["prompt_text"])
+        compact = _external_input_compact(session_dir, "llm")
+        self.assertIn("instruction body for llm", compact)
+
+
+class TestImage2ImagePromptMerge(unittest.TestCase):
+    """@ref -> $image2image and @x: $image2image must pass instruction body as prompt."""
+
+    def test_ref_then_image2image_body_on_pipeline_input(self) -> None:
+        """@edit body is pipeline input; @source $image sees it ($image clears prompts[])."""
+        os.environ["AH_EMULATE_IMAGE2IMAGE"] = "1"
+        os.environ["AH_EMULATE_IMAGE"] = "1"
+        try:
+            source = """
+@source: $image
+a portrait photo
+
+@edit: @source -> $image2image
+make the background blue
+"""
+            _, session_dir = _run(
+                source, "edit", inprocess="image,image2image"
+            )
+            compact = _external_input_compact(session_dir, "image")
+            self.assertIn("make the background blue", compact)
+            self.assertIn("a portrait photo", compact)
+        finally:
+            os.environ.pop("AH_EMULATE_IMAGE2IMAGE", None)
+            os.environ.pop("AH_EMULATE_IMAGE", None)
+
+    def test_external_first_body_prepend(self) -> None:
+        os.environ["AH_EMULATE_IMAGE2IMAGE"] = "1"
+        try:
+            source = """
+@edit: $image2image
+remove extra fingers
+"""
+            _, session_dir = _run(source, "edit", inprocess="image2image")
+            compact = _external_input_compact(session_dir, "image2image")
+            self.assertIn("remove extra fingers", compact)
+        finally:
+            os.environ.pop("AH_EMULATE_IMAGE2IMAGE", None)
 
 
 class TestParallelRefThenRef(unittest.TestCase):
@@ -134,12 +156,11 @@ test3
 
     def test_ddd_outputs_two_composed_prompts(self) -> None:
         result, session_dir = _run(self.SOURCE, "ddd")
-        self.assertEqual(len(result.prompts), 2)
-        texts = sorted(
-            (session_dir / link).read_text(encoding="utf-8").strip()
-            for link in result.prompts
+        data = _compact_dict(result, session_dir)
+        self.assertEqual(
+            sorted(data["prompts"]),
+            sorted(["test1\ntest3", "test2\ntest3"]),
         )
-        self.assertEqual(texts, sorted(["test1\ntest3", "test2\ntest3"]))
 
 
 class TestRefChainBodyMerge(unittest.TestCase):
@@ -158,11 +179,12 @@ child line
 
     def test_ref_chain_composes_all_bodies(self) -> None:
         result, session_dir = _run(self.SOURCE, "child")
-        self.assertEqual(len(result.prompts), 1)
-        text = (session_dir / result.prompts[0]).read_text(encoding="utf-8")
-        self.assertIn("parent line", text)
-        self.assertIn("addon line", text)
-        self.assertIn("child line", text)
+        compact = _compact(result, session_dir)
+        self.assertIn("parent line", compact)
+        self.assertIn("addon line", compact)
+        self.assertIn("child line", compact)
+        data = json.loads(compact)
+        self.assertEqual(len(data["prompts"]), 1)
 
 
 class TestActionStartsWithExternal(unittest.TestCase):
@@ -205,17 +227,9 @@ shot prompt template
         )
         Runtime(program, Session(session_dir)).run("realistic")
 
-        for path in session_dir.rglob("input.json"):
-            if "__comfy" not in path.parent.name.replace("\\", "/"):
-                continue
-            data = json.loads(path.read_text(encoding="utf-8"))
-            self.assertEqual(
-                len(data.get("prompts", [])),
-                2,
-                f"expected 2 prompts, got {data.get('prompts')}",
-            )
-            return
-        self.fail("no $comfy input.json")
+        compact = _external_input_compact(session_dir, "comfy")
+        data = json.loads(compact)
+        self.assertEqual(len(data.get("prompts", [])), 2, compact)
 
 
 class TestParallelComfySameInputs(unittest.TestCase):
@@ -228,20 +242,14 @@ High Angle Shot, Best Quality
 @image: @good_quality_image -> $image
 running woman
 
-@realistic: ( @image ) -> ( $comfy(port=8000, json='Qwen-Rapid-AIO_4.json'), $comfy(port=8000, json='Qwen-Rapid-AIO_4.json') )
+@realistic_style
 make this image in the realistic style
-"""
 
-    def _comfy_invokes(self, session_dir: Path) -> list[tuple[Path, dict, dict]]:
-        rows: list[tuple[Path, dict, dict]] = []
-        for invoke_path in sorted(session_dir.rglob("invoke.json")):
-            if "__comfy" not in invoke_path.parent.name.replace("\\", "/"):
-                continue
-            invoke = json.loads(invoke_path.read_text(encoding="utf-8"))
-            input_path = invoke_path.parent / "input.json"
-            inp = json.loads(input_path.read_text(encoding="utf-8"))
-            rows.append((invoke_path, invoke, inp))
-        return rows
+@realistic: @image -> @realistic_style -> (
+  $comfy(port=8000, json='Qwen-Rapid-AIO_4.json'),
+  $comfy(port=8000, json='Qwen-Rapid-AIO_4.json')
+)
+"""
 
     def test_both_comfy_get_same_prompt_and_image(self) -> None:
         os.environ["AH_EMULATE_COMFY"] = "1"
@@ -253,19 +261,18 @@ make this image in the realistic style
         session_dir = create_session_dir(Path("sessions"))
         Runtime(program, Session(session_dir)).run("realistic")
 
-        rows = self._comfy_invokes(session_dir)
-        self.assertEqual(len(rows), 2, [str(p) for p, _, _ in rows])
+        compacts: list[str] = []
+        for path in sorted(session_dir.rglob("input.json")):
+            if "__comfy" not in path.parent.name.replace("\\", "/"):
+                continue
+            data = json.loads(path.read_text(encoding="utf-8"))
+            compacts.append(_compact(data, session_dir))
 
-        prompts = []
-        images = []
-        for _, invoke, inp in rows:
-            prompts.append(invoke.get("prompt_text") or "")
-            images.append(list(inp.get("images", [])))
-
-        self.assertEqual(prompts[0], prompts[1])
-        self.assertIn("make this image in the realistic style", prompts[0])
-        self.assertEqual(images[0], images[1])
-        self.assertEqual(len(images[0]), 1)
+        self.assertEqual(len(compacts), 2, compacts)
+        self.assertEqual(compacts[0], compacts[1])
+        self.assertIn("make this image in the realistic style", compacts[0])
+        data = json.loads(compacts[0])
+        self.assertEqual(len(data["images"]), 1)
 
 
 class TestMultiPromptBodyBeforeImage(unittest.TestCase):
@@ -289,72 +296,115 @@ create a beautiful image of the bird in the UK Garden
         session_dir = create_session_dir(Path("sessions"))
         Runtime(program, Session(session_dir)).run("bird_images")
 
-        for path in session_dir.rglob("input.json"):
-            if "__image" not in path.parent.name.replace("\\", "/"):
-                continue
-            data = json.loads(path.read_text(encoding="utf-8"))
-            prompts = data.get("prompts", [])
-            self.assertEqual(
-                len(prompts),
-                4,
-                f"expected 4 prompts, got {len(prompts)}: {prompts}",
+        compact = _external_input_compact(session_dir, "image")
+        data = json.loads(compact)
+        prompts = data["prompts"]
+        self.assertEqual(len(prompts), 4, compact)
+        for text in prompts:
+            self.assertIn(
+                "create a beautiful image of the bird in the UK Garden",
+                text,
             )
-            for link in prompts:
-                text = (session_dir / link).read_text(encoding="utf-8")
-                self.assertIn(
-                    "create a beautiful image of the bird in the UK Garden",
-                    text,
-                )
-            texts = [
-                (session_dir / link).read_text(encoding="utf-8") for link in prompts
-            ]
-            self.assertEqual(len(set(texts)), 4, "each prompt should differ")
-            return
-        self.fail("no $image input.json")
+        self.assertEqual(len(set(prompts)), 4, "each prompt should differ")
 
 
-class TestMergePendingInstructionBody(unittest.TestCase):
-    def test_merge_single_prompt_joins_body(self) -> None:
-        program = parse_ah_source("@a\nref\n")
-        session_dir = create_session_dir(Path("sessions"))
-        session = Session(session_dir)
-        rt = Runtime(program, session)
-        op_dir = session.next_op_dir("test")
+class TestPipelineVsOutputBody(unittest.TestCase):
+    """@act: pipeline + body vs @act + body only."""
+
+    def test_body_only_instruction_writes_output_prompts(self) -> None:
+        source = """
+@prompt_only
+hello from body
+
+@runner: @prompt_only
+"""
+        result, session_dir = _run(source, "runner")
+        compact = _compact(result, session_dir)
+        self.assertIn("hello from body", compact)
+        self.assertEqual(json.loads(compact)["prompts"], ["hello from body"])
+
+    def test_pipeline_body_is_llm_input(self) -> None:
+        source = """
+@task: $llm
+instruction for pipeline
+"""
+        _, session_dir = _run(source, "task", emulate_llm=True)
+        compact = _external_input_compact(session_dir, "llm")
+        self.assertIn("instruction for pipeline", compact)
+
+
+class TestInstructionBodyPromptRules(unittest.TestCase):
+    """Unit tests for Runtime._compose_instruction_body_into_prompts."""
+
+    def setUp(self) -> None:
+        program = parse_ah_source("@a\n")
+        self.session_dir = create_session_dir(Path("sessions"))
+        self.session = Session(self.session_dir)
+        self.rt = Runtime(program, self.session)
+        self.op_dir = self.session.next_op_dir("body_rules")
+
+    def _compose(self, bundle: ArrayBundle, body: str) -> ArrayBundle:
+        return self.rt._compose_instruction_body_into_prompts(
+            bundle, body, self.op_dir
+        )
+
+    def test_body_compose_preserves_other_arrays(self) -> None:
+        bundle = ArrayBundle()
+        bundle.images.append(
+            self.session.new_link(self.op_dir, "images", ".png", b"x")
+        )
+        out = self._compose(bundle, "out")
+        data = _compact_dict(out, self.session_dir)
+        self.assertEqual(data["prompts"], ["out"])
+        self.assertEqual(len(data["images"]), 1)
+
+    def test_rule1_body_concatenated_with_every_input_prompt(self) -> None:
         bundle = ArrayBundle()
         bundle.prompts.append(
-            session.new_link(op_dir, "prompts", ".txt", "from ref\n")
+            self.session.new_link(self.op_dir, "prompts", ".txt", "alpha\n")
         )
-        pending = ["running woman"]
-        merged = rt._merge_pending_instruction_body(bundle, pending, op_dir)
-        self.assertFalse(pending)
-        self.assertEqual(len(merged.prompts), 1)
-        text = (session_dir / merged.prompts[0]).read_text(encoding="utf-8")
-        self.assertIn("from ref", text)
-        self.assertIn("running woman", text)
-        self.assertEqual(merged.changes, [])
+        bundle.prompts.append(
+            self.session.new_link(self.op_dir, "prompts", ".txt", "beta\n")
+        )
+        out = self._compose(bundle, "suffix")
+        data = _compact_dict(out, self.session_dir)
+        self.assertEqual(len(data["prompts"]), 2)
+        self.assertIn("alpha", data["prompts"][0])
+        self.assertIn("suffix", data["prompts"][0])
+        self.assertIn("beta", data["prompts"][1])
+        self.assertIn("suffix", data["prompts"][1])
 
-    def test_merge_multi_prompt_appends_body_to_each(self) -> None:
-        program = parse_ah_source("@a\nref\n")
-        session_dir = create_session_dir(Path("sessions"))
-        session = Session(session_dir)
-        rt = Runtime(program, session)
-        op_dir = session.next_op_dir("test")
+    def test_rule2_body_added_when_prompts_empty(self) -> None:
+        out = self._compose(ArrayBundle(), "only body")
+        self.assertEqual(
+            json.loads(_compact(out, self.session_dir)),
+            {"prompts": ["only body"]},
+        )
+
+    def test_rule2_body_added_when_prompt_links_are_blank(self) -> None:
         bundle = ArrayBundle()
-        for name in ("robin", "wren"):
-            bundle.prompts.append(
-                session.new_link(op_dir, "prompts", ".txt", name + "\n")
-            )
-        pending = ["garden scene"]
-        merged = rt._merge_pending_instruction_body(bundle, pending, op_dir)
-        self.assertFalse(pending)
-        self.assertEqual(len(merged.prompts), 2)
-        texts = [
-            (session_dir / link).read_text(encoding="utf-8") for link in merged.prompts
-        ]
-        self.assertIn("robin", texts[0])
-        self.assertIn("garden scene", texts[0])
-        self.assertIn("wren", texts[1])
-        self.assertIn("garden scene", texts[1])
+        bundle.prompts.append(
+            self.session.new_link(self.op_dir, "prompts", ".txt", "  \n")
+        )
+        out = self._compose(bundle, "only body")
+        self.assertEqual(
+            json.loads(_compact(out, self.session_dir)),
+            {"prompts": ["only body"]},
+        )
+
+    def test_rule3_no_body_passes_through_prompts(self) -> None:
+        bundle = ArrayBundle()
+        bundle.prompts.append(
+            self.session.new_link(self.op_dir, "prompts", ".txt", "keep me\n")
+        )
+        out = self._compose(bundle, "")
+        data = _compact_dict(out, self.session_dir)
+        self.assertEqual(data["prompts"], ["keep me"])
+        self.assertEqual(out.prompts[0], bundle.prompts[0])
+
+    def test_rule3_no_body_empty_prompts_stays_empty(self) -> None:
+        out = self._compose(ArrayBundle(), "")
+        self.assertEqual(_compact(out, self.session_dir), "{}")
 
 
 if __name__ == "__main__":

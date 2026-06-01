@@ -29,7 +29,8 @@ LANGUAGE (example.ah)
   External args:
     key='literal' | key=@instruction
     @ref in args → runtime runs @ref (empty input), collects its output texts[]
-      into arg_lists[key] for the handler (e.g. model=@image_models)
+      into arg_lists[key]; if any list has >1 value (or several lists), expands
+      $ext(...) to parallel branches via Cartesian product of all @ref args
 
 DATA MODEL: ArrayBundle (7 arrays, always passed through)
   prompts, texts, images, sounds, videos, files  — lists of LINKS (usually rel. to session root;
@@ -94,7 +95,7 @@ EXTERNALS ($)
   $llm[ n ]          — local GGUF (llama-cpp); writes texts[]; consumes prompts
                        AH_EMULATE_LLM=1 for placeholders; LLM_N_GPU_LAYERS / gpu_layers arg
   $image(…)[ n ]     — text-to-image (fastimage + model_list under models/)
-                       loops all input prompts × arg_lists[model] (or single model=)
+                       model=@ref fan-out at runtime (Cartesian product with other @ref args)
                        [n] = variants per prompt via one gen() batch (count=n)
                        output: {YYYYMMDD_HHMMSS}_{model}_image_{i}.png in op/images/
                        AH_EMULATE_IMAGE=1 for placeholder PNGs

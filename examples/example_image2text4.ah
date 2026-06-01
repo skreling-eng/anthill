@@ -1,0 +1,8 @@
+
+
+@image_desc: $file('test_data/abnormal_images/20260530_023358_default_image_0.png') -> $image2text(model='qwen3')
+How many fingers are there in this image?
+Indicate the coordinates of the center of each finger.
+Return your answer in the format of json: { count: , coords: [[x1, y1], [x2, y2]] }.
+
+run @image_desc

@@ -19,7 +19,14 @@ from externals.image2image.model_paths import (
     model_ready,
     resolve_checkpoint,
 )
-from externals.image2image.run import _prompts_for_images, run
+from externals import external_handles_repeat
+from externals.image2image.run import (
+    _align_prompts,
+    _build_edit_jobs,
+    _jobs_share_encode,
+    _read_prompt_list,
+    run,
+)
 from ahlib.ah_runtime import ArrayBundle, Session, create_session_dir
 
 
@@ -38,6 +45,67 @@ def _png_bytes() -> bytes:
         )
 
 
+class TestImage2ImageRepeat(unittest.TestCase):
+    def test_handles_repeat_natively(self) -> None:
+        self.assertTrue(external_handles_repeat("image2image"))
+
+    def test_align_prompts(self) -> None:
+        self.assertEqual(_align_prompts(["a"], 3), ["a", "a", "a"])
+        self.assertEqual(_align_prompts(["a", "b"], 3), ["a", "b", "b"])
+
+    def test_jobs_share_encode(self) -> None:
+        paths = [Path("a.png")]
+        jobs = _build_edit_jobs(
+            image_paths=paths,
+            prompts=["edit"],
+            use_all=False,
+            repeat=3,
+        )
+        self.assertTrue(_jobs_share_encode(jobs))
+
+    def test_build_jobs_with_repeat(self) -> None:
+        paths = [Path("a.png"), Path("b.png")]
+        jobs = _build_edit_jobs(
+            image_paths=paths,
+            prompts=["edit"],
+            use_all=False,
+            repeat=2,
+        )
+        self.assertEqual(len(jobs), 4)
+        self.assertEqual(jobs[0], ([paths[0]], "edit"))
+        self.assertEqual(jobs[1], ([paths[0]], "edit"))
+
+    def test_read_prompt_list_once_from_bundle(self) -> None:
+        session_dir = create_session_dir(Path("sessions"))
+        session = Session(session_dir)
+        ctx = ExternalContext(session=session, op_dir=session.next_op_dir("image2image"))
+        bundle = ArrayBundle()
+        bundle.prompts.append(ctx.new_link("prompts", ".txt", "anime style\n"))
+        inp = ExternalInput(bundle=bundle, args={}, prompt_text="ignored if prompts[]")
+        self.assertEqual(_read_prompt_list(ctx, inp), ["anime style"])
+
+    def test_emulate_repeat(self) -> None:
+        os.environ["AH_EMULATE_IMAGE2IMAGE"] = "1"
+        try:
+            session_dir = create_session_dir(Path("sessions"))
+            session = Session(session_dir)
+            ctx = ExternalContext(
+                session=session, op_dir=session.next_op_dir("image2image")
+            )
+            bundle = ArrayBundle()
+            bundle.images.append(ctx.new_link("images", ".png", _png_bytes()))
+            inp = ExternalInput(
+                bundle=bundle,
+                args={},
+                prompt_text="",
+                repeat=3,
+            )
+            out = run(ctx, inp)
+            self.assertEqual(len(out.images), 3)
+        finally:
+            os.environ.pop("AH_EMULATE_IMAGE2IMAGE", None)
+
+
 class TestImage2ImageParse(unittest.TestCase):
     def test_parse_use_all(self) -> None:
         expr = parse_actions("$image2image(use_all=True, steps=4)")
@@ -45,6 +113,12 @@ class TestImage2ImageParse(unittest.TestCase):
         self.assertEqual(expr.name, "image2image")
         self.assertEqual(expr.args.get("use_all"), "True")
         self.assertEqual(expr.args.get("steps"), "4")
+
+    def test_parse_repeat(self) -> None:
+        expr = parse_actions("$image2image[3]")
+        self.assertIsInstance(expr, ExternalAction)
+        self.assertEqual(expr.name, "image2image")
+        self.assertEqual(expr.repeat, 3)
 
 
 class TestImage2ImageModels(unittest.TestCase):

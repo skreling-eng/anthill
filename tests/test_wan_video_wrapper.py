@@ -6,6 +6,25 @@ import os
 import unittest
 from pathlib import Path
 
+from externals.comfy_inprocess.wan_video_wrapper import wan_wrapper_enabled
+
+
+class TestWanWrapperEnabled(unittest.TestCase):
+    def tearDown(self) -> None:
+        os.environ.pop("AH_COMFY_WAN_WRAPPER", None)
+
+    def test_default_off_for_image2image(self) -> None:
+        self.assertFalse(wan_wrapper_enabled())
+        self.assertFalse(wan_wrapper_enabled(for_image2video=False))
+
+    def test_default_on_for_image2video_when_unset(self) -> None:
+        self.assertTrue(wan_wrapper_enabled(for_image2video=True))
+
+    def test_explicit_enable(self) -> None:
+        os.environ["AH_COMFY_WAN_WRAPPER"] = "1"
+        self.assertTrue(wan_wrapper_enabled())
+        self.assertTrue(wan_wrapper_enabled(for_image2video=False))
+
 
 class TestWanVideoWrapperLoad(unittest.TestCase):
     def test_load_registers_vace_node(self) -> None:

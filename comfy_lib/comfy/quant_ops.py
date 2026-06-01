@@ -1,6 +1,20 @@
 import torch
 import logging
 
+
+def _kitchen_cuda_version_unsupported(cuda_version: tuple[int, ...]) -> bool:
+    """Whether to disable comfy_kitchen's cuda backend.
+
+    PyTorch cu128/cu129 wheels report ``torch.version.cuda`` as ``12.8`` / ``12.9``,
+    not ``13.x``. Treat those as supported; only disable on older CUDA toolchains.
+    """
+    if cuda_version >= (13,):
+        return False
+    if len(cuda_version) >= 2 and cuda_version >= (12, 8):
+        return False
+    return True
+
+
 try:
     import comfy_kitchen as ck
     from comfy_kitchen.tensor import (
@@ -16,10 +30,14 @@ try:
     if torch.version.cuda is None:
         ck.registry.disable("cuda")
     else:
-        cuda_version = tuple(map(int, str(torch.version.cuda).split('.')))
-        if cuda_version < (13,):
+        cuda_version = tuple(map(int, str(torch.version.cuda).split(".")))
+        if _kitchen_cuda_version_unsupported(cuda_version):
             ck.registry.disable("cuda")
-            logging.warning("WARNING: You need pytorch with cu130 or higher to use optimized CUDA operations.")
+            logging.warning(
+                "WARNING: comfy_kitchen cuda backend disabled (torch.version.cuda=%s); "
+                "need PyTorch cu128+ for optimized FP8 ops.",
+                ".".join(str(x) for x in cuda_version),
+            )
 
     ck.registry.disable("triton")
     for k, v in ck.list_backends().items():

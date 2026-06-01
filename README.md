@@ -256,7 +256,7 @@ Handlers live in `externals/<name>/` with a `run.py` entry point.
 | `$texts_to_prompts`, `$prompts_to_texts` | Prompt ↔ text conversion |
 | `$image` | FLUX / LoRA text-to-image (diffusers) |
 | `$image2image` | Qwen-Rapid-AIO prompt-guided edit ([`comfy_lib/`](comfy_lib/), in-process — no Comfy server) |
-| `$image2text` | Qwen2-VL vision-language |
+| `$image2text` | Qwen2-VL / Qwen3-VL-8B vision-language (`model=qwen2` default, `model=qwen3`) |
 | `$image2video` | Wan-based image → video |
 | `$comfy` | ComfyUI **server** API workflows (`comfy_workflows/`) |
 | `$music`, `$music_separation`, `$join_stems` | Music gen / stem split |

@@ -45,7 +45,7 @@ def _apply_rope(xq: Tensor, xk: Tensor, freqs_cis: Tensor):
 
 
 def _kitchen_rope_available() -> bool:
-    """comfy_kitchen rope ops (opt-in; extra VRAM). Need cu130+ and AH_COMFY_KITCHEN_ROPE=1."""
+    """comfy_kitchen rope ops (opt-in; extra VRAM). Need cu128+ and AH_COMFY_KITCHEN_ROPE=1."""
     import os
 
     raw = os.environ.get("AH_COMFY_KITCHEN_ROPE", "0").strip().lower()
@@ -57,7 +57,10 @@ def _kitchen_rope_available() -> bool:
         cuda_version = tuple(map(int, str(torch.version.cuda).split(".")))
     except ValueError:
         return False
-    return cuda_version >= (13,)
+    # Match quant_ops: cu128/cu129 wheels report 12.8 / 12.9, not 13.x
+    if cuda_version >= (13,):
+        return True
+    return len(cuda_version) >= 2 and cuda_version >= (12, 8)
 
 
 try:
@@ -77,8 +80,16 @@ try:
                 return _apply_rope1(x, freqs_cis)
             return q_apply_rope1(x, freqs_cis)
     else:
-        raise ImportError("comfy_kitchen rope disabled (need cu130+)")
-except Exception:
-    logging.warning("No comfy kitchen, using old apply_rope functions.")
+        raise ImportError("comfy_kitchen rope disabled (set AH_COMFY_KITCHEN_ROPE=1, need cu128+)")
+except Exception as exc:
+    if _kitchen_rope_available():
+        logging.warning(
+            "comfy_kitchen fast apply_rope unavailable (%s); using reference implementation.",
+            exc,
+        )
+    else:
+        logging.debug(
+            "apply_rope: reference implementation (opt-in fast path: AH_COMFY_KITCHEN_ROPE=1).",
+        )
     apply_rope = _apply_rope
     apply_rope1 = _apply_rope1

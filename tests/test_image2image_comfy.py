@@ -84,5 +84,25 @@ class TestComfyWorkflow(unittest.TestCase):
             self.assertNotIn(PLACEHOLDER_PROMPT, str(wf))
 
 
+class TestLegacyExecutorKwargs(unittest.TestCase):
+    def test_execute_prompt_legacy_forwards_partial_run(self) -> None:
+        import inspect
+
+        from externals.comfy_inprocess.executor import execute_prompt_legacy
+
+        params = inspect.signature(execute_prompt_legacy).parameters
+        self.assertIn("stop_before_class", params)
+        self.assertIn("only_classes", params)
+        self.assertIn("initial_outputs", params)
+
+
+class TestQwenWorkflowDetect(unittest.TestCase):
+    def test_prompt_uses_qwen_image_edit(self) -> None:
+        from externals.comfy_inprocess.comfy_memory import prompt_uses_qwen_image_edit
+
+        wf = load_qwen_workflow()
+        self.assertTrue(prompt_uses_qwen_image_edit(wf))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from ahlib.ah_actions import ExternalAction, parse_actions
 from externals.api import ExternalContext, ExternalInput
+from externals.image2text.model_list import get_image2text_model
 from externals.image2text.model_paths import model_dir, model_ready
 from externals.image2text.run import _prompts_for_images, run
 from ahlib.ah_runtime import ArrayBundle, Session, create_session_dir
@@ -35,6 +36,11 @@ class TestImage2TextParse(unittest.TestCase):
         self.assertIsInstance(expr, ExternalAction)
         self.assertEqual(expr.name, "image2text")
         self.assertEqual(expr.args.get("max_tokens"), "128")
+
+    def test_parse_model_qwen3(self) -> None:
+        expr = parse_actions("$image2text(model='qwen3', gpu=True)")
+        self.assertEqual(expr.args.get("model"), "qwen3")
+        self.assertEqual(expr.args.get("gpu"), "True")
 
 
 class TestImage2TextPrompts(unittest.TestCase):
@@ -84,7 +90,21 @@ class TestImage2TextRun(unittest.TestCase):
         finally:
             os.environ.pop("AH_EMULATE_IMAGE2TEXT", None)
 
-    def test_no_images_message(self) -> None:
+    def test_resolve_use_gpu_arg_overrides(self) -> None:
+        from externals.image2text.run import _resolve_use_gpu
+
+        inp = ExternalInput(bundle=ArrayBundle(), args={"gpu": "False"}, prompt_text="")
+        self.assertFalse(_resolve_use_gpu(inp))
+
+    def test_resolve_use_gpu_env_overrides(self) -> None:
+        from externals.image2text.run import _resolve_use_gpu
+
+        os.environ["AH_IMAGE2TEXT_GPU"] = "0"
+        try:
+            inp = ExternalInput(bundle=ArrayBundle(), args={}, prompt_text="")
+            self.assertFalse(_resolve_use_gpu(inp))
+        finally:
+            os.environ.pop("AH_IMAGE2TEXT_GPU", None)
         os.environ["AH_EMULATE_IMAGE2TEXT"] = "1"
         try:
             session_dir = create_session_dir(Path("sessions"))
@@ -102,7 +122,7 @@ class TestImage2TextRun(unittest.TestCase):
 
 class TestImage2TextModelPaths(unittest.TestCase):
     def test_model_dir_under_qwen_vl(self) -> None:
-        path = model_dir()
+        path = model_dir(get_image2text_model("qwen2"))
         self.assertIn("qwen-vl", str(path).replace("\\", "/"))
         self.assertIn("Qwen2-VL-2B-Instruct", path.name)
 

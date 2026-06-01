@@ -1,0 +1,11 @@
+
+@models: $list
+qwen2, qwen3
+
+@image: $image
+Beautiful grown up woman
+
+@test: @image -> $image2text(model=@models)
+give me a detailed overview what you see on this image
+
+run @test

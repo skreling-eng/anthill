@@ -10,6 +10,7 @@ from ahlib.ah_actions import (
     expr_uses_external,
     parse_actions,
 )
+from ahlib.ah_bundle_compact import bundle_compact_dict, bundle_compact_str
 from ahlib.ah_parser import (
     ARRAY_TYPES,
     Instruction,
@@ -33,6 +34,8 @@ __all__ = [
     "ActionCallback",
     "ActionExpr",
     "ArrayBundle",
+    "bundle_compact_dict",
+    "bundle_compact_str",
     "ExternalAction",
     "ForAction",
     "Instruction",

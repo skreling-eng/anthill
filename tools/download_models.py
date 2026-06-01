@@ -85,6 +85,9 @@ CHECKS: dict[str, list[str]] = {
         "qwen-vl/Qwen2-VL-2B-Instruct/model-00001-of-00002.safetensors",
         "qwen-vl/Qwen2-VL-2B-Instruct/model-00002-of-00002.safetensors",
     ],
+    "qwen3_vl": [
+        "qwen-vl/Qwen3-VL-8B-Instruct/config.json",
+    ],
     "qwen_rapid_base": [
         "qwen-rapid/Qwen-Image-Edit-2509/model_index.json",
     ],
@@ -231,7 +234,11 @@ def _run_upstream_fallback(*, dry_run: bool, profile: str) -> None:
     if "qwen2_vl" in missing:
         from externals.image2text.model_paths import ensure_model
 
-        ensure_model()
+        ensure_model("qwen2")
+    if "qwen3_vl" in missing:
+        from externals.image2text.model_paths import ensure_model
+
+        ensure_model("qwen3")
     if "qwen_rapid_base" in missing:
         from externals.image2image.qwen_pipeline import ensure_base_assets
 

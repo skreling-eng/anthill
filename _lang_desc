@@ -33,8 +33,8 @@ Links are paths **relative to the session root**. The runtime materializes files
 Body of instruction (optional)
 ```
 
-- **Header:** `@name` or `@name: actions`
-- **Body:** Plain text or `"""` … `"""` multiline block. Added to `prompts[]` (see §4).
+- **Header:** `@name` or `@name: actions` (the part after `:` is the **pipeline**)
+- **Body:** Plain text or `"""` … `"""` multiline block (see §4).
 - **Comments:** Lines starting with `#`. Block comments `/* … */` are stripped before parse.
 - **Actions** may span lines; wrapping `{ … }` around the whole pipeline is allowed.
 
@@ -85,7 +85,36 @@ $save('output.mp4')
 
 Repeat suffix `[n]` on `$name` requests multiple output variants where supported.
 
-**Argument lists:** `key=@some_instruction` resolves `@some_instruction` to a list of strings from its output `texts[]`.
+Handlers that implement `inp.repeat` internally (`$image`, `$llm`, `$music`, `$code`) run once with `repeat=n`. All other externals are expanded by the runtime to **n invocations** on copies of the input bundle (same join rules as parallel `( … )`), including each branch when `model=@ref` fan-out is also used.
+
+**Argument lists:** any `key=@some_instruction` resolves `@some_instruction` to strings from its output `texts[]`.
+
+When one or more `@ref` args yield lists, the runtime expands the call to the same effect as parallel branches — one branch per combination (**Cartesian product** when several list args are present):
+
+```ah
+@items: $list
+a, b
+
+@tags: $list
+x, y
+
+@run: $pass(model=@items, tag=@tags, mode='fast')
+```
+
+is equivalent to:
+
+```ah
+@run: (
+  $pass(model='a', tag='x', mode='fast'),
+  $pass(model='b', tag='x', mode='fast'),
+  $pass(model='a', tag='y', mode='fast'),
+  $pass(model='b', tag='y', mode='fast')
+)
+```
+
+Repeat suffixes apply to every branch: `$ext(...)[10]` with list args → `$ext(...)[10]` per variant.
+
+Each branch runs on a copy of the input bundle; outputs are joined (all arrays appended). Handlers receive scalar args only — no custom fan-out code per external.
 
 ### 3.3 Parallel — `( @a, @b, … )`
 
@@ -176,12 +205,24 @@ Examples:
 
 ## 4. Instruction body behavior
 
+```ah
+@act: pipeline
+body text here
+```
+
 | Situation | Body handling |
 |-----------|----------------|
-| No actions | Body appended to each `prompts[]` link, or creates one prompt if empty |
-| Actions start with `$` that consumes prompts | Body prepended into `prompts[]` before first `$` |
-| Other actions | Body merged with prompts after pipeline (compose / append per link) |
-| Body-only `@ref` (no actions on target) | Body text appended to **each** input prompt link separately |
+| **Body present** | Apply the 3 rules to this instruction’s **inputs** (all arrays except `prompts[]` pass through) |
+| **`@act: pipeline` + body** | That bundle is **pipeline input**, then the pipeline runs |
+| **`@act` + body, no pipeline** | That bundle is the instruction **output** |
+
+**Three rules** (same for pipeline input and output):
+
+1. Body + input `prompts[]` with text — concatenate body into **every** input prompt link.
+2. Body + empty `prompts[]` — one new prompt link containing body only.
+3. No body — pass through input `prompts[]` unchanged.
+
+Prompt-consuming `$` handlers (`$image`, `$llm`, `$comfy`, …) **clear `prompts[]` on output**. A later `$` in the same pipeline does not see an earlier instruction body unless that text is still in `prompts[]` (e.g. add a body-only `@ref` after the step that cleared prompts, or call the final `$` directly on the instruction that owns the body).
 
 ---
 
