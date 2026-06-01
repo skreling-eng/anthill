@@ -4,6 +4,25 @@ from __future__ import annotations
 
 import math
 
+from externals.image2image.comfy_qwen_prompt import (
+    QWEN_IMAGE_EDIT_LLAMA_TEMPLATE,
+    debug_log_prompt_encode,
+)
+
+_EMPTY_NEGATIVE_CACHE: dict[int, object] = {}
+
+
+def fast_empty_negative_conditioning(clip) -> object:
+    """Workflow negative node has prompt='' — cache result (cfg=1, no vision)."""
+    key = id(getattr(clip, "patcher", clip))
+    cached = _EMPTY_NEGATIVE_CACHE.get(key)
+    if cached is not None:
+        return cached
+    tokens = clip.tokenize("", images=[], llama_template=QWEN_IMAGE_EDIT_LLAMA_TEMPLATE)
+    cached = clip.encode_from_tokens_scheduled(tokens)
+    _EMPTY_NEGATIVE_CACHE[key] = cached
+    return cached
+
 
 def text_encode_qwen_image_edit_plus(
     clip,
@@ -20,16 +39,7 @@ def text_encode_qwen_image_edit_plus(
     ref_latents = []
     images = [image1, image2, image3]
     images_vl = []
-    llama_template = (
-        "<|im_start|>system\n"
-        "Describe the key features of the input image (color, shape, size, texture, "
-        "objects, background), then explain how the user's text instruction should "
-        "alter or modify the image. Generate a new image that meets the user's "
-        "requirements while maintaining consistency with the original input where "
-        "appropriate.<|im_end|>\n"
-        "<|im_start|>user\n{}<|im_end|>\n"
-        "<|im_start|>assistant\n"
-    )
+    llama_template = QWEN_IMAGE_EDIT_LLAMA_TEMPLATE
     image_prompt = ""
 
     for i, image in enumerate(images):
@@ -48,13 +58,31 @@ def text_encode_qwen_image_edit_plus(
             width = round(samples.shape[3] * scale_by / 8.0) * 8
             height = round(samples.shape[2] * scale_by / 8.0) * 8
             s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
-            ref_latents.append(vae.encode(s.movedim(1, -1)[:, :, :, :3]))
-        image_prompt += "Picture {}: <|vision_start|><|image_pad|><|vision_end|>".format(i + 1)
+            pixels = s.movedim(1, -1)[:, :, :, :3]
+            from externals.comfy_inprocess.comfy_memory import load_vae_for_encode
 
+            load_vae_for_encode(
+                vae,
+                length=int(pixels.shape[0]),
+                height=int(pixels.shape[1]),
+                width=int(pixels.shape[2]),
+            )
+            ref_latents.append(vae.encode(pixels))
+        image_prompt += "Picture {}: <|vision_start|><|image_pad|><|vision_end|>".format(
+            i + 1
+        )
+
+    llama_text = llama_template.format(image_prompt + prompt)
+    debug_log_prompt_encode(
+        user_prompt=prompt,
+        llama_text=llama_text,
+        template_end=-1,
+        seq_len=len(llama_text),
+    )
     tokens = clip.tokenize(image_prompt + prompt, images=images_vl, llama_template=llama_template)
     conditioning = clip.encode_from_tokens_scheduled(tokens)
     if ref_latents:
         conditioning = node_helpers.conditioning_set_values(
-            conditioning, {"reference_latents": ref_latents}
+            conditioning, {"reference_latents": ref_latents}, append=True
         )
     return conditioning

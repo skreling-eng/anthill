@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import os
 import random
 import shutil
 from pathlib import Path
@@ -125,6 +126,12 @@ def build_edit_prompt(
             inputs["height"] = height
         elif ctype == "KSampler":
             inputs["steps"] = steps
+
+    sampler_override = os.environ.get("AH_IMAGE2IMAGE_SAMPLER", "").strip()
+    if sampler_override:
+        for node in wf.values():
+            if node.get("class_type") == "KSampler":
+                node.setdefault("inputs", {})["sampler_name"] = sampler_override
 
     load_id = _primary_load_id(wf)
     wf[load_id]["inputs"]["image"] = staged[0]

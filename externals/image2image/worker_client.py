@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from externals.comfy_inprocess.warm_worker import WarmWorkerConfig, WarmWorkerPool
+from externals.image2image.worker_cmd import build_image2image_worker_cmd
 
 _CONFIG = WarmWorkerConfig(name="image2image", worker_module="externals.image2image.worker")
-_POOL = WarmWorkerPool(_CONFIG)
+_POOL = WarmWorkerPool(_CONFIG, build_cmd=build_image2image_worker_cmd)
 
 
 def worker_enabled() -> bool:

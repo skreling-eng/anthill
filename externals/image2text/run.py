@@ -1,4 +1,4 @@
-"""$image2text — vision-language captioning via Qwen2-VL."""
+"""$image2text — vision-language captioning via Qwen2-VL / Qwen3-VL."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from pathlib import Path
 from externals.api import (
     ExternalContext,
     ExternalInput,
+    read_arg_list,
     read_prompt_texts,
 )
 from ahlib.ah_runtime import ArrayBundle
@@ -25,6 +26,25 @@ def _emulate_enabled() -> bool:
 
 def _truthy(val: str) -> bool:
     return val.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _cuda_available() -> bool:
+    try:
+        import torch
+
+        return bool(torch.cuda.is_available())
+    except ImportError:
+        return False
+
+
+def _resolve_use_gpu(inp: ExternalInput) -> bool:
+    raw = inp.args.get("gpu", "").strip()
+    if raw:
+        return _truthy(raw)
+    env = os.environ.get("AH_IMAGE2TEXT_GPU", "").strip()
+    if env:
+        return _truthy(env)
+    return _cuda_available()
 
 
 def _int_arg(args: dict[str, str], key: str, default: int) -> int:
@@ -60,11 +80,22 @@ def _prompts_for_images(ctx: ExternalContext, inp: ExternalInput, count: int) ->
     return padded
 
 
+def _resolve_model(inp: ExternalInput, model_name: str):
+    from externals.image2text.model_list import get_image2text_model
+
+    raw = (model_name or "qwen2").strip() or "qwen2"
+    try:
+        return get_image2text_model(raw)
+    except KeyError as exc:
+        raise RuntimeError(str(exc)) from exc
+
+
 def _help() -> str:
     return (
         "$image2text requires torch and transformers (media venv).\n"
         "  tools\\setup_external_venvs.ps1   (or uv sync --extra media)\n"
         "  uv run python tools/download_models.py --upstream-fallback\n"
+        "  model=qwen2 (default, ~4 GB) | model=qwen3 (Qwen3-VL-8B, ~16 GB+)\n"
         "Test without models: AH_EMULATE_IMAGE2TEXT=1"
     )
 
@@ -82,12 +113,14 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
 
     prompts = _prompts_for_images(ctx, inp, len(images))
     max_tokens = _int_arg(inp.args, "max_tokens", 512)
-    use_gpu = _truthy(inp.args.get("gpu", os.environ.get("AH_IMAGE2TEXT_GPU", "")))
+    use_gpu = _resolve_use_gpu(inp)
+    model_name = read_arg_list(inp, "model", "qwen2")[0]
+    profile = _resolve_model(inp, model_name)
 
     if _emulate_enabled():
         for image_path, prompt in zip(images, prompts):
             text = (
-                f"[emulated $image2text] {image_path.name}\n"
+                f"[emulated $image2text model={profile.name}] {image_path.name}\n"
                 f"prompt: {prompt}\n"
             )
             out.texts.append(ctx.new_link("texts", ".txt", text))
@@ -99,8 +132,8 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     except ImportError as exc:
         raise RuntimeError(_help()) from exc
 
-    model_dir = ensure_model()
-    model, processor = load_model(model_dir, use_gpu=use_gpu)
+    model_dir = ensure_model(profile)
+    model, processor = load_model(profile, model_dir, use_gpu=use_gpu)
 
     for image_path, prompt in zip(images, prompts):
         if ctx.cancel_event is not None and ctx.cancel_event.is_set():
@@ -108,6 +141,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
 
             raise RuntimeCancelled("$image2text cancelled")
         text = describe_image(
+            profile,
             model,
             processor,
             image_path,

@@ -69,7 +69,8 @@ ARGUMENTS
 
   backend= — comfy_lib (default, ComfyUI PromptExecutor in-process) | diffusers | comfy (HTTP API)
 
-  AH_COMFY_EXECUTOR=comfy — vendored ComfyUI execution.py (default). legacy = simple topo executor.
+  AH_COMFY_EXECUTOR — unset: PromptExecutor for MEGA/VACE workflows only; legacy for
+  simple graphs. comfy = always PromptExecutor. legacy = always topo executor.
 
   seed= — RNG seed; offset per output when generating multiple videos.
 

@@ -2,9 +2,11 @@
 
 from externals.comfy_inprocess.worker_main import worker_main
 from externals.image2image.run import run
+from externals.image2image.worker_cmd import log_worker_backend
 
 
 def main() -> int:
+    log_worker_backend()
     return worker_main(run)
 
 

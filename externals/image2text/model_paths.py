@@ -1,21 +1,27 @@
-"""Qwen2-VL-2B-Instruct under models/qwen-vl/."""
+"""Local paths and downloads for $image2text vision-language models."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from externals.image.model_paths import models_roots
-
-HF_REPO = "Qwen/Qwen2-VL-2B-Instruct"
-MODEL_SUBDIR = Path("qwen-vl") / "Qwen2-VL-2B-Instruct"
+from externals.image2text.model_list import Image2TextModel, get_image2text_model
 
 
-def model_dir() -> Path:
+def _resolve_profile(profile: Image2TextModel | str | None) -> Image2TextModel:
+    if isinstance(profile, Image2TextModel):
+        return profile
+    return get_image2text_model(profile or "qwen2")
+
+
+def model_dir(profile: Image2TextModel | str | None = None) -> Path:
+    m = _resolve_profile(profile)
     for root in models_roots():
-        candidate = root / MODEL_SUBDIR
+        candidate = root / m.subdir
         if (candidate / "config.json").is_file():
             return candidate
-    return models_roots()[0] / MODEL_SUBDIR
+    return models_roots()[0] / m.subdir
 
 
 def _has_weights(path: Path) -> bool:
@@ -23,8 +29,6 @@ def _has_weights(path: Path) -> bool:
         return True
     index = path / "model.safetensors.index.json"
     if index.is_file():
-        import json
-
         data = json.loads(index.read_text(encoding="utf-8"))
         weight_map = data.get("weight_map") or {}
         shards = {str(v) for v in weight_map.values()}
@@ -32,16 +36,17 @@ def _has_weights(path: Path) -> bool:
     return any(path.glob("model-*.safetensors"))
 
 
-def model_ready() -> bool:
-    path = model_dir()
+def model_ready(profile: Image2TextModel | str | None = None) -> bool:
+    path = model_dir(profile)
     return (path / "config.json").is_file() and _has_weights(path)
 
 
-def ensure_model(*, force: bool = False) -> Path:
-    """Download Qwen2-VL-2B-Instruct into models/qwen-vl/."""
-    path = model_dir()
+def ensure_model(profile: Image2TextModel | str | None = None, *, force: bool = False) -> Path:
+    """Download the selected VL model into models/qwen-vl/."""
+    m = _resolve_profile(profile)
+    path = model_dir(m)
     path.mkdir(parents=True, exist_ok=True)
-    if model_ready() and not force:
+    if model_ready(m) and not force:
         return path
 
     try:
@@ -52,8 +57,9 @@ def ensure_model(*, force: bool = False) -> Path:
             "uv sync --extra image2text"
         ) from exc
 
-    snapshot_download(HF_REPO, local_dir=str(path))
-    if not model_ready():
+    print(f"$image2text: downloading {m.hf_repo} -> {path}", flush=True)
+    snapshot_download(m.hf_repo, local_dir=str(path))
+    if not model_ready(m):
         raise FileNotFoundError(
             f"Model download finished but {path} is missing config.json or weights"
         )

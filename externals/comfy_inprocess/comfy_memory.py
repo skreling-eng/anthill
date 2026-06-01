@@ -39,6 +39,12 @@ def prompt_uses_mega_vace(prompt: dict[str, Any]) -> bool:
     return any(n.get("class_type") == "WanVaceToVideo" for n in prompt.values())
 
 
+def prompt_uses_qwen_image_edit(prompt: dict[str, Any]) -> bool:
+    return any(
+        n.get("class_type") == "TextEncodeQwenImageEditPlus" for n in prompt.values()
+    )
+
+
 def comfy_memory_enabled(prompt: dict[str, Any]) -> bool:
     import os
 

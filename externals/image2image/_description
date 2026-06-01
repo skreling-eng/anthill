@@ -7,6 +7,7 @@ SUMMARY
 
 SYNTAX
   $image2image
+  $image2image[3]
   $image2image(use_all=True)
   $image2image(gpu=True)
   $image2image(model='nsfw-v23')
@@ -17,7 +18,7 @@ INPUT
   prompts[] — edit instruction (or instruction body / prompt= arg)
 
 OUTPUT
-  images[] — one output per job (see use_all)
+  images[] — one output per job (see use_all; repeat adds variants per image)
 
 ARGUMENTS
   use_all=  — when true, send up to 3 reference images into one edit job (Comfy encode limit)
@@ -27,7 +28,8 @@ ARGUMENTS
   width=    — output width (default: input image width, snapped to 8px)
   height=   — output height (default: input image height, snapped to 8px)
   steps=    — inference steps (default 4)
-  seed=     — fixed seed; omit for random per job
+  seed=     — fixed seed; omit for random per job; with repeat, seed+0..n-1 per variant
+  [n]       — repeat variants per image (encode once, n samples; same prompt+image)
 
 MODELS
   sfw-v23  — Qwen-Rapid-AIO-SFW-v23.safetensors (default)
@@ -39,14 +41,24 @@ DEPENDENCIES
   Set AH_COMFY_PYTHON to that python.exe if auto-detect fails.
 
 ENVIRONMENT
+  Warm worker defaults to ComfyUI python (comfy_kitchen) when found under AH_COMFY_PYTHON.
+  Log must show ``comfy_kitchen cuda backend enabled`` (cu129 wheels report cuda 12.9, not 13.x).
+  or G:\\ComfyUI_V\\.venv. .venvs/media alone is much slower for KSampler (no kitchen).
+  AH_IMAGE2IMAGE_USE_MEDIA_VENV=1 — force .venvs/media worker
   AH_COMFY_PYTHON — ComfyUI venv python (recommended)
+  AH_IMAGE2IMAGE_SAMPLER=euler — optional faster sampler (workflow default: sa_solver)
   AH_IMAGE2IMAGE_GPU=0 — force CPU
+  AH_IMAGE2IMAGE_VRAM — default normal on <32GB GPU, high on 32GB+ (ignores WAN_I2V_VRAM)
   AH_IMAGE2IMAGE_WORKER=1 — warm subprocess (default)
   AH_EMULATE_IMAGE2IMAGE=1 — placeholder PNGs, no model load
 
 SAMPLING
   Matches Comfy Qwen-Rapid-AIO_4.json: TextEncodeQwenImageEditPlus, KSampler
   sa_solver + beta scheduler, cfg=1, EmptyLatentImage 720×1280.
+
+EXECUTOR
+  $image2image always uses legacy topo executor + in-process checkpoint cache.
+  Warm worker reuses loaded weights; first job prints checkpoint load time.
 
 EXAMPLES
   @fixed: $image2image

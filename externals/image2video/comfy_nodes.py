@@ -101,4 +101,24 @@ def register_i2v_node_handlers() -> None:
     from externals.comfy_inprocess.executor import register_node_handler
 
     if "WanVideoVACEStartToEndFrame" not in nodes.NODE_CLASS_MAPPINGS:
-        register_node_handler("WanVideoVACEStartToEndFrame", wan_vace_start_to_end_frame)
+        register_node_handler(
+            "WanVideoVACEStartToEndFrame",
+            wan_vace_start_to_end_frame,
+            input_types={
+                "required": {
+                    "num_frames": ("INT", {"default": 81, "min": 1, "max": 10000, "step": 4}),
+                    "empty_frame_level": (
+                        "FLOAT",
+                        {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01},
+                    ),
+                },
+                "optional": {
+                    "start_image": ("IMAGE",),
+                    "end_image": ("IMAGE",),
+                    "control_images": ("IMAGE",),
+                    "inpaint_mask": ("MASK",),
+                    "start_index": ("INT", {"default": 0, "min": 0, "max": 10000, "step": 1}),
+                    "end_index": ("INT", {"default": -1, "min": -10000, "max": 10000, "step": 1}),
+                },
+            },
+        )

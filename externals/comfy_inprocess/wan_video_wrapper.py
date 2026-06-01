@@ -44,6 +44,19 @@ def load_wan_video_wrapper(*, force: bool = False) -> bool:
         _LOAD_FAILED = True
         return False
 
+    if not _try_import("gguf"):
+        _LOAD_FAILED = True
+        import sys
+
+        logging.warning(
+            "ComfyUI-WanVideoWrapper skipped (missing gguf; python=%s). "
+            "Install deps in .venvs/comfy-wan: "
+            "UV_PROJECT_ENVIRONMENT=.venvs/comfy-wan uv sync --extra media,comfy-wan,clip "
+            "(needs gguf). Set AH_EXTERNAL_VENV_image2video=.venvs/comfy-wan and restart worker.",
+            sys.executable,
+        )
+        return False
+
     import nodes
     from nodes import load_custom_node
 
@@ -60,21 +73,7 @@ def load_wan_video_wrapper(*, force: bool = False) -> bool:
         )
     else:
         _LOAD_FAILED = True
-        import sys
-
-        hint = (
-            "Install deps in .venvs/comfy-wan: "
-            "UV_PROJECT_ENVIRONMENT=.venvs/comfy-wan uv sync --extra media,comfy-wan,clip "
-            "(needs gguf). Set AH_EXTERNAL_VENV_image2video=.venvs/comfy-wan and restart worker."
-        )
-        if _try_import("gguf"):
-            logging.warning("Failed to load ComfyUI-WanVideoWrapper from %s", path)
-        else:
-            logging.warning(
-                "Failed to load ComfyUI-WanVideoWrapper (missing gguf; python=%s). %s",
-                sys.executable,
-                hint,
-            )
+        logging.warning("Failed to load ComfyUI-WanVideoWrapper from %s", path)
     return ok
 
 

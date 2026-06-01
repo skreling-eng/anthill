@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import copy
+import os
+import time
 from collections import deque
 from collections.abc import Callable
 from typing import Any
 
 _NODE_HANDLERS: dict[str, Callable[[dict[str, Any]], tuple[Any, ...]]] = {}
+# PromptExecutor only passes inputs listed in INPUT_TYPES (links still resolve).
+_HANDLER_INPUT_TYPES: dict[str, dict[str, Any]] = {}
 SKIP_NODES = frozenset({"SaveImage", "PreviewImage", "VHS_VideoCombine"})
 _SKIP_NODES = SKIP_NODES  # alias for internal use
 
@@ -38,8 +42,16 @@ class ComfyWorkflowError(RuntimeError):
 def register_node_handler(
     class_type: str,
     handler: Callable[[dict[str, Any]], tuple[Any, ...]],
+    *,
+    input_types: dict[str, Any] | None = None,
 ) -> None:
     _NODE_HANDLERS[class_type] = handler
+    if input_types is not None:
+        _HANDLER_INPUT_TYPES[class_type] = input_types
+
+
+def handler_input_types(class_type: str) -> dict[str, Any]:
+    return _HANDLER_INPUT_TYPES.get(class_type, {"required": {}, "optional": {}})
 
 
 def _is_link(value: Any) -> bool:
@@ -162,27 +174,42 @@ def _execute_prompt_legacy(
     *,
     nodes_module,
     output_node_ids: list[str] | None = None,
+    stop_before_class: str | None = None,
+    only_classes: frozenset[str] | None = None,
+    initial_outputs: dict[str, tuple[Any, ...]] | None = None,
+    prepare_ksampler: bool = True,
 ) -> dict[str, tuple[Any, ...]]:
     """Legacy topo executor (fallback when PromptExecutor is disabled or fails)."""
-    if output_node_ids is None:
-        output_node_ids = []
+    _ = output_node_ids
     from externals.comfy_inprocess.comfy_memory import (
         comfy_memory_enabled,
         finalize_node,
         handle_execution_oom,
         prepare_node,
+        prompt_uses_qwen_image_edit,
     )
 
     order = _topo_order(prompt)
-    outputs: dict[str, tuple[Any, ...]] = {}
+    outputs: dict[str, tuple[Any, ...]] = dict(initial_outputs or {})
     mappings = nodes_module.NODE_CLASS_MAPPINGS
     memory_mode = comfy_memory_enabled(prompt)
+    qwen_edit = prompt_uses_qwen_image_edit(prompt)
+    timing = os.environ.get("AH_IMAGE2IMAGE_TIMING", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
     for nid in order:
         node = prompt[nid]
         class_type = node.get("class_type")
         if not class_type:
             raise ComfyWorkflowError(f"Node {nid} missing class_type")
+        if stop_before_class and class_type == stop_before_class:
+            break
+        if only_classes is not None and class_type not in only_classes:
+            continue
         inputs = _resolve_inputs(node.get("inputs") or {}, outputs)
 
         if class_type in _SKIP_NODES:
@@ -190,17 +217,34 @@ def _execute_prompt_legacy(
             continue
 
         prepare_node(class_type, enabled=memory_mode)
+        ksampler_qwen = class_type == "KSampler" and qwen_edit
+        t_node = time.perf_counter() if (timing or ksampler_qwen) else 0.0
+        if ksampler_qwen and prepare_ksampler:
+            steps = (node.get("inputs") or {}).get("steps", "?")
+            sampler = (node.get("inputs") or {}).get("sampler_name", "?")
+            print(
+                f"$image2image: KSampler ({steps} steps, {sampler})…",
+                flush=True,
+            )
+            model = inputs.get("model")
+            if model is not None:
+                try:
+                    from externals.image2image.comfy_sample_prep import prepare_for_ksampler
+
+                    prepare_for_ksampler(model)
+                except ImportError:
+                    pass
 
         try:
-            if class_type in mappings:
+            if class_type in _NODE_HANDLERS:
+                outputs[nid] = _NODE_HANDLERS[class_type](inputs)
+            elif class_type in mappings:
                 cls = mappings[class_type]
                 instance = cls()
                 func = getattr(instance, cls.FUNCTION)
                 filtered = _filter_node_inputs(class_type, cls, inputs)
                 result = func(**filtered)
                 outputs[nid] = _normalize_outputs(result)
-            elif class_type in _NODE_HANDLERS:
-                outputs[nid] = _NODE_HANDLERS[class_type](inputs)
             else:
                 outputs[nid] = (None,)
         except Exception as exc:
@@ -210,6 +254,17 @@ def _execute_prompt_legacy(
             raise
         finally:
             finalize_node(class_type, enabled=memory_mode)
+            if ksampler_qwen:
+                elapsed = time.perf_counter() - t_node
+                print(
+                    f"$image2image: KSampler finished ({elapsed:.1f}s)",
+                    flush=True,
+                )
+            elif timing and elapsed >= 0.5:
+                print(
+                    f"$image2image: node {class_type} ({nid}) {elapsed:.1f}s",
+                    flush=True,
+                )
 
     return outputs
 
@@ -226,9 +281,19 @@ def execute_prompt_legacy(
     *,
     nodes_module,
     output_node_ids: list[str] | None = None,
+    stop_before_class: str | None = None,
+    only_classes: frozenset[str] | None = None,
+    initial_outputs: dict[str, tuple[Any, ...]] | None = None,
+    prepare_ksampler: bool = True,
 ) -> dict[str, tuple[Any, ...]]:
     return _execute_prompt_legacy(
-        prompt, nodes_module=nodes_module, output_node_ids=output_node_ids
+        prompt,
+        nodes_module=nodes_module,
+        output_node_ids=output_node_ids,
+        stop_before_class=stop_before_class,
+        only_classes=only_classes,
+        initial_outputs=initial_outputs,
+        prepare_ksampler=prepare_ksampler,
     )
 
 

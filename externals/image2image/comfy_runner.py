@@ -10,7 +10,9 @@ from pathlib import Path
 import numpy as np
 
 from externals.image2image.comfy_bootstrap import bootstrap_comfy, get_nodes_module
-from externals.image2image.comfy_executor import execute_prompt, find_node_id
+from externals.image2image.comfy_executor import execute_prompt_legacy, find_node_id
+
+_SAMPLE_ONLY = frozenset({"KSampler", "VAEDecode"})
 from externals.image2image.comfy_workflow import build_edit_prompt
 from externals.image2image.model_paths import resolve_checkpoint
 
@@ -21,6 +23,27 @@ _PIL_INSTALL_HINT = (
     "Or: powershell -File tools\\setup_external_venvs.ps1 "
     "and set AH_EXTERNAL_VENV_image2image=.venvs/media in .env"
 )
+
+
+def _log_comfy_kitchen_backend() -> None:
+    """Log whether FP8 fast paths are active (after comfy bootstrap imports quant_ops)."""
+    try:
+        import comfy_kitchen as ck
+    except ImportError:
+        print(
+            "$image2image: comfy_kitchen not installed — FP8 UNet will be slow",
+            flush=True,
+        )
+        return
+    cuda = ck.list_backends().get("cuda", {})
+    if cuda.get("disabled"):
+        print(
+            "$image2image: WARNING comfy_kitchen cuda backend DISABLED — "
+            f"FP8 sampling will be very slow (torch.version.cuda, backends={cuda})",
+            flush=True,
+        )
+    else:
+        print("$image2image: comfy_kitchen cuda backend enabled", flush=True)
 
 
 def _pil_image():
@@ -52,12 +75,32 @@ class ComfyRunner:
         self.work_dir = self.work_dir.resolve()
         self.input_dir = self.work_dir / "input"
         self.output_dir = self.work_dir / "output"
-        bootstrap_comfy(input_dir=self.input_dir, output_dir=self.output_dir)
+        bootstrap_comfy(
+            input_dir=self.input_dir,
+            output_dir=self.output_dir,
+            vram_profile="image2image",
+        )
+        try:
+            import comfy.model_management as mm
+
+            print(f"$image2image: comfy vram_state={mm.vram_state.name}", flush=True)
+        except ImportError:
+            pass
+        _log_comfy_kitchen_backend()
 
     @property
     def nodes(self):
         if self._nodes is None:
+            print(
+                "$image2image: loading comfy nodes (first job only, can take 1–2 min)…",
+                flush=True,
+            )
+            t0 = time.perf_counter()
             self._nodes = get_nodes_module()
+            print(
+                f"$image2image: comfy nodes ready ({time.perf_counter() - t0:.1f}s)",
+                flush=True,
+            )
         return self._nodes
 
     def run_edit(
@@ -84,12 +127,97 @@ class ComfyRunner:
             steps=steps,
             workflow_ref=workflow_ref,
         )
-        outputs = execute_prompt(prompt_dict, nodes_module=self.nodes)
+        print(
+            f"$image2image: executing workflow ({ckpt_name}, {width}x{height}, {steps} steps)…",
+            flush=True,
+        )
+        t_run = time.perf_counter()
+        outputs = execute_prompt_legacy(prompt_dict, nodes_module=self.nodes)
+        print(
+            f"$image2image: workflow done ({time.perf_counter() - t_run:.1f}s)",
+            flush=True,
+        )
         decode_id = find_node_id(prompt_dict, "VAEDecode")
         if decode_id is None:
             raise RuntimeError("VAEDecode node missing from workflow")
         vae_out = outputs[decode_id][0]
         return _tensor_to_pil(vae_out)
+
+    def run_edit_variants(
+        self,
+        *,
+        image_paths: list[Path],
+        prompt: str,
+        checkpoint: Path,
+        steps: int,
+        seeds: list[int | None],
+        width: int,
+        height: int,
+        workflow_ref: str = "",
+    ) -> list:
+        """One vision encode, multiple KSampler+decode runs (repeat with same prompt/image)."""
+        ckpt_name = checkpoint.name
+        first_seed = seeds[0] if seeds else None
+        prompt_dict, used_seed = build_edit_prompt(
+            prompt=prompt,
+            image_paths=image_paths,
+            input_dir=self.input_dir,
+            checkpoint_name=ckpt_name,
+            seed=first_seed,
+            width=width,
+            height=height,
+            steps=steps,
+            workflow_ref=workflow_ref,
+        )
+        # If caller didn't provide seeds (or provided None placeholders), expand the
+        # workflow's actual seed into distinct seeds for each variant.
+        if seeds and all(s is None for s in seeds):
+            seeds = [used_seed + i for i in range(len(seeds))]
+        print(
+            f"$image2image: fast repeat — encode once, {len(seeds)} sample(s) "
+            f"({ckpt_name}, {width}x{height})",
+            flush=True,
+        )
+        t_enc = time.perf_counter()
+        base = execute_prompt_legacy(
+            prompt_dict,
+            nodes_module=self.nodes,
+            stop_before_class="KSampler",
+        )
+        print(
+            f"$image2image: shared encode done ({time.perf_counter() - t_enc:.1f}s)",
+            flush=True,
+        )
+        ks_id = find_node_id(prompt_dict, "KSampler")
+        decode_id = find_node_id(prompt_dict, "VAEDecode")
+        if ks_id is None or decode_id is None:
+            raise RuntimeError("KSampler or VAEDecode missing from workflow")
+
+        results: list = []
+        for vi, run_seed in enumerate(seeds):
+            if run_seed is not None:
+                prompt_dict[ks_id]["inputs"]["seed"] = run_seed
+            print(
+                f"$image2image: sample {vi + 1}/{len(seeds)} "
+                f"seed={prompt_dict[ks_id]['inputs'].get('seed', '?')}",
+                flush=True,
+            )
+            t_s = time.perf_counter()
+            out = execute_prompt_legacy(
+                prompt_dict,
+                nodes_module=self.nodes,
+                only_classes=_SAMPLE_ONLY,
+                initial_outputs=base,
+                # Re-prepare UNet every variant; this avoids slowdowns on later
+                # samples when model residency drifts after prior denoise passes.
+                prepare_ksampler=True,
+            )
+            print(
+                f"$image2image: sample done ({time.perf_counter() - t_s:.1f}s)",
+                flush=True,
+            )
+            results.append(_tensor_to_pil(out[decode_id][0]))
+        return results
 
 
 _RUNNER: ComfyRunner | None = None
@@ -104,6 +232,31 @@ def get_runner(*, work_dir: Path, use_gpu: bool) -> ComfyRunner:
         _RUNNER = ComfyRunner(work_dir=work_dir, use_gpu=use_gpu)
         _RUNNER_KEY = key
     return _RUNNER
+
+
+def run_comfy_edit_variants(
+    *,
+    work_dir: Path,
+    image_paths: list[Path],
+    prompt: str,
+    model_arg: str,
+    steps: int,
+    seeds: list[int | None],
+    width: int,
+    height: int,
+    use_gpu: bool,
+) -> list:
+    checkpoint = resolve_checkpoint(model_arg)
+    runner = get_runner(work_dir=work_dir, use_gpu=use_gpu)
+    return runner.run_edit_variants(
+        image_paths=image_paths,
+        prompt=prompt,
+        checkpoint=checkpoint,
+        steps=steps,
+        seeds=seeds,
+        width=width,
+        height=height,
+    )
 
 
 def run_comfy_edit(

@@ -1,10 +1,12 @@
-"""Qwen2-VL inference for $image2text."""
+"""Qwen2-VL and Qwen3-VL inference for $image2text."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-_MODEL_CACHE: dict[tuple[str, bool], tuple[object, object]] = {}
+from externals.image2text.model_list import Image2TextModel
+
+_MODEL_CACHE: dict[tuple[str, str, bool], tuple[object, object]] = {}
 
 
 def _resolve_device(use_gpu: bool) -> str:
@@ -15,11 +17,7 @@ def _resolve_device(use_gpu: bool) -> str:
     return "cpu"
 
 
-def load_model(model_dir: Path, *, use_gpu: bool) -> tuple[object, object]:
-    key = (str(model_dir.resolve()), use_gpu)
-    if key in _MODEL_CACHE:
-        return _MODEL_CACHE[key]
-
+def _load_qwen2(model_dir: Path, *, use_gpu: bool) -> tuple[object, object]:
     import torch
     from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
 
@@ -32,17 +30,79 @@ def load_model(model_dir: Path, *, use_gpu: bool) -> tuple[object, object]:
         load_kwargs["torch_dtype"] = torch.float32
         load_kwargs["device_map"] = "cpu"
 
-    print(f"$image2text: loading Qwen2-VL from {model_dir} ({device})", flush=True)
     model = Qwen2VLForConditionalGeneration.from_pretrained(
         str(model_dir),
         **load_kwargs,
     )
     processor = AutoProcessor.from_pretrained(str(model_dir))
+    return model, processor
+
+
+def _load_qwen3(model_dir: Path, *, use_gpu: bool) -> tuple[object, object]:
+    import torch
+    from transformers import AutoProcessor
+
+    try:
+        from transformers import Qwen3VLForConditionalGeneration
+    except ImportError as exc:
+        raise RuntimeError(
+            "$image2text model=qwen3 needs transformers>=4.57 with Qwen3-VL support. "
+            "uv sync --extra image2text"
+        ) from exc
+
+    device = _resolve_device(use_gpu)
+    load_kwargs: dict = {}
+    if device == "cuda":
+        load_kwargs["torch_dtype"] = "auto"
+        load_kwargs["device_map"] = "auto"
+    else:
+        load_kwargs["torch_dtype"] = torch.float32
+        load_kwargs["device_map"] = "cpu"
+
+    model = Qwen3VLForConditionalGeneration.from_pretrained(
+        str(model_dir),
+        **load_kwargs,
+    )
+    processor = AutoProcessor.from_pretrained(str(model_dir))
+    return model, processor
+
+
+def load_model(
+    profile: Image2TextModel,
+    model_dir: Path,
+    *,
+    use_gpu: bool,
+) -> tuple[object, object]:
+    key = (profile.family, str(model_dir.resolve()), use_gpu)
+    if key in _MODEL_CACHE:
+        return _MODEL_CACHE[key]
+
+    device = _resolve_device(use_gpu)
+    print(
+        f"$image2text: loading {profile.dir_name()} ({profile.family}, {device})",
+        flush=True,
+    )
+    if profile.family == "qwen3":
+        model, processor = _load_qwen3(model_dir, use_gpu=use_gpu)
+    else:
+        model, processor = _load_qwen2(model_dir, use_gpu=use_gpu)
     _MODEL_CACHE[key] = (model, processor)
     return model, processor
 
 
-def describe_image(
+def _conversation(image_path: Path, prompt: str) -> list[dict]:
+    return [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image"},
+                {"type": "text", "text": prompt},
+            ],
+        }
+    ]
+
+
+def _describe_qwen2(
     model,
     processor,
     image_path: Path,
@@ -53,15 +113,7 @@ def describe_image(
     from PIL import Image
 
     image = Image.open(image_path).convert("RGB")
-    conversation = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "image"},
-                {"type": "text", "text": prompt},
-            ],
-        }
-    ]
+    conversation = _conversation(image_path, prompt)
     text_prompt = processor.apply_chat_template(
         conversation, add_generation_prompt=True
     )
@@ -79,5 +131,72 @@ def describe_image(
     output = processor.batch_decode(
         trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
     )
-    result = output[0].strip()
-    return (result + "\n") if result else "\n"
+    return (output[0].strip() + "\n") if output[0].strip() else "\n"
+
+
+def _describe_qwen3(
+    model,
+    processor,
+    image_path: Path,
+    prompt: str,
+    *,
+    max_new_tokens: int,
+) -> str:
+    from PIL import Image
+
+    image = Image.open(image_path).convert("RGB")
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image", "image": image},
+                {"type": "text", "text": prompt},
+            ],
+        }
+    ]
+    inputs = processor.apply_chat_template(
+        messages,
+        tokenize=True,
+        add_generation_prompt=True,
+        return_dict=True,
+        return_tensors="pt",
+    )
+    device = next(model.parameters()).device
+    inputs = inputs.to(device)
+
+    generated_ids = model.generate(**inputs, max_new_tokens=max_new_tokens)
+    input_ids = inputs["input_ids"]
+    trimmed = [
+        out_ids[len(in_ids) :]
+        for in_ids, out_ids in zip(input_ids, generated_ids)
+    ]
+    output = processor.batch_decode(
+        trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+    )
+    return (output[0].strip() + "\n") if output[0].strip() else "\n"
+
+
+def describe_image(
+    profile: Image2TextModel,
+    model,
+    processor,
+    image_path: Path,
+    prompt: str,
+    *,
+    max_new_tokens: int,
+) -> str:
+    if profile.family == "qwen3":
+        return _describe_qwen3(
+            model,
+            processor,
+            image_path,
+            prompt,
+            max_new_tokens=max_new_tokens,
+        )
+    return _describe_qwen2(
+        model,
+        processor,
+        image_path,
+        prompt,
+        max_new_tokens=max_new_tokens,
+    )

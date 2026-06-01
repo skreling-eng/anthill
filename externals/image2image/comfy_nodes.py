@@ -26,18 +26,13 @@ def time_snr_shift(alpha: float, t: float) -> float:
 # Phr00t fixed-textencode-node / Comfy TextEncodeQwenImageEditPlus defaults.
 VL_AREA = 384 * 384
 DEFAULT_TARGET_SIZE = 896
-PHR00T_LLAMA_TEMPLATE = (
-    "<|im_start|>system\n"
-    "Describe key details of the input image (including any objects, characters, poses, "
-    "facial features, clothing, setting, textures and style), then explain how the user's "
-    "text instruction should alter, modify or recreate the image. Generate a new image that "
-    "meets the user's requirements, which can vary from a small change to a completely new "
-    "image using inputs as a guide.\n"
-    "<|im_start|>user\n"
-    "{}\n"
-    "<|im_start|>assistant\n"
+from externals.image2image.comfy_qwen_prompt import (
+    PICTURE_PROMPT,
+    build_image_prompt_prefix,
+    debug_log_prompt_encode,
+    format_qwen_edit_llama_text,
+    template_end_from_input_ids,
 )
-PICTURE_PROMPT = "Picture {}: <|vision_start|><|image_pad|><|vision_end|>"
 
 
 def _upscale_area(img: Image.Image, width: int, height: int) -> Image.Image:
@@ -147,15 +142,6 @@ def comfy_beta_sigmas(
     return torch.tensor(sigs, dtype=torch.float32, device=device)
 
 
-def _prompt_drop_idx(tokenizer, template: str, image_prompt: str) -> int:
-    """Tokens before the user edit instruction (Comfy-style trim)."""
-    marker = "<|im_start|>assistant\n"
-    prefix = template.format(image_prompt)
-    if marker in prefix:
-        prefix = prefix.split(marker, 1)[0] + marker
-    return len(tokenizer(prefix, return_tensors="pt").input_ids[0])
-
-
 def encode_comfy_prompt(
     pipe: QwenImageEditPlusPipeline,
     *,
@@ -165,9 +151,7 @@ def encode_comfy_prompt(
     dtype: torch.dtype,
 ) -> tuple[torch.Tensor, torch.Tensor | None]:
     image_prompt = build_comfy_image_prompt(len(vl_images))
-    template = PHR00T_LLAMA_TEMPLATE
-    drop_idx = _prompt_drop_idx(pipe.tokenizer, template, image_prompt)
-    txt = [template.format(image_prompt + prompt)]
+    txt = [format_qwen_edit_llama_text(image_prompt, prompt)]
 
     model_inputs = pipe.processor(
         text=txt,
@@ -175,6 +159,8 @@ def encode_comfy_prompt(
         padding=True,
         return_tensors="pt",
     ).to(device)
+
+    template_end = template_end_from_input_ids(model_inputs.input_ids)
 
     outputs = pipe.text_encoder(
         input_ids=model_inputs.input_ids,
@@ -185,7 +171,14 @@ def encode_comfy_prompt(
     )
     hidden_states = outputs.hidden_states[-1]
     split_hidden_states = pipe._extract_masked_hidden(hidden_states, model_inputs.attention_mask)
-    split_hidden_states = [e[drop_idx:] for e in split_hidden_states]
+    split_hidden_states = [e[template_end:] for e in split_hidden_states]
+    if split_hidden_states:
+        debug_log_prompt_encode(
+            user_prompt=prompt,
+            llama_text=txt[0],
+            template_end=template_end,
+            seq_len=int(split_hidden_states[0].size(0)),
+        )
     attn_mask_list = [torch.ones(e.size(0), dtype=torch.long, device=e.device) for e in split_hidden_states]
     max_seq_len = max(e.size(0) for e in split_hidden_states)
     prompt_embeds = torch.stack(

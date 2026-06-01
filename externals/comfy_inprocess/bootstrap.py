@@ -149,6 +149,7 @@ def bootstrap_comfy(
     input_dir: Path,
     output_dir: Path,
     load_wan_wrapper: bool = False,
+    vram_profile: str = "default",
 ) -> None:
     """Add comfy_lib to sys.path and configure folder_paths (once per process)."""
     global _BOOTSTRAPPED
@@ -163,9 +164,14 @@ def bootstrap_comfy(
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
-    from externals.comfy_inprocess.vram_config import apply_comfy_vram_settings
+    if vram_profile == "image2image":
+        from externals.comfy_inprocess.vram_config import apply_image2image_vram_settings
 
-    apply_comfy_vram_settings()
+        apply_image2image_vram_settings()
+    else:
+        from externals.comfy_inprocess.vram_config import apply_comfy_vram_settings
+
+        apply_comfy_vram_settings()
 
     import folder_paths
 

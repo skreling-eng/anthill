@@ -25,7 +25,13 @@ class StubPromptServer:
 
 
 def should_use_comfy_executor(prompt: dict[str, Any] | None = None) -> bool:
-    raw = os.environ.get("AH_COMFY_EXECUTOR", "comfy").strip().lower()
+    """Whether to run via vendored ComfyUI ``PromptExecutor``.
+
+    Default (env unset): legacy topo executor for simple workflows (e.g. Qwen
+    image2image, ~20s). PromptExecutor only for MEGA/VACE graphs that need it,
+    unless ``AH_COMFY_EXECUTOR=comfy`` forces Comfy execution for all prompts.
+    """
+    raw = os.environ.get("AH_COMFY_EXECUTOR", "").strip().lower()
     if raw in ("legacy", "minimal", "simple", "0", "false", "no"):
         return False
     if raw in ("comfy", "prompt", "executor", "1", "true", "yes", "on"):
@@ -145,11 +151,16 @@ def execute_prompt_comfy(
 ) -> dict[str, tuple[Any, ...]]:
     """Execute workflow with ComfyUI PromptExecutor; return node outputs map."""
     _ = nodes_module
+    from externals.comfy_inprocess.comfy_memory import prompt_uses_mega_vace
     from externals.comfy_inprocess.node_registry import install_handler_nodes
+    from externals.comfy_inprocess.wan_video_wrapper import wan_wrapper_enabled
 
     # ComfyI2VRunner.bootstrap_comfy() already set folder_paths input/output
     # (sessions/.../comfy_work/input). Re-bootstrapping with "." breaks LoadImage.
-    install_handler_nodes()
+    load_wan = wan_wrapper_enabled() or (
+        wan_wrapper_enabled(for_image2video=True) and prompt_uses_mega_vace(prompt)
+    )
+    install_handler_nodes(load_wan_wrapper=load_wan)
 
     from execution import CacheType, PromptExecutor
 

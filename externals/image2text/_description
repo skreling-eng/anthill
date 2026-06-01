@@ -1,13 +1,13 @@
-$image2text — vision-language (Qwen2-VL)
+$image2text — vision-language (Qwen2-VL / Qwen3-VL)
 
 SUMMARY
-  Runs Qwen2-VL on each images[] file with a prompt and writes model text into texts[]
-  (one .txt per image).
+  Runs a Qwen vision-language model on each images[] file with a prompt and writes
+  model text into texts[] (one .txt per image).
 
 SYNTAX
   $image2text
-  $image2text(gpu=True)
-  $image2text(max_tokens=256)
+  $image2text(model='qwen3', gpu=True)
+  $image2text(model='qwen2', max_tokens=256)
   $image2text(prompt='What bird is this?')
 
 INPUT
@@ -18,25 +18,30 @@ OUTPUT
   texts[] — one text file per image (model response)
 
 ARGUMENTS
+  model=      — qwen2 (default) | qwen3; or model=@instruction (one name per texts[] line)
   prompt=     — same prompt for every image (overrides prompts[])
   max_tokens= — generation limit (default 512)
-  gpu=        — use CUDA when true (default CPU; or AH_IMAGE2TEXT_GPU=1)
+  gpu=        — use CUDA (default: on when torch sees a GPU; gpu=False for CPU)
 
 MODELS
-  Qwen2-VL-2B-Instruct under models/qwen-vl/Qwen2-VL-2B-Instruct/
-  First run downloads automatically (~4 GB).
+  Default: models/qwen-vl/Qwen2-VL-2B-Instruct/ (~4 GB)
+  model=qwen3: models/qwen-vl/Qwen3-VL-8B-Instruct/ (~16 GB+; needs GPU for practical use)
+  First run downloads automatically from Hugging Face.
 
 DEPENDENCIES
-  Uses .venvs/media (torch + transformers). Run tools\setup_external_venvs.ps1 once.
+  Uses .venvs/media (torch + transformers>=4.57). Run tools\setup_external_venvs.ps1 once.
   Or: uv sync --extra media
 
 ENVIRONMENT
   AH_EMULATE_IMAGE2TEXT=1 — placeholder text, no model load.
-  AH_IMAGE2TEXT_GPU=1       — default gpu=True when arg omitted.
+  AH_IMAGE2TEXT_GPU=0       — force CPU even when CUDA is available.
 
 EXAMPLE
   @photo: $file('garden.jpg') -> $image2text
   What species of bird is in this photo?
+
+  @detail: $file('scene.jpg') -> $image2text(model='qwen3')
+  List every object and its approximate position.
 
 PROMPT-CONSUMING
   Yes — prompts[] cleared on output; images[] pass through; input texts[] replaced.

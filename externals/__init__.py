@@ -52,6 +52,9 @@ _KNOWN = frozenset(
     }
 )
 
+# Externals that honor $name(...)[n] via inp.repeat inside the handler (not runtime fan-out).
+_REPEAT_NATIVE = frozenset({"image", "image2image", "llm", "music", "code"})
+
 # Externals that read prompts as model input and should not pass them through.
 _PROMPT_CONSUMING = frozenset(
     {
@@ -109,6 +112,11 @@ def run_external(
     return handler(ctx, inp)
 
 
+def external_handles_repeat(name: str) -> bool:
+    """True if $name(...)[n] is handled inside the external (not expanded by runtime)."""
+    return name in _REPEAT_NATIVE
+
+
 def external_consumes_prompts(name: str) -> bool:
     """True if this $ external uses up the prompts array (clear on output)."""
     return name in _PROMPT_CONSUMING
@@ -118,6 +126,7 @@ __all__ = [
     "ExternalContext",
     "ExternalInput",
     "external_consumes_prompts",
+    "external_handles_repeat",
     "run_external",
     "subprocess_enabled",
     "write_invoke",
