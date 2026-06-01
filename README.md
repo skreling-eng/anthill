@@ -168,7 +168,7 @@ Each external call writes `input.json`, `invoke.json`, and `output.json` under t
 
 ### 1. Clone and run init (recommended)
 
-One script installs base + external venvs and downloads model weights from [skreling-eng/anthill](https://huggingface.co/skreling-eng/anthill):
+One script installs base + external venvs. Model weights are downloaded separately from [skreling-eng/anthill](https://huggingface.co/skreling-eng/anthill):
 
 **Windows**
 
@@ -188,7 +188,18 @@ bash tools/init.sh
 # or:  chmod +x init && ./init
 ```
 
-Options (both platforms): `-Profile minimal|standard|full`, `-SkipSage`, `-SkipModels`, `-SkipTestData`, `-DryRun` on Windows; `--profile`, `--skip-sage`, `--skip-models`, `--skip-test-data`, `--dry-run` on Linux. Init downloads **models/** and **test_data/** from [skreling-eng/anthill](https://huggingface.co/skreling-eng/anthill). Maintainers publish to the Hub: `uv run python tools/upload_to_hf.py --token hf_...` (models + test_data), or `init.bat -UploadTestData` (test_data only). If the bundle is incomplete, add `-UpstreamFallback` / `--upstream-fallback`. Status: `uv run python tools/download_models.py --status`.
+Init options: `-SkipSage`, `-SkipVenvs` on Windows; `--skip-sage`, `--skip-venvs` on Linux. Then download **models/** and **test_data/**:
+
+```powershell
+download_all_models.bat
+# or:  download_all_models.bat -Profile minimal -UpstreamFallback
+```
+
+```bash
+bash tools/download_all_models.sh
+```
+
+Download options: `-Profile minimal|standard|full`, `-SkipTestData`, `-UpstreamFallback`, `-DryRun`. Maintainers publish to the Hub: `uv run python tools/upload_to_hf.py --token hf_...` (models + test_data), or `init.bat -UploadTestData` (test_data only). Status: `uv run python tools/download_models.py --status`.
 
 ### 2. Manual setup (alternative)
 

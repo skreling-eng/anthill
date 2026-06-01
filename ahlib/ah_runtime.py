@@ -85,7 +85,13 @@ _CHANGE_TYPE_MAP = {
     "videos": "videos",
     "file": "files",
     "files": "files",
+    "embedding": "embeddings",
+    "embeddings": "embeddings",
+    "label": "labels",
+    "labels": "labels",
 }
+
+_IN_MEMORY_ARRAYS = frozenset({"embeddings", "labels"})
 
 
 @dataclass
@@ -98,6 +104,8 @@ class ArrayBundle:
     sounds: list[str] = field(default_factory=list)
     videos: list[str] = field(default_factory=list)
     files: list[str] = field(default_factory=list)
+    embeddings: list[Any] = field(default_factory=list)
+    labels: list[Any] = field(default_factory=list)
     changes: list[tuple[str, str, Any]] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, list]:
@@ -108,6 +116,8 @@ class ArrayBundle:
             "sounds": list(self.sounds),
             "videos": list(self.videos),
             "files": list(self.files),
+            "embeddings": list(self.embeddings),
+            "labels": list(self.labels),
             "changes": [list(c) for c in self.changes],
         }
 
@@ -121,6 +131,8 @@ class ArrayBundle:
             sounds=list(data.get("sounds", [])),
             videos=list(data.get("videos", [])),
             files=list(data.get("files", [])),
+            embeddings=list(data.get("embeddings", [])),
+            labels=list(data.get("labels", [])),
             changes=changes,
         )
 
@@ -149,7 +161,7 @@ class Session:
             json.dumps(manifest, indent=2), encoding="utf-8"
         )
         for array_name in ARRAY_TYPES:
-            if array_name == "changes":
+            if array_name == "changes" or array_name in _IN_MEMORY_ARRAYS:
                 continue
             for link in getattr(bundle, array_name):
                 self._materialize_link(op_dir, link)
@@ -183,7 +195,7 @@ class Session:
         """Wait until bundle-linked files exist and have stable non-trivial size."""
         paths: list[Path] = []
         for key in ARRAY_TYPES:
-            if key == "changes":
+            if key == "changes" or key in _IN_MEMORY_ARRAYS:
                 continue
             for link in getattr(bundle, key):
                 path = self.resolve_link_path(link)
@@ -323,9 +335,23 @@ class Runtime:
         return self._execute_instruction(target, ArrayBundle())
 
     @staticmethod
+    def _freeze_for_cache(value: Any) -> Any:
+        if isinstance(value, list):
+            return tuple(Runtime._freeze_for_cache(v) for v in value)
+        if isinstance(value, dict):
+            return tuple(
+                sorted(
+                    (k, Runtime._freeze_for_cache(v)) for k, v in value.items()
+                )
+            )
+        if isinstance(value, tuple):
+            return tuple(Runtime._freeze_for_cache(v) for v in value)
+        return value
+
+    @staticmethod
     def _input_key(bundle: ArrayBundle) -> tuple:
         return tuple(
-            tuple(getattr(bundle, key))
+            Runtime._freeze_for_cache(getattr(bundle, key))
             for key in ARRAY_TYPES
             if key != "changes"
         )
@@ -955,12 +981,22 @@ class Runtime:
                 if extra.strip():
                     parts.append(extra.strip())
                 joined = "\n".join(parts) + ("\n" if parts else "")
-                link = self.session.new_link(op_dir, arr_key, ".txt", joined)
-                arr.append(link)
+                if arr_key in _IN_MEMORY_ARRAYS:
+                    arr.append(joined)
+                else:
+                    link = self.session.new_link(op_dir, arr_key, ".txt", joined)
+                    arr.append(link)
             elif operation == "del":
-                arr[:] = [x for x in arr if x != data and not x.endswith(f"/{data}")]
+                arr[:] = [
+                    x
+                    for x in arr
+                    if x != data
+                    and not (isinstance(x, str) and x.endswith(f"/{data}"))
+                ]
             elif operation == "add":
-                if isinstance(data, str):
+                if arr_key in _IN_MEMORY_ARRAYS:
+                    arr.append(data)
+                elif isinstance(data, str):
                     link = self.session.new_link(
                         op_dir, arr_key, Path(data).suffix or ".txt", data
                     )

@@ -7,6 +7,7 @@ import shutil
 import urllib.request
 from pathlib import Path
 
+from externals.anthill_models import CHECKS, ensure_anthill_files, auto_download_enabled, upstream_fallback_enabled
 from externals.image.model_paths import models_roots, resolve_model_path
 
 _DEFAULT_DIR = "ace-step-1.5"
@@ -187,21 +188,44 @@ def _download_hf_file(filename: str, dest: Path) -> None:
     print(f"$music saved {dest}")
 
 
-def ensure_companion_gguf() -> None:
-    from externals.music.models_env import configure_models_environment
+def ensure_gguf_stack(*, force: bool = False) -> tuple[Path, Path, Path]:
+    """Resolve DiT+VAE+embedding GGUF (local, anthill, optional upstream)."""
+    if not force and gguf_stack_ready():
+        return resolve_gguf_stack()
 
-    configure_models_environment()
-    if os.environ.get("ACESTEP_DOWNLOAD_MISSING", "").lower() not in (
-        "1",
-        "true",
-        "yes",
-    ):
+    if auto_download_enabled() or force:
+        ensure_anthill_files(CHECKS["ace_step_gguf"], label="$music", force=force)
+    if gguf_stack_ready():
+        return resolve_gguf_stack()
+
+    if upstream_fallback_enabled() or os.environ.get(
+        "ACESTEP_DOWNLOAD_MISSING", ""
+    ).lower() in ("1", "true", "yes"):
+        from externals.music.models_env import configure_models_environment
+
+        configure_models_environment()
+        folder = ace_step_dir()
+        for name in (_DEFAULT_VAE, _DEFAULT_EMBEDDING):
+            dest = folder / name
+            if not dest.is_file():
+                _download_hf_file(name, dest)
+
+    if not gguf_stack_ready():
+        raise FileNotFoundError(
+            f"ACE-Step GGUF stack not ready under {ace_step_dir()}. "
+            f"Run: uv run python tools/download_models.py"
+        )
+    return resolve_gguf_stack()
+
+
+def ensure_companion_gguf() -> None:
+    """Backward-compatible: fetch missing VAE/embedding (and full stack when needed)."""
+    if gguf_stack_ready():
         return
-    folder = ace_step_dir()
-    for name in (_DEFAULT_VAE, _DEFAULT_EMBEDDING):
-        dest = folder / name
-        if not dest.is_file():
-            _download_hf_file(name, dest)
+    try:
+        ensure_gguf_stack()
+    except FileNotFoundError:
+        pass
 
 
 def gguf_stack_ready() -> bool:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from externals.anthill_models import auto_download_enabled, require_models_file, resolve_models_file
 from externals.image.model_paths import models_roots, resolve_model_path
 
 _GEMMA_DEFAULT_DIR = "llm/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-IQ4_XS"
@@ -45,6 +46,17 @@ def resolve_gguf_path(ref: str) -> str:
   """
     if not ref:
         raise FileNotFoundError("No GGUF model reference given")
+
+    rel = ref.replace("\\", "/")
+    if rel.lower().endswith(".gguf") and "/" in rel:
+        found = resolve_models_file(rel)
+        if found is not None:
+            return str(found)
+        if auto_download_enabled():
+            try:
+                return str(require_models_file(rel, label="$llm"))
+            except FileNotFoundError:
+                pass
 
     resolved = resolve_model_path(ref)
     path = Path(resolved)

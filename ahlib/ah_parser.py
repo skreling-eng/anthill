@@ -8,7 +8,17 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-ARRAY_TYPES = ("prompts", "texts", "images", "sounds", "videos", "files", "changes")
+ARRAY_TYPES = (
+    "prompts",
+    "texts",
+    "images",
+    "sounds",
+    "videos",
+    "files",
+    "embeddings",
+    "labels",
+    "changes",
+)
 
 
 @dataclass

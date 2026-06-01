@@ -22,9 +22,16 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 MODELS_DIR = REPO_ROOT / "models"
 TEST_DATA_DIR = REPO_ROOT / "test_data"
-ANTHILL_REPO = os.environ.get("ANTHILL_HF_REPO_ID", "skreling-eng/anthill")
+from externals.anthill_models import (  # noqa: E402
+    ANTHILL_REPO,
+    CHECKS,
+    PROFILE_GROUPS,
+    group_ready,
+)
 
 # Spot-check that example media was pulled from the Hub.
 TEST_DATA_CHECKS: list[str] = [
@@ -33,92 +40,9 @@ TEST_DATA_CHECKS: list[str] = [
     "test_data/app/app_screenshot_1.png",
 ]
 
-# Key files used to report readiness after download.
-CHECKS: dict[str, list[str]] = {
-    "kokoro": ["kokoro/kokoro-v1_0.pth", "kokoro/config.json"],
-    "resemble_enhance": [
-        "resemble-enhance/enhancer_stage2/ds/G/default/mp_rank_00_model_states.pt"
-    ],
-    "demucs_openvino": ["demucs-openvino/htdemucs_v4/htdemucs_v4.xml"],
-    "ace_step_gguf": [
-        "ace-step-1.5/acestep-v15-xl-turbo-BF16.gguf",
-        "ace-step-1.5/vae-BF16.gguf",
-        "ace-step-1.5/Qwen3-Embedding-0.6B-BF16.gguf",
-    ],
-    "ace_step_st": [
-        "ace-step-1.5_st/acestep-v15-turbo/model.safetensors",
-        "ace-step-1.5_st/vae/diffusion_pytorch_model.safetensors",
-    ],
-    "flux_dev": ["FLUX.1-dev/flux1-dev.safetensors"],
-    "flux_nf4": ["flux.1-dev-nf4-pkg/transformer/diffusion_pytorch_model.safetensors"],
-    "wan_i2v_aux": ["wan/i2v-base/vae/diffusion_pytorch_model.safetensors"],
-    "wan_t2v_config": ["wan/Wan2.2-T2V-A14B-Diffusers/transformer/config.json"],
-    "wan_aio": [
-        "wan/wan2.2-i2v-rapid-aio-v10.safetensors",
-        "wan/wan2.2-rapid-mega-aio-v12.safetensors",
-    ],
-    "roformer_sw": ["roformer/BS-RoFormer-SW.ckpt"],
-    "roformer_viperx": ["roformer/model_bs_roformer_ep_317_sdr_12.9755.ckpt"],
-    "llm_gemma": ["llm/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-IQ4_XS/model.gguf"],
-    "code_qwen": ["code/Qwen2.5-Coder-14B-Instruct/model.gguf"],
-    "ocr_en": [
-        "ocr/PP-OCRv4/en/det/inference.pdmodel",
-        "ocr/PP-OCRv4/en/rec/inference.pdmodel",
-        "ocr/PP-OCRv4/en/cls/inference.pdmodel",
-    ],
-    "ocr_latin": [
-        "ocr/PP-OCRv4/latin/det/inference.pdmodel",
-        "ocr/PP-OCRv4/latin/rec/inference.pdmodel",
-    ],
-    "ocr_ch": [
-        "ocr/PP-OCRv4/ch/det/inference.pdmodel",
-        "ocr/PP-OCRv4/ch/rec/inference.pdmodel",
-    ],
-    "ocr_arabic": [
-        "ocr/PP-OCRv4/arabic/rec/inference.pdmodel",
-    ],
-    "ocr_cyrillic": [
-        "ocr/PP-OCRv4/cyrillic/rec/inference.pdmodel",
-    ],
-    "qwen2_vl": [
-        "qwen-vl/Qwen2-VL-2B-Instruct/config.json",
-        "qwen-vl/Qwen2-VL-2B-Instruct/model-00001-of-00002.safetensors",
-        "qwen-vl/Qwen2-VL-2B-Instruct/model-00002-of-00002.safetensors",
-    ],
-    "qwen3_vl": [
-        "qwen-vl/Qwen3-VL-8B-Instruct/config.json",
-    ],
-    "qwen_rapid_base": [
-        "qwen-rapid/Qwen-Image-Edit-2509/model_index.json",
-    ],
-    "qwen_rapid_ckpt": [
-        "qwen-rapid/Qwen-Rapid-AIO-SFW-v23.safetensors",
-        "qwen-rapid/Qwen-Rapid-AIO-NSFW-v23.safetensors",
-    ],
-}
-
-PROFILE_GROUPS: dict[str, frozenset[str]] = {
-    "minimal": frozenset(
-        {
-            "kokoro",
-            "demucs_openvino",
-            "ace_step_st",
-            "flux_nf4",
-            "roformer_viperx",
-            "llm_gemma",
-        }
-    ),
-    "standard": frozenset(CHECKS.keys()) - {"wan_i2v_aux", "wan_t2v_config", "wan_aio"},
-    "full": frozenset(CHECKS.keys()),
-}
-
 
 def _models_path(rel: str) -> Path:
     return MODELS_DIR / rel.replace("/", os.sep)
-
-
-def group_ready(name: str) -> bool:
-    return all(_models_path(rel).is_file() for rel in CHECKS[name])
 
 
 def _log(msg: str) -> None:

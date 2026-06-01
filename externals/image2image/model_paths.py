@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from externals.anthill_models import require_models_file
 from externals.image.model_paths import models_roots
 
 MODEL_ALIASES: dict[str, str] = {
@@ -61,10 +62,23 @@ def resolve_checkpoint(model_arg: str = "") -> Path:
     if named.is_file():
         return named
 
+    # Unified fetch: local models/ then skreling-eng/anthill on demand.
+    stem = Path(raw).stem if raw.endswith(".safetensors") else raw
+    for rel in (
+        f"qwen-rapid/{stem}.safetensors",
+        f"qwen-rapid/{Path(raw).name}",
+        f"qwen-rapid/{DEFAULT_CKPT}",
+    ):
+        try:
+            return require_models_file(rel, label="$image2image")
+        except FileNotFoundError:
+            continue
+
     raise FileNotFoundError(
         f"$image2image checkpoint not found: {model_arg or DEFAULT_MODEL!r}. "
         f"Expected under models/qwen-rapid/ "
-        f"(models: {available_models()})."
+        f"(models: {available_models()}). "
+        f"Run: uv run python tools/download_models.py"
     )
 
 

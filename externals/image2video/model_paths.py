@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from externals.anthill_models import require_models_file
 from externals.comfy_inprocess.bootstrap import comfyui_models_root
 from externals.image.model_paths import models_roots
 
@@ -69,10 +70,17 @@ def resolve_checkpoint(model_arg: str = "") -> Path:
             if candidate.is_file():
                 return candidate.resolve()
 
+    wan_rel = f"wan/{name}"
+    try:
+        return require_models_file(wan_rel, label="$image2video")
+    except FileNotFoundError:
+        pass
+
     raise FileNotFoundError(
         f"$image2video checkpoint not found: {model_arg or DEFAULT_MODEL!r}. "
         f"Place under models/wan/ or ComfyUI models/checkpoints/WAN/ "
-        f"(models: {available_models()})."
+        f"(models: {available_models()}). "
+        f"Run: uv run python tools/download_models.py"
     )
 
 

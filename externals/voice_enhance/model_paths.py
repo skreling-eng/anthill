@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from externals.anthill_models import ensure_anthill_tree, upstream_fallback_enabled
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 RESEMBLE_DIR = _REPO_ROOT / "models" / "resemble-enhance"
 HF_REPO = "ResembleAI/resemble-enhance"
@@ -33,32 +35,42 @@ def checkpoint_ready(run_dir: Path | None = None) -> bool:
 
 
 def ensure_models(run_dir: Path | None = None) -> Path:
-    """Download enhancer weights into models/resemble-enhance (not HF hub cache)."""
+    """Resolve enhancer weights (models/ or anthill; optional upstream)."""
     base = run_dir or enhancer_run_dir()
     ckpt = base / "ds" / "G" / "default" / "mp_rank_00_model_states.pt"
     if ckpt.is_file():
         return base.resolve()
 
-    try:
-        from huggingface_hub import snapshot_download
-    except ImportError as exc:
-        raise RuntimeError(
-            "$voice_enhance needs huggingface-hub to download Resemble Enhance weights.\n"
-            f"Or clone {HF_REPO} into {enhance_root()}"
-        ) from exc
-
-    root = enhance_root()
-    root.mkdir(parents=True, exist_ok=True)
-    print(f"$voice_enhance: downloading {HF_REPO} -> {root}", flush=True)
-    os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
-    snapshot_download(
-        HF_REPO,
-        local_dir=str(root),
-        allow_patterns=["enhancer_stage2/**"],
+    ensure_anthill_tree(
+        "resemble-enhance",
+        ready=lambda: checkpoint_ready(base),
+        label="$voice_enhance",
     )
-    if not ckpt.is_file():
+    if checkpoint_ready(base):
+        return base.resolve()
+
+    if upstream_fallback_enabled():
+        try:
+            from huggingface_hub import snapshot_download
+        except ImportError as exc:
+            raise RuntimeError(
+                "$voice_enhance needs huggingface-hub to download Resemble Enhance weights.\n"
+                f"Or clone {HF_REPO} into {enhance_root()}"
+            ) from exc
+
+        root = enhance_root()
+        root.mkdir(parents=True, exist_ok=True)
+        print(f"$voice_enhance: downloading {HF_REPO} -> {root}", flush=True)
+        os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+        snapshot_download(
+            HF_REPO,
+            local_dir=str(root),
+            allow_patterns=["enhancer_stage2/**"],
+        )
+
+    if not checkpoint_ready(base):
         raise FileNotFoundError(
-            f"$voice_enhance: checkpoint missing after download: {ckpt}\n"
-            f"Clone https://huggingface.co/{HF_REPO} into {root}"
+            f"$voice_enhance: checkpoint missing: {ckpt}\n"
+            f"Run: uv run python tools/download_models.py"
         )
     return base.resolve()

@@ -2,11 +2,43 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from externals.image2text.model_list import Image2TextModel
 
 _MODEL_CACHE: dict[tuple[str, str, bool], tuple[object, object]] = {}
+
+
+def _normalize_hf_cache_env() -> None:
+    """Migrate deprecated TRANSFORMERS_CACHE env usage to HF_HOME/HUB cache."""
+    raw = os.environ.get("TRANSFORMERS_CACHE", "").strip()
+    if not raw:
+        return
+    cache = Path(raw).expanduser()
+    hf_home = os.environ.get("HF_HOME", "").strip()
+    if not hf_home:
+        # Common legacy value is .../huggingface/hub.
+        os.environ["HF_HOME"] = str(cache.parent if cache.name == "hub" else cache)
+    hub_cache = os.environ.get("HUGGINGFACE_HUB_CACHE", "").strip()
+    if not hub_cache:
+        hf = Path(os.environ["HF_HOME"])
+        os.environ["HUGGINGFACE_HUB_CACHE"] = str(
+            cache if cache.name == "hub" else (hf / "hub")
+        )
+    # Unset deprecated var to silence transformers v5 warning path.
+    os.environ.pop("TRANSFORMERS_CACHE", None)
+
+
+def _from_pretrained_with_dtype(model_cls, model_dir: Path, load_kwargs: dict):
+    """Use `dtype` (new API), fallback to legacy `torch_dtype` if required."""
+    try:
+        return model_cls.from_pretrained(str(model_dir), **load_kwargs)
+    except TypeError:
+        legacy = dict(load_kwargs)
+        if "dtype" in legacy:
+            legacy["torch_dtype"] = legacy.pop("dtype")
+        return model_cls.from_pretrained(str(model_dir), **legacy)
 
 
 def _resolve_device(use_gpu: bool) -> str:
@@ -18,27 +50,28 @@ def _resolve_device(use_gpu: bool) -> str:
 
 
 def _load_qwen2(model_dir: Path, *, use_gpu: bool) -> tuple[object, object]:
+    _normalize_hf_cache_env()
     import torch
     from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
 
     device = _resolve_device(use_gpu)
     load_kwargs: dict = {}
     if device == "cuda":
-        load_kwargs["torch_dtype"] = "auto"
+        load_kwargs["dtype"] = "auto"
         load_kwargs["device_map"] = "auto"
     else:
-        load_kwargs["torch_dtype"] = torch.float32
+        load_kwargs["dtype"] = torch.float32
         load_kwargs["device_map"] = "cpu"
 
-    model = Qwen2VLForConditionalGeneration.from_pretrained(
-        str(model_dir),
-        **load_kwargs,
+    model = _from_pretrained_with_dtype(
+        Qwen2VLForConditionalGeneration, model_dir, load_kwargs
     )
     processor = AutoProcessor.from_pretrained(str(model_dir))
     return model, processor
 
 
 def _load_qwen3(model_dir: Path, *, use_gpu: bool) -> tuple[object, object]:
+    _normalize_hf_cache_env()
     import torch
     from transformers import AutoProcessor
 
@@ -53,15 +86,14 @@ def _load_qwen3(model_dir: Path, *, use_gpu: bool) -> tuple[object, object]:
     device = _resolve_device(use_gpu)
     load_kwargs: dict = {}
     if device == "cuda":
-        load_kwargs["torch_dtype"] = "auto"
+        load_kwargs["dtype"] = "auto"
         load_kwargs["device_map"] = "auto"
     else:
-        load_kwargs["torch_dtype"] = torch.float32
+        load_kwargs["dtype"] = torch.float32
         load_kwargs["device_map"] = "cpu"
 
-    model = Qwen3VLForConditionalGeneration.from_pretrained(
-        str(model_dir),
-        **load_kwargs,
+    model = _from_pretrained_with_dtype(
+        Qwen3VLForConditionalGeneration, model_dir, load_kwargs
     )
     processor = AutoProcessor.from_pretrained(str(model_dir))
     return model, processor

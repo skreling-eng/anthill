@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from externals.anthill_models import ensure_anthill_tree, upstream_fallback_enabled
 from externals.image.model_paths import models_roots
 from externals.image2text.model_list import Image2TextModel, get_image2text_model
 
@@ -42,25 +43,40 @@ def model_ready(profile: Image2TextModel | str | None = None) -> bool:
 
 
 def ensure_model(profile: Image2TextModel | str | None = None, *, force: bool = False) -> Path:
-    """Download the selected VL model into models/qwen-vl/."""
+    """Resolve VL weights under models/qwen-vl/ (anthill bundle, optional upstream)."""
     m = _resolve_profile(profile)
     path = model_dir(m)
     path.mkdir(parents=True, exist_ok=True)
     if model_ready(m) and not force:
         return path
 
-    try:
-        from huggingface_hub import snapshot_download
-    except ImportError as exc:
-        raise RuntimeError(
-            "$image2text needs huggingface-hub to download the model: "
-            "uv sync --extra image2text"
-        ) from exc
+    ensure_anthill_tree(
+        m.subdir.as_posix(),
+        ready=lambda: model_ready(m),
+        label="$image2text",
+        force=force,
+    )
+    if model_ready(m):
+        return model_dir(m)
 
-    print(f"$image2text: downloading {m.hf_repo} -> {path}", flush=True)
-    snapshot_download(m.hf_repo, local_dir=str(path))
+    if upstream_fallback_enabled():
+        try:
+            from huggingface_hub import snapshot_download
+        except ImportError as exc:
+            raise RuntimeError(
+                "$image2text needs huggingface-hub to download the model: "
+                "uv sync --extra image2text"
+            ) from exc
+
+        print(f"$image2text: downloading {m.hf_repo} -> {path}", flush=True)
+        snapshot_download(m.hf_repo, local_dir=str(path))
+        if model_ready(m):
+            return path
+
     if not model_ready(m):
         raise FileNotFoundError(
-            f"Model download finished but {path} is missing config.json or weights"
+            f"Model not ready under {path}. "
+            f"Run: uv run python tools/download_models.py "
+            f"(or set AH_MODEL_UPSTREAM_FALLBACK=1)"
         )
     return path

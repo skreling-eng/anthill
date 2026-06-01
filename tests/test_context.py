@@ -543,6 +543,17 @@ tail
 class TestContextFullBundle(unittest.TestCase):
     def test_stores_and_loads_all_array_types(self) -> None:
         runtime, _ = _runtime("@noop:\n")
+        for rel in ("p1.txt", "t1.txt", "t2.txt", "i1.png", "s1.mp3", "v1.mp4", "f1.dat"):
+            p = runtime.session.base_dir / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            if rel.endswith(".png"):
+                p.write_bytes(b"\x89PNG\r\n\x1a\n")
+            elif rel.endswith(".mp3"):
+                p.write_bytes(b"ID3\x00")
+            elif rel.endswith(".mp4"):
+                p.write_bytes(b"\x00\x00\x00\x18ftypisom")
+            else:
+                p.write_bytes(b"x")
         bundle = ArrayBundle(
             prompts=["p1.txt"],
             texts=["t1.txt"],
@@ -550,6 +561,8 @@ class TestContextFullBundle(unittest.TestCase):
             sounds=["s1.mp3"],
             videos=["v1.mp4"],
             files=["f1.dat"],
+            embeddings=[[0.1, 0.2]],
+            labels=["demo"],
         )
         runtime._eval_context_action(
             ContextAction(name="all", mode="store", scope="session"),
@@ -572,6 +585,8 @@ class TestContextFullBundle(unittest.TestCase):
         self.assertEqual(loaded.sounds, ["s1.mp3"])
         self.assertEqual(loaded.videos, ["v1.mp4"])
         self.assertEqual(loaded.files, ["f1.dat"])
+        self.assertEqual(loaded.embeddings, [[0.1, 0.2]])
+        self.assertEqual(loaded.labels, ["demo"])
 
     def test_store_load_preserves_distinct_arrays_in_pipeline(self) -> None:
         os.environ["AH_EMULATE_MUSIC"] = "1"

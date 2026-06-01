@@ -6,6 +6,8 @@ import os
 import shutil
 from pathlib import Path
 
+from externals.anthill_models import ensure_anthill_files, upstream_fallback_enabled
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 MODELS_DIR = _REPO_ROOT / "models"
 
@@ -37,31 +39,46 @@ def _install_audacity_names() -> None:
 
 
 def ensure_model(*, force: bool = False) -> Path:
-    """Download HTDemucs v4 IR into models/demucs-openvino/htdemucs_v4/."""
+    """Resolve HTDemucs v4 IR (models/ or anthill; optional Intel upstream)."""
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     if model_ready() and not force:
         return MODEL_XML
 
-    try:
-        from huggingface_hub import hf_hub_download
-    except ImportError as exc:
-        raise RuntimeError(
-            "$music_separation needs huggingface-hub to download the model: "
-            "uv pip install huggingface-hub"
-        ) from exc
-
-    root = MODELS_DIR / "demucs-openvino"
-    root.mkdir(parents=True, exist_ok=True)
-    for name in (_HF_XML, _HF_BIN):
-        hf_hub_download(
-            HF_REPO,
-            f"{MODEL_ID}/{name}",
-            local_dir=str(root),
-        )
+    ensure_anthill_files(
+        [
+            "demucs-openvino/htdemucs_v4/htdemucs_v4.xml",
+            "demucs-openvino/htdemucs_v4/htdemucs_v4.bin",
+        ],
+        label="$music_separation",
+        force=force,
+    )
     _install_audacity_names()
+    if model_ready():
+        return MODEL_XML
+
+    if upstream_fallback_enabled():
+        try:
+            from huggingface_hub import hf_hub_download
+        except ImportError as exc:
+            raise RuntimeError(
+                "$music_separation needs huggingface-hub to download the model: "
+                "uv pip install huggingface-hub"
+            ) from exc
+
+        root = MODELS_DIR / "demucs-openvino"
+        root.mkdir(parents=True, exist_ok=True)
+        for name in (_HF_XML, _HF_BIN):
+            hf_hub_download(
+                HF_REPO,
+                f"{MODEL_ID}/{name}",
+                local_dir=str(root),
+            )
+        _install_audacity_names()
+
     if not model_ready():
         raise FileNotFoundError(
-            f"Model download finished but files missing under {MODEL_DIR}"
+            f"Model not found under {MODEL_DIR}. "
+            f"Run: uv run python tools/download_models.py"
         )
     return MODEL_XML
 

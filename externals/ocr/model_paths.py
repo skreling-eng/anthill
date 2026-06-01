@@ -8,6 +8,7 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
+from externals.anthill_models import auto_download_enabled, ensure_anthill_files
 from externals.image.model_paths import models_roots
 from externals.ocr.langs import (
     CLS_URL,
@@ -76,10 +77,31 @@ def _download_tar(url: str, dest_dir: Path) -> None:
             nested.rmdir()
 
 
+def _anthill_marker_paths(rec_pack: str, det_pack: str) -> list[str]:
+    base = f"ocr/{OCR_VERSION}"
+    return [
+        f"{base}/{det_pack}/det/inference.pdmodel",
+        f"{base}/{rec_pack}/rec/inference.pdmodel",
+        f"{base}/{rec_pack}/cls/inference.pdmodel",
+    ]
+
+
 def ensure_pack(rec_pack: str, det_pack: str, *, force: bool = False) -> tuple[Path, Path, Path]:
     det_dir, rec_dir, cls_dir = model_paths_for_pack(rec_pack)
     if model_ready_pack(rec_pack) and not force:
         return det_dir, rec_dir, cls_dir
+
+    if auto_download_enabled():
+        try:
+            ensure_anthill_files(
+                _anthill_marker_paths(rec_pack, det_pack),
+                label="$ocr",
+                force=force,
+            )
+            if model_ready_pack(rec_pack):
+                return det_dir, rec_dir, cls_dir
+        except FileNotFoundError:
+            pass
 
     rec_url = REC_PACK_URLS.get(rec_pack)
     det_url = DET_PACK_URLS.get(det_pack)

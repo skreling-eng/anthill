@@ -5,6 +5,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from externals.anthill_models import (
+    auto_download_enabled,
+    ensure_anthill_file,
+    resolve_models_file,
+    upstream_fallback_enabled,
+)
 from externals.text2speech.model_paths import (
     DEFAULT_MODEL_FILE,
     kokoro_root,
@@ -96,7 +102,20 @@ def ensure_config(repo_id: str, root: Path | None = None) -> Path:
     path = base / "config.json"
     if path.is_file():
         return path.resolve()
-    return _download(repo_id, "config.json", base)
+    if auto_download_enabled():
+        found = resolve_models_file("kokoro/config.json")
+        if found is not None:
+            return found.resolve()
+        try:
+            return ensure_anthill_file("kokoro/config.json", label="$text2speech")
+        except FileNotFoundError:
+            pass
+    if upstream_fallback_enabled():
+        return _download(repo_id, "config.json", base)
+    raise FileNotFoundError(
+        f"$text2speech: config.json not found under {base}. "
+        f"Run: uv run python tools/download_models.py"
+    )
 
 
 def ensure_weights(repo_id: str, root: Path | None = None) -> Path:
@@ -119,7 +138,23 @@ def ensure_weights(repo_id: str, root: Path | None = None) -> Path:
             f"downloading {name} for pipeline backend",
             flush=True,
         )
-    return _download(repo_id, name, base)
+    if auto_download_enabled():
+        for rel in (f"kokoro/{name}", "kokoro/kokoro-v1_0.pth"):
+            found = resolve_models_file(rel)
+            if found is not None and checkpoint_format(found) == "v1":
+                return found.resolve()
+            try:
+                got = ensure_anthill_file(rel, label="$text2speech")
+                if checkpoint_format(got) == "v1":
+                    return got.resolve()
+            except FileNotFoundError:
+                continue
+    if upstream_fallback_enabled():
+        return _download(repo_id, name, base)
+    raise FileNotFoundError(
+        f"$text2speech: pipeline weights not found under {base}. "
+        f"Run: uv run python tools/download_models.py"
+    )
 
 
 def ensure_model_assets(

@@ -1,16 +1,12 @@
-# Fresh Anthill checkout: install Python deps, external venvs, and HF bundle.
+# Fresh Anthill checkout: install Python deps and external venvs.
+# Models/test_data: download_all_models.bat (not part of init).
 # Run from repo root:
 #   powershell -ExecutionPolicy Bypass -File tools\init.ps1
-#   init.bat -Profile minimal -SkipSage
+#   init.bat -SkipSage
 #   init.bat -UploadTestData              # maintainer: push test_data/ to skreling-eng/anthill
 param(
-    [ValidateSet("minimal", "standard", "full")]
-    [string]$Profile = "standard",
     [switch]$SkipVenvs,
-    [switch]$SkipModels,
-    [switch]$SkipTestData,
     [switch]$SkipSage,
-    [switch]$UpstreamFallback,
     [switch]$UploadTestData,
     [switch]$DryRun
 )
@@ -38,12 +34,12 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 if (-not $SkipVenvs) {
     Write-Host ""
-    Write-Host "=== 2/4 External venvs (.venvs/*) ===" -ForegroundColor Cyan
+    Write-Host "=== 2/3 External venvs (.venvs/*) ===" -ForegroundColor Cyan
     & "$PSScriptRoot\setup_external_venvs.ps1"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 } else {
     Write-Host ""
-    Write-Host "=== 2/4 External venvs: skipped (-SkipVenvs) ===" -ForegroundColor Yellow
+    Write-Host "=== 2/3 External venvs: skipped (-SkipVenvs) ===" -ForegroundColor Yellow
 }
 
 $envTemplate = Join-Path $Root ".env.template"
@@ -56,7 +52,7 @@ if (-not (Test-Path $envFile) -and (Test-Path $envTemplate)) {
 
 if (-not $SkipSage) {
     Write-Host ""
-    Write-Host "=== 3/4 Optional: SageAttention (.venvs/media) ===" -ForegroundColor Cyan
+    Write-Host "=== 3/3 Optional: SageAttention (.venvs/media) ===" -ForegroundColor Cyan
     $env:UV_PROJECT_ENVIRONMENT = ".venvs/media"
     try {
         & "$PSScriptRoot\setup_sage_windows.ps1"
@@ -66,7 +62,7 @@ if (-not $SkipSage) {
     }
 } else {
     Write-Host ""
-    Write-Host "=== 3/4 SageAttention: skipped (-SkipSage) ===" -ForegroundColor Yellow
+    Write-Host "=== 3/3 SageAttention: skipped (-SkipSage) ===" -ForegroundColor Yellow
 }
 
 if ($UploadTestData) {
@@ -78,27 +74,14 @@ if ($UploadTestData) {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
-if (-not $SkipModels) {
-    Write-Host ""
-    Write-Host "=== 4/4 Anthill bundle (models/ + test_data/) ===" -ForegroundColor Cyan
-    $dlArgs = @("tools/download_models.py", "--profile", $Profile)
-    if ($DryRun) { $dlArgs += "--dry-run" }
-    if ($UpstreamFallback) { $dlArgs += "--upstream-fallback" }
-    if ($SkipTestData) { $dlArgs += "--skip-test-data" }
-    uv run python @dlArgs
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-} else {
-    Write-Host ""
-    Write-Host "=== 4/4 Anthill bundle: skipped (-SkipModels) ===" -ForegroundColor Yellow
-}
-
 Write-Host ""
 Write-Host "=== Init complete ===" -ForegroundColor Green
 Write-Host @"
 
 Next steps:
   1. Ensure .env has AH_EXTERNAL_VENV_* lines (printed by setup_external_venvs.ps1)
-  2. If models/test_data missing: wait for anthill upload, or init.bat -UpstreamFallback
+  2. Download models + test_data:  download_all_models.bat
+     (or: download_all_models.bat -Profile minimal -UpstreamFallback)
   3. Maintainer publish test_data:  init.bat -UploadTestData  (Write HF token)
   4. Run:  uv run python run_ah.py examples\example_simple_image_generation.ah
 

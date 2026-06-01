@@ -16,6 +16,7 @@ from diffusers import (
 )
 from transformers import AutoConfig, Qwen2Tokenizer, Qwen2VLProcessor, Qwen2_5_VLForConditionalGeneration
 
+from externals.anthill_models import ensure_anthill_tree, upstream_fallback_enabled
 from externals.image.model_paths import models_roots
 from externals.image2image.aio_loader import apply_aio_checkpoint, finalize_module
 from externals.image2image.comfy_nodes import (
@@ -48,33 +49,45 @@ def base_assets_ready() -> bool:
 
 
 def ensure_base_assets(*, force: bool = False) -> Path:
-    """Download tokenizer/processor/scheduler configs (no weight shards)."""
+    """Resolve tokenizer/processor configs (anthill bundle; optional upstream)."""
     path = base_model_dir()
     if base_assets_ready() and not force:
         return path
 
-    try:
-        from huggingface_hub import snapshot_download
-    except ImportError as exc:
-        raise RuntimeError(
-            "$image2image needs huggingface-hub: uv sync --extra media"
-        ) from exc
-
-    path.mkdir(parents=True, exist_ok=True)
-    snapshot_download(
-        HF_BASE_REPO,
-        local_dir=str(path),
-        ignore_patterns=[
-            "*.safetensors",
-            "*.bin",
-            "*.gguf",
-            "*.pt",
-            "*.pth",
-        ],
+    ensure_anthill_tree(
+        BASE_SUBDIR.as_posix(),
+        ready=base_assets_ready,
+        label="$image2image",
+        force=force,
     )
+    if base_assets_ready():
+        return base_model_dir()
+
+    if upstream_fallback_enabled():
+        try:
+            from huggingface_hub import snapshot_download
+        except ImportError as exc:
+            raise RuntimeError(
+                "$image2image needs huggingface-hub: uv sync --extra media"
+            ) from exc
+
+        path.mkdir(parents=True, exist_ok=True)
+        snapshot_download(
+            HF_BASE_REPO,
+            local_dir=str(path),
+            ignore_patterns=[
+                "*.safetensors",
+                "*.bin",
+                "*.gguf",
+                "*.pt",
+                "*.pth",
+            ],
+        )
+
     if not base_assets_ready():
         raise FileNotFoundError(
-            f"Base assets download finished but {path}/model_index.json is missing"
+            f"Base assets not ready under {path}. "
+            f"Run: uv run python tools/download_models.py"
         )
     return path
 
