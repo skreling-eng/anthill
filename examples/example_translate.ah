@@ -1,0 +1,13 @@
+
+
+@text: $llm
+Write a short text about birds in the garder (50-60 words).
+Return only the final result without any comments, clarifications or descriptions.
+
+@en_ru: $translate(scr='en', dst='ru')
+
+@ru_en: $translate(scr='ru', dst='en')
+
+@double_translation: @text -> @en_ru -> @ru_en
+
+run @double_translation

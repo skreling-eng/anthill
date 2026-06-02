@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Download Anthill models/ + test_data/ from skreling-eng/anthill.
+# Re-runs are incremental: only missing groups/files are fetched.
 #   bash tools/download_all_models.sh
 #   bash tools/download_all_models.sh --profile minimal --upstream-fallback
 set -euo pipefail

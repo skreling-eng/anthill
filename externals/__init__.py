@@ -49,6 +49,7 @@ _KNOWN = frozenset(
         "voice_enhance",
         "ocr",
         "image2text",
+        "translate",
     }
 )
 

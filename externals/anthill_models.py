@@ -73,6 +73,11 @@ CHECKS: dict[str, list[str]] = {
         "qwen-rapid/Qwen-Rapid-AIO-SFW-v23.safetensors",
         "qwen-rapid/Qwen-Rapid-AIO-NSFW-v23.safetensors",
     ],
+    "m2m100": [
+        "m2m100_1.2B/config.json",
+        "m2m100_1.2B/pytorch_model.bin",
+        "m2m100_1.2B/sentencepiece.bpe.model",
+    ],
 }
 
 PROFILE_GROUPS: dict[str, frozenset[str]] = {
@@ -286,3 +291,37 @@ def require_models_file(rel: str, *, label: str = "") -> Path:
 
 def group_ready(name: str) -> bool:
     return files_ready(CHECKS[name])
+
+
+def missing_group_names(profile: str) -> list[str]:
+    """Group keys from profile that fail CHECKS spot-checks."""
+    groups = PROFILE_GROUPS.get(profile, frozenset())
+    return [name for name in sorted(groups) if not group_ready(name)]
+
+
+def group_tree_prefix(name: str) -> str | None:
+    """Longest common models/ directory prefix for a CHECKS group."""
+    paths = CHECKS.get(name) or []
+    if not paths:
+        return None
+    dir_parts = [
+        p.replace("\\", "/").split("/")[:-1] for p in paths if "/" in p.replace("\\", "/")
+    ]
+    if not dir_parts:
+        return None
+    common: list[str] = []
+    for i in range(min(len(parts) for parts in dir_parts)):
+        segment = dir_parts[0][i]
+        if all(parts[i] == segment for parts in dir_parts):
+            common.append(segment)
+        else:
+            break
+    return "/".join(common) if common else None
+
+
+def sync_anthill_tree(rel_dir: str) -> None:
+    """Download or refresh a models/ subtree from the anthill bundle."""
+    rel_posix = rel_dir.replace("\\", "/").strip("/")
+    with _download_lock:
+        _hf_snapshot_pattern(rel_posix)
+        _downloaded.add(f"tree:{rel_posix}")

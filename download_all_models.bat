@@ -1,5 +1,5 @@
 @echo off
-REM Download models/ + test_data/ from skreling-eng/anthill (not run by init.bat).
+REM Download models/ + test_data/ from skreling-eng/anthill (incremental on re-run).
 REM   download_all_models.bat
 REM   download_all_models.bat -Profile minimal
 REM   download_all_models.bat -UpstreamFallback

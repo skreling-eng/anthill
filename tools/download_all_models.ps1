@@ -1,4 +1,5 @@
 # Download Anthill models/ + test_data/ from skreling-eng/anthill.
+# Re-runs are incremental: only missing groups/files are fetched.
 # Run from repo root:
 #   download_all_models.bat
 #   download_all_models.bat -Profile minimal

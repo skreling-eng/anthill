@@ -1,0 +1,41 @@
+$translate — multilingual text translation (M2M100 1.2B)
+
+SUMMARY
+  Translates each texts[] item (or prompts[]) from scr= to dst= using facebook/m2m100_1.2B
+  (100 languages, many-to-many).
+
+SYNTAX
+  $translate(scr='ru', dst='en')
+  $translate(src='ru', dst='en')
+  $translate(scr='zh', dst='fr', gpu=True)
+
+INPUT
+  texts[]   — source strings (preferred)
+  prompts[] — used when texts[] is empty
+
+OUTPUT
+  texts[] — one translated .txt per input item
+
+ARGUMENTS
+  scr= / src= — source language code (required), e.g. ru, en, zh, fr, de, ja
+  dst=        — target language code (required)
+  model=      — default | m2m100 | 1.2b (all use models/m2m100_1.2B/)
+  max_length= — generation cap (default 512)
+  gpu=        — use CUDA when true (default: auto-detect, or AH_TRANSLATE_GPU=1)
+
+MODELS
+  models/m2m100_1.2B/ — ~4.7 GB pytorch_model.bin + sentencepiece.bpe.model
+  First run downloads automatically from skreling-eng/anthill or facebook/m2m100_1.2B.
+
+DEPENDENCIES
+  uv sync --extra media   (torch, transformers, sentencepiece)
+
+ENVIRONMENT
+  AH_EMULATE_TRANSLATE=1 — placeholder text, no model load.
+  AH_TRANSLATE_GPU=1     — default gpu=True when arg omitted.
+
+EXAMPLE
+  @ru_en: $file('note.txt') -> $translate(scr='ru', dst='en') -> $save('en.txt')
+
+PROMPT-CONSUMING
+  No — input texts[] are replaced with translations.

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Download Anthill bundle from skreling-eng/anthill (models/ + test_data/).
 
+Re-runs are incremental: only missing profile groups and test_data files are fetched.
+
 The Hub repo mirrors local trees:
   models/     → pulled into ./models/
   test_data/  → pulled into ./test_data/  (unless --skip-test-data)
@@ -30,7 +32,12 @@ from externals.anthill_models import (  # noqa: E402
     ANTHILL_REPO,
     CHECKS,
     PROFILE_GROUPS,
+    ensure_anthill_file,
     group_ready,
+    group_tree_prefix,
+    missing_group_names,
+    resolve_models_file,
+    sync_anthill_tree,
 )
 
 # Spot-check that example media was pulled from the Hub.
@@ -49,10 +56,19 @@ def _log(msg: str) -> None:
     print(msg, flush=True)
 
 
-def download_anthill(*, dry_run: bool) -> None:
-    _log(f"\n=== {ANTHILL_REPO} -> models/ ===")
+def _models_dir_empty() -> bool:
+    if not MODELS_DIR.is_dir():
+        return True
+    try:
+        return not any(MODELS_DIR.iterdir())
+    except OSError:
+        return True
+
+
+def _download_full_snapshot(*, dry_run: bool) -> None:
+    _log(f"\n=== {ANTHILL_REPO} -> models/ (full bundle sync) ===")
     if dry_run:
-        _log("  (dry-run — would hf download)")
+        _log("  (dry-run — would hf snapshot_download entire bundle)")
         return
     from huggingface_hub import snapshot_download
 
@@ -65,8 +81,74 @@ def download_anthill(*, dry_run: bool) -> None:
     _log("  ok")
 
 
+def _download_missing_groups(*, profile: str, dry_run: bool) -> None:
+    missing = missing_group_names(profile)
+    if not missing:
+        _log("\n=== models/ — all groups ready for profile ===")
+        return
+
+    _log(f"\n=== Missing model groups ({len(missing)}) ===")
+    for name in missing:
+        _log(f"  - {name}")
+
+    if dry_run:
+        for name in missing:
+            for rel in CHECKS[name]:
+                if resolve_models_file(rel) is None:
+                    _log(f"  would fetch models/{rel}")
+            prefix = group_tree_prefix(name)
+            if prefix and not group_ready(name):
+                _log(f"  would sync models/{prefix}/**")
+        return
+
+    for name in missing:
+        for rel in CHECKS[name]:
+            if resolve_models_file(rel) is None:
+                _log(f"  fetching models/{rel}")
+                ensure_anthill_file(rel, label=name)
+
+    for name in missing_group_names(profile):
+        prefix = group_tree_prefix(name)
+        if prefix:
+            _log(f"\n=== sync models/{prefix}/** ===")
+            sync_anthill_tree(prefix)
+
+    still = missing_group_names(profile)
+    if still:
+        _log(
+            f"\n  note: {len(still)} group(s) still incomplete after anthill sync: "
+            + ", ".join(still)
+        )
+    else:
+        _log("\n  all profile groups ready")
+
+
+def download_anthill(*, profile: str, dry_run: bool) -> None:
+    """Fetch missing models for profile (full sync on cold start, else incremental)."""
+    missing = missing_group_names(profile)
+    if not missing:
+        _log("\n=== models/ — all groups ready for profile ===")
+        return
+
+    if _models_dir_empty() or len(missing) >= len(PROFILE_GROUPS[profile]):
+        _download_full_snapshot(dry_run=dry_run)
+        if dry_run:
+            return
+        still = missing_group_names(profile)
+        if still:
+            _log("\n=== finishing incomplete groups after full sync ===")
+            _download_missing_groups(profile=profile, dry_run=False)
+        return
+
+    _download_missing_groups(profile=profile, dry_run=dry_run)
+
+
 def download_test_data(*, dry_run: bool) -> None:
-    _log(f"\n=== {ANTHILL_REPO} -> test_data/ ===")
+    if test_data_ready():
+        _log("\n=== test_data/ — already present ===")
+        return
+
+    _log(f"\n=== {ANTHILL_REPO} -> test_data/ (missing files) ===")
     if dry_run:
         _log("  (dry-run — would hf download test_data/**)")
         return
@@ -167,6 +249,10 @@ def _run_upstream_fallback(*, dry_run: bool, profile: str) -> None:
         from externals.image2image.qwen_pipeline import ensure_base_assets
 
         ensure_base_assets()
+    if "m2m100" in missing:
+        from externals.translate.model_paths import ensure_model
+
+        ensure_model()
 
     _log(
         "\nOther missing groups may need manual HF pulls — see models/*/README.md\n"
@@ -210,7 +296,15 @@ def main() -> int:
         print_notes()
         return 0
 
-    download_anthill(dry_run=args.dry_run)
+    os.environ.setdefault("AH_ANTHILL_AUTO_DOWNLOAD", "1")
+
+    missing_before = missing_group_names(args.profile)
+    if missing_before:
+        _log(f"\nProfile {args.profile}: {len(missing_before)} group(s) to fetch")
+    else:
+        _log(f"\nProfile {args.profile}: models already complete")
+
+    download_anthill(profile=args.profile, dry_run=args.dry_run)
 
     if not args.skip_test_data:
         download_test_data(dry_run=args.dry_run)

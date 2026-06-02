@@ -85,3 +85,8 @@ def test_group_ready_uses_checks(
         path.write_bytes(b"x")
     monkeypatch.setattr(am, "models_roots", lambda: (models,))
     assert am.group_ready("kokoro")
+
+
+def test_group_tree_prefix_wan_aio() -> None:
+    assert am.group_tree_prefix("wan_aio") == "wan"
+

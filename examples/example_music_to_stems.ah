@@ -8,7 +8,7 @@ irish traditional song, strong female voice
 
 @lyrics_text: $llm
 Create a short song about the witch who wants to take your soul.
-Return only final result without any comments, clarifications or descriptions.
+Return only the final result without any comments, clarifications or descriptions.
 
 @track: (@caption, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
 
