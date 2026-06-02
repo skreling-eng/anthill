@@ -1,0 +1,45 @@
+$audio_instruct — audio + prompt → text (Qwen2-Audio 7B Instruct 4-bit)
+
+SUMMARY
+  Answers a text prompt about each sounds[] file using
+  alicekyting/Qwen2-Audio-7B-Instruct-4bit (4-bit, GPU).
+
+SYNTAX
+  $audio_instruct
+  $audio_instruct(prompt='What does the person say?')
+  $audio_instruct(model='4bit', max_tokens=256)
+
+INPUT
+  sounds[]   — required; wav, mp3, flac, m4a, …
+  prompts[]  — question or instruction per clip (or instruction body / prompt=)
+
+OUTPUT
+  texts[] — one model reply per audio file
+
+ARGUMENTS
+  prompt=     — same text for every clip (overrides prompts[])
+  system=     — system message (default: You are a helpful assistant.)
+  model=      — default | 4bit | qwen2-audio
+  max_tokens= — generation cap (default 1024; use for long JSON)
+  gpu=        — must be true / CUDA available (default: auto-detect)
+
+MODELS
+  models/qwen-audio/Qwen2-Audio-7B-Instruct-4bit/
+  First run: uv run python tools/download_models.py --upstream-fallback
+
+DEPENDENCIES
+  uv sync --extra media   (torch, transformers, bitsandbytes, librosa)
+  CUDA GPU required
+
+ENVIRONMENT
+  AH_EMULATE_AUDIO_INSTRUCT=1 — placeholder text, no model load.
+  AH_AUDIO_INSTRUCT_GPU=1     — default gpu=True when arg omitted.
+
+EXAMPLE
+  @qa: $file('clip.wav') -> $audio_instruct
+  What is being said?
+
+  @describe: @track -> $audio_instruct(prompt='Describe the music briefly.')
+
+PROMPT-CONSUMING
+  Yes — prompts[] are used as the user question and cleared on output.

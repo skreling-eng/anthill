@@ -29,6 +29,10 @@ test_data/clip/*_readme.mp4
 *.wav
 *.mp3
 
+# Vendored ffmpeg binaries (see tools/ffmpeg/README.md)
+tools/ffmpeg/**/*
+!tools/ffmpeg/README.md
+
 # OS / editor
 .DS_Store
 Thumbs.db

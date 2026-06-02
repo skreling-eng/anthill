@@ -1,0 +1,9 @@
+
+
+@clip: $file('test_data\clip\20260524_052514_image_clip_0.mp4') -> %clip
+
+@clip_sound: @clip -> $detach_audio
+
+@join_sound_back: ( @clip_sound, clip% ) -> $attach_audio
+
+run @join_sound_back

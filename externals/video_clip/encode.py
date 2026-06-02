@@ -153,8 +153,13 @@ def require_moviepy() -> None:
 
 
 def require_ffmpeg() -> None:
-    if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
+    from externals.video_audio.ffmpeg_paths import require_ffmpeg as _require
+
+    try:
+        _require()
+    except FileNotFoundError as exc:
         raise RuntimeError(
-            "$video_clip needs ffmpeg and ffprobe on PATH "
-            "(https://ffmpeg.org/download.html)"
-        )
+            "$video_clip needs ffmpeg and ffprobe.\n"
+            "  uv run python tools/download_ffmpeg.py\n"
+            "  or install system ffmpeg on PATH"
+        ) from exc

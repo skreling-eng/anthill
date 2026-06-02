@@ -78,6 +78,9 @@ CHECKS: dict[str, list[str]] = {
         "m2m100_1.2B/pytorch_model.bin",
         "m2m100_1.2B/sentencepiece.bpe.model",
     ],
+    "qwen2_audio_4bit": [
+        "qwen-audio/Qwen2-Audio-7B-Instruct-4bit/config.json",
+    ],
 }
 
 PROFILE_GROUPS: dict[str, frozenset[str]] = {

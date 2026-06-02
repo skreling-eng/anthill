@@ -116,6 +116,7 @@ media = [
     "opencv-python>=4.8.0",
     "moviepy>=2.0",
     "pillow>=10.0.0",
+    "librosa>=0.10.0",
     # comfy_lib in-process ($image2image / $image2video)
     "torchsde",
     "scipy",

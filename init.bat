@@ -1,7 +1,8 @@
 @echo off
-REM Fresh checkout: deps + venvs (models: download_all_models.bat).
+REM Fresh checkout: deps + venvs + ffmpeg (models: download_all_models.bat).
 REM   init.bat
 REM   init.bat -SkipSage
+REM   init.bat -SkipFfmpeg
 REM   init.bat -UploadTestData              maintainer: push test_data/ to HF
 setlocal
 cd /d "%~dp0"

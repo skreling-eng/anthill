@@ -1,0 +1,12 @@
+
+
+@clip: $file('test_data\clip\20260524_052514_image_clip_0.mp4')
+@clip_sound: @clip -> $detach_audio
+
+@sound_description: $audio_instruct
+Describe the voice and genre of the input music.
+Extract the lyrics.
+
+@clip_sound_desc: @clip_sound -> @sound_description
+
+run @clip_sound_desc

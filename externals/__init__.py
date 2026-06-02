@@ -50,6 +50,9 @@ _KNOWN = frozenset(
         "ocr",
         "image2text",
         "translate",
+        "audio_instruct",
+        "detach_audio",
+        "attach_audio",
     }
 )
 
@@ -73,6 +76,7 @@ _PROMPT_CONSUMING = frozenset(
         "prompts_to_texts",
         "prompts2texts",
         "image2text",
+        "audio_instruct",
     }
 )
 

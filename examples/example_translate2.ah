@@ -6,6 +6,8 @@ Return only the final result without any comments, clarifications or description
 
 @en_ru: $translate(scr='en', dst='ru')
 
-@ru_text: @text -> @en_ru
+@ru_en: $translate(scr='ru', dst='en')
 
-run @ru_text
+@double_translation: @text -> @en_ru -> @ru_en
+
+run @double_translation

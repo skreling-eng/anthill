@@ -11,9 +11,11 @@ from PIL import Image
 
 def audio_duration_seconds(path: Path) -> float:
     """Duration via ffprobe (handles float WAV, mp3, etc.)."""
+    from externals.video_audio.ffmpeg_paths import get_ffprobe_exe
+
     proc = subprocess.run(
         [
-            "ffprobe",
+            get_ffprobe_exe(),
             "-v",
             "error",
             "-show_entries",
@@ -66,10 +68,12 @@ def build_slideshow_mp4(
             img.save(out)
             frame_idx += 1
 
+    from externals.video_audio.ffmpeg_paths import get_ffmpeg_exe
+
     silent = work_dir / "silent.mp4"
     subprocess.run(
         [
-            "ffmpeg",
+            get_ffmpeg_exe(),
             "-y",
             "-loglevel",
             "error",
@@ -137,8 +141,13 @@ def require_moviepy() -> None:
 
 
 def require_ffmpeg() -> None:
-    if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
+    from externals.video_audio.ffmpeg_paths import require_ffmpeg as _require
+
+    try:
+        _require()
+    except FileNotFoundError as exc:
         raise RuntimeError(
-            "$image_clip needs ffmpeg and ffprobe on PATH "
-            "(https://ffmpeg.org/download.html)"
-        )
+            "$image_clip needs ffmpeg and ffprobe.\n"
+            "  uv run python tools/download_ffmpeg.py\n"
+            "  or install system ffmpeg on PATH"
+        ) from exc

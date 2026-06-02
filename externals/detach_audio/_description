@@ -1,0 +1,32 @@
+$detach_audio — extract audio from video
+
+SUMMARY
+  Extracts the audio track from each videos[] file into sounds[].
+
+SYNTAX
+  $detach_audio
+  $detach_audio(format='wav')
+  $detach_audio(format='mp3')
+
+INPUT
+  videos[] — required; MP4 and other ffmpeg-readable video files
+
+OUTPUT
+  sounds[] — one audio file per input video (videos[] cleared)
+
+ARGUMENTS
+  format= — wav (default, 44.1 kHz stereo PCM) | aac | mp3 | copy
+            (copy keeps source codec; extension .m4a for aac/copy)
+
+DEPENDENCIES
+  ffmpeg + ffprobe: uv run python tools/download_ffmpeg.py  (→ tools/ffmpeg/)
+  or system install on PATH
+
+ENVIRONMENT
+  AH_EMULATE_DETACH_AUDIO=1 — write stub sound links without ffmpeg
+
+EXAMPLE
+  @wav: $file('clip.mp4') -> $detach_audio -> $save('clip.wav')
+
+PROMPT-CONSUMING
+  No — output is sounds[] only (videos[] cleared).

@@ -3,9 +3,11 @@
 # Run from repo root:
 #   powershell -ExecutionPolicy Bypass -File tools\init.ps1
 #   init.bat -SkipSage
+#   init.bat -SkipFfmpeg
 #   init.bat -UploadTestData              # maintainer: push test_data/ to skreling-eng/anthill
 param(
     [switch]$SkipVenvs,
+    [switch]$SkipFfmpeg,
     [switch]$SkipSage,
     [switch]$UploadTestData,
     [switch]$DryRun
@@ -28,18 +30,35 @@ Write-Host ""
 Require-Command uv
 Require-Command hf
 
-Write-Host "=== 1/4 Base runtime (uv sync) ===" -ForegroundColor Cyan
+Write-Host "=== 1/5 Base runtime (uv sync) ===" -ForegroundColor Cyan
 uv sync
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 if (-not $SkipVenvs) {
     Write-Host ""
-    Write-Host "=== 2/3 External venvs (.venvs/*) ===" -ForegroundColor Cyan
+    Write-Host "=== 2/5 External venvs (.venvs/*) ===" -ForegroundColor Cyan
     & "$PSScriptRoot\setup_external_venvs.ps1"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 } else {
     Write-Host ""
-    Write-Host "=== 2/3 External venvs: skipped (-SkipVenvs) ===" -ForegroundColor Yellow
+    Write-Host "=== 2/5 External venvs: skipped (-SkipVenvs) ===" -ForegroundColor Yellow
+}
+
+$isWindows = ($env:OS -match "Windows") -or ($IsWindows -eq $true)
+if ($isWindows -and -not $SkipFfmpeg) {
+    Write-Host ""
+    Write-Host "=== 3/5 ffmpeg (tools/ffmpeg/win64) ===" -ForegroundColor Cyan
+    uv run python tools/download_ffmpeg.py
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  ffmpeg download failed (network?). Re-run: download_ffmpeg.bat" -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
+} elseif ($SkipFfmpeg) {
+    Write-Host ""
+    Write-Host "=== 3/5 ffmpeg: skipped (-SkipFfmpeg) ===" -ForegroundColor Yellow
+} else {
+    Write-Host ""
+    Write-Host "=== 3/5 ffmpeg: skipped (not Windows) ===" -ForegroundColor Yellow
 }
 
 $envTemplate = Join-Path $Root ".env.template"
@@ -52,7 +71,7 @@ if (-not (Test-Path $envFile) -and (Test-Path $envTemplate)) {
 
 if (-not $SkipSage) {
     Write-Host ""
-    Write-Host "=== 3/3 Optional: SageAttention (.venvs/media) ===" -ForegroundColor Cyan
+    Write-Host "=== 4/5 Optional: SageAttention (.venvs/media) ===" -ForegroundColor Cyan
     $env:UV_PROJECT_ENVIRONMENT = ".venvs/media"
     try {
         & "$PSScriptRoot\setup_sage_windows.ps1"
@@ -62,7 +81,7 @@ if (-not $SkipSage) {
     }
 } else {
     Write-Host ""
-    Write-Host "=== 3/3 SageAttention: skipped (-SkipSage) ===" -ForegroundColor Yellow
+    Write-Host "=== 4/5 SageAttention: skipped (-SkipSage) ===" -ForegroundColor Yellow
 }
 
 if ($UploadTestData) {
@@ -85,5 +104,6 @@ Next steps:
   3. Maintainer publish test_data:  init.bat -UploadTestData  (Write HF token)
   4. Run:  uv run python run_ah.py examples\example_simple_image_generation.ah
 
+ffmpeg status:  uv run python tools/download_ffmpeg.py --status
 Bundle status:  uv run python tools/download_models.py --status
 "@

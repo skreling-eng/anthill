@@ -43,13 +43,19 @@ def _load_with_soundfile(path: Path) -> tuple[np.ndarray, int]:
 
 
 def _load_with_ffmpeg(path: Path) -> tuple[np.ndarray, int]:
-    if shutil.which("ffmpeg") is None:
+    from externals.video_audio.ffmpeg_paths import get_ffmpeg_exe, require_ffmpeg
+
+    try:
+        require_ffmpeg()
+        ffmpeg = get_ffmpeg_exe()
+    except FileNotFoundError as exc:
         raise RuntimeError(
-            "$music_separation needs ffmpeg on PATH to decode non-WAV audio"
-        )
+            "$music_separation needs ffmpeg to decode non-WAV audio.\n"
+            "  uv run python tools/download_ffmpeg.py"
+        ) from exc
     proc = subprocess.run(
         [
-            "ffmpeg",
+            ffmpeg,
             "-y",
             "-loglevel",
             "error",

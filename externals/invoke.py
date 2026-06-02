@@ -86,6 +86,7 @@ _DEFAULT_UV_EXTRAS: dict[str, list[str]] = {
     "ocr": ["ocr"],
     "image2text": ["media"],
     "translate": ["media"],
+    "audio_instruct": ["media"],
 }
 
 # Isolated venv dirs (see tools/setup_external_venvs.ps1). Used when the path exists.
@@ -105,6 +106,7 @@ _DEFAULT_VENVS: dict[str, str] = {
     "voice_enhance": ".venvs/voice_enhance",
     "image2text": ".venvs/media",
     "translate": ".venvs/media",
+    "audio_instruct": ".venvs/media",
 }
 
 

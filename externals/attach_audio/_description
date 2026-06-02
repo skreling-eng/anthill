@@ -1,0 +1,40 @@
+$attach_audio — mux audio onto video
+
+SUMMARY
+  Combines each videos[] clip with a sounds[] track (video stream copied, new audio).
+
+SYNTAX
+  $attach_audio
+  @out: (@clip, @music) -> $attach_audio -> $save('final.mp4')
+  $attach_audio(shortest=0)
+
+INPUT
+  videos[] — required
+  sounds[] — required
+
+OUTPUT
+  videos[] — one MP4 per pair (only videos[] in the output bundle)
+
+PAIRING
+  Equal counts — zip video[i] with sound[i]
+  One video, N sounds — same video with each sound
+  N videos, one sound — each video with the same sound
+
+ARGUMENTS
+  shortest=    — 1/true (default): trim to shorter stream
+  audio_codec= — ffmpeg audio encoder (default aac)
+
+DEPENDENCIES
+  ffmpeg + ffprobe: uv run python tools/download_ffmpeg.py  (→ tools/ffmpeg/)
+  or system install on PATH
+
+ENVIRONMENT
+  AH_EMULATE_ATTACH_AUDIO=1 — stub .mp4 links without ffmpeg
+
+EXAMPLE
+  @clip: $file('silent.mp4')
+  @music: $file('track.wav')
+  @final: (@clip, @music) -> $attach_audio -> $save('out.mp4')
+
+PROMPT-CONSUMING
+  No — output is videos[] only (sounds[] and other arrays cleared).
