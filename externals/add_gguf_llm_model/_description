@@ -1,0 +1,12 @@
+$add_gguf_llm_model — download user GGUF for $llm
+
+  $add_gguf_llm_model(name='my_qwen', gguf='https://huggingface.co/…/resolve/main/file.gguf')
+  $add_gguf_llm_model(name='my_qwen', gguf='unsloth/Repo::file.gguf')
+
+  → models/llm_user/<name>/<file>.gguf (not uploaded via upload_to_hf.bat)
+  → $llm(model='my_qwen')
+
+  For Qwen3.6 use unsloth/Qwen3.6-35B-A3B-GGUF (not *-MTP-GGUF) with current llama-cpp-python.
+
+  Pass-through: input bundle unchanged on output.
+  AH_EMULATE_ADD_GGUF_LLM_MODEL=1

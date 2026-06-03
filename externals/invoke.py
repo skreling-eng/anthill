@@ -87,7 +87,31 @@ _DEFAULT_UV_EXTRAS: dict[str, list[str]] = {
     "image2text": ["media"],
     "translate": ["media"],
     "audio_instruct": ["media"],
+    "video_thumbnailer": ["video_thumbnailer"],
 }
+
+# Cheap I/O / bundle ops — avoid uv-run subprocess spawn per call (override with
+# AH_EXTERNAL_SUBPROCESS=file,… if you need isolation).
+_DEFAULT_INPROCESS = frozenset(
+    {
+        "file",
+        "folder",
+        "clear",
+        "pass",
+        "list",
+        "first_image",
+        "input_json",
+        "save",
+        "output",
+        "only",
+        "select",
+        "texts_to_prompts",
+        "texts2prompts",
+        "prompts_to_texts",
+        "prompts2texts",
+        "json2texts",
+    }
+)
 
 # Isolated venv dirs (see tools/setup_external_venvs.ps1). Used when the path exists.
 _DEFAULT_VENVS: dict[str, str] = {
@@ -152,7 +176,7 @@ def subprocess_enabled(name: str) -> bool:
         return True
     if raw:
         return name in {p.strip() for p in raw.split(",") if p.strip()}
-    return True
+    return name not in _DEFAULT_INPROCESS
 
 
 def _use_uv() -> bool:

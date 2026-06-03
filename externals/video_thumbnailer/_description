@@ -1,0 +1,46 @@
+$video_thumbnailer — contact-sheet preview from video
+
+  Builds one JPEG per videos[] entry: a grid of frames sampled across the
+  timeline, with optional metadata header (file size, codec, duration, etc.).
+
+Syntax:
+  $video_thumbnailer
+  $video_thumbnailer(width=1280, columns=4, rows=4, skip_seconds=5)
+  $video_thumbnailer(no_header=1, comment_text='draft cut')
+
+Input:
+  videos[] — required; one preview sheet per video file
+
+Output:
+  images[] — one .jpg per input video (videos[] cleared)
+
+Layout (defaults match pyvideothumbnailer-style tools):
+  width=1024          — sheet width in px
+  columns=5, rows=5   — thumbnail grid
+  vertical_video_columns=, vertical_video_rows= — override grid for portrait video
+  spacing=2           — px gap between cells and border
+  background_color=black
+  skip_seconds=10     — skip this many seconds before first frame
+
+Header / labels:
+  no_header=0|1
+  header_font=, header_font_size=14, header_font_color=white
+  timestamp_font=, timestamp_font_size=12
+  timestamp_font_color=white
+  timestamp_shadow_color=black|none
+  comment_label=Comment:, comment_text=
+
+Output quality:
+  jpeg_quality=95
+
+Deps (subprocess installs via uv run --extra video_thumbnailer):
+  uv sync --extra video_thumbnailer   (PyAV, pymediainfo, Pillow)
+  If you use .venvs/media: re-run tools/setup_external_venvs.ps1
+
+Emulation:
+  AH_EMULATE_VIDEO_THUMBNAILER=1
+
+Example:
+  @preview: $file('clip.mp4') -> $video_thumbnailer -> $save('clip_sheet.jpg')
+
+Prompt-consuming: No — prompts[] pass through unchanged.

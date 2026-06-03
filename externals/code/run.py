@@ -94,6 +94,7 @@ def _emulate(
 
 def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     out = inp.bundle.copy()
+    out.texts.clear()
     model_name = inp.args.get("model", "default")
     max_tokens = int(inp.args.get("max_tokens", "2048"))
     temperature = float(inp.args.get("temperature", "0.2"))

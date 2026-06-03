@@ -26,8 +26,8 @@ ARGUMENTS
   source_path=True — link to the original file (absolute path); no session copy.
 
 BEHAVIOR
-  Resolves the path relative to the current working directory, repo root,
-  session directory, or sessions/** (for a bare filename). By default copies
+  Resolves the path relative to the current working directory, repo root, or
+  the active session directory. By default copies
   file bytes into a new link under the current op directory.
 
   With source_path=True, arrays hold an absolute path to the source file on

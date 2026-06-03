@@ -28,6 +28,7 @@ BEHAVIOR
   callbacks as the main app flow (UI resolves previews from each op's session).
 
   Optional fence stripping: if texts[] starts with ``` or ```ah, the fence is removed.
+  LLM-style escapes (\\n, \\\", \\t) in texts[] are expanded before parse ($ah only).
 
 ENVIRONMENT
   AH_EMULATE_AH=1 — placeholder texts[] output, no nested execution.

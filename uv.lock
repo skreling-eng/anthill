@@ -368,6 +368,11 @@ text2speech = [
     { name = "soundfile", marker = "(platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-comfy-wan' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2text' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2video' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2video-fast' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-media' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-comfy-wan' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2text' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2video' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2video-fast' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-media' and extra == 'extra-7-anthill-music')" },
     { name = "torch", marker = "(platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-comfy-wan' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2text' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2video' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2video-fast' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-media' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-comfy-wan' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2text' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2video' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2video-fast' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-media' and extra == 'extra-7-anthill-music')" },
 ]
+video-thumbnailer = [
+    { name = "av", marker = "(platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-comfy-wan' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2text' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2video' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2video-fast' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-media' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-comfy-wan' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2text' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2video' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2video-fast' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-media' and extra == 'extra-7-anthill-music')" },
+    { name = "pillow", marker = "(platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-comfy-wan' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2text' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2video' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2video-fast' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-media' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-comfy-wan' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2text' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2video' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2video-fast' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-media' and extra == 'extra-7-anthill-music')" },
+    { name = "pymediainfo", marker = "(platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-comfy-wan' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2text' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2video' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-image2video-fast' and extra == 'extra-7-anthill-music') or (platform_machine != 'AMD64' and extra == 'extra-7-anthill-media' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-comfy-wan' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2text' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2video' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-image2video-fast' and extra == 'extra-7-anthill-music') or (sys_platform != 'win32' and extra == 'extra-7-anthill-media' and extra == 'extra-7-anthill-music')" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -379,6 +384,7 @@ requires-dist = [
     { name = "ace-step", marker = "extra == 'music'", git = "https://github.com/ace-step/ACE-Step-1.5.git" },
     { name = "audio-separator", extras = ["cpu"], marker = "extra == 'music-separation'", specifier = ">=0.44.0" },
     { name = "av", marker = "extra == 'comfy-wan'", specifier = ">=12.0.0" },
+    { name = "av", marker = "extra == 'video-thumbnailer'", specifier = ">=12.0.0" },
     { name = "bitsandbytes", marker = "extra == 'image'", specifier = ">=0.43.0" },
     { name = "bitsandbytes", marker = "extra == 'media'", specifier = ">=0.43.0" },
     { name = "compel", marker = "extra == 'image'", specifier = ">=2.0.0" },
@@ -424,9 +430,11 @@ requires-dist = [
     { name = "pillow", marker = "extra == 'image2video'", specifier = ">=10.0.0" },
     { name = "pillow", marker = "extra == 'image2video-fast'", specifier = ">=10.0.0" },
     { name = "pillow", marker = "extra == 'media'", specifier = ">=10.0.0" },
+    { name = "pillow", marker = "extra == 'video-thumbnailer'", specifier = ">=10.0.0" },
     { name = "protobuf", marker = "extra == 'image'", specifier = ">=4.25.0" },
     { name = "protobuf", marker = "extra == 'media'", specifier = ">=4.25.0" },
     { name = "pyloudnorm", marker = "extra == 'comfy-wan'", specifier = ">=0.1.0" },
+    { name = "pymediainfo", marker = "extra == 'video-thumbnailer'", specifier = ">=6.0.0" },
     { name = "pywebview", specifier = ">=5.0" },
     { name = "safetensors", marker = "extra == 'image'", specifier = ">=0.4.0" },
     { name = "safetensors", marker = "extra == 'image2text'", specifier = ">=0.4.0" },
@@ -467,7 +475,7 @@ requires-dist = [
     { name = "transformers", marker = "extra == 'image2video-fast'", specifier = ">=4.57.0" },
     { name = "transformers", marker = "extra == 'media'", specifier = ">=4.57.0" },
 ]
-provides-extras = ["clip", "sound2text", "music", "music-separation", "text2speech", "image", "image2video", "image2video-fast", "draw-text", "ocr", "image2text", "media", "comfy-wan"]
+provides-extras = ["clip", "sound2text", "music", "music-separation", "text2speech", "image", "image2video", "image2video-fast", "draw-text", "video-thumbnailer", "ocr", "image2text", "media", "comfy-wan"]
 
 [[package]]
 name = "anyio"
@@ -3516,6 +3524,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/23/00/f915eaa75326f4209941179c2b93ac477f2040e4aeff5bb21d16eb8058f9/pyloudnorm-0.2.0.tar.gz", hash = "sha256:8bf597658ea4e1975c275adf490f6deb5369ea409f2901f939915efa4b681b16", size = 14037 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/aa/b6/65a49a05614b2548edbba3aab118f2ebe7441dfd778accdcdce9f6567f20/pyloudnorm-0.2.0-py3-none-any.whl", hash = "sha256:9bb69afb904f59d007a7f9ba3d75d16fb8aeef35c44d6df822a9f192d69cf13f", size = 10879 },
+]
+
+[[package]]
+name = "pymediainfo"
+version = "7.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4d/80/80a6fb21005b81e30f6193d45cba13857df09f5d483e0551fa6fbb3aaeed/pymediainfo-7.0.1.tar.gz", hash = "sha256:0d5df59ecc615e24c56f303b8f651579c6accab7265715e5d429186d7ba21514", size = 441563 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a6/4a/d895646df3d3ff617b54d7f06a02ed9d6f5b86673030a543927310e0f7ed/pymediainfo-7.0.1-py3-none-macosx_10_10_universal2.whl", hash = "sha256:286f3bf6299be0997093254e0f371855bc5cf2aaf8641d19455a011e3ee3a84d", size = 6983332 },
+    { url = "https://files.pythonhosted.org/packages/77/df/bc6b5a08e908c64a81f6ff169716d408ce7380ceff44e1eceb095f49e0dc/pymediainfo-7.0.1-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:3648e2379fa67bd02433d1e28c707df3a53834dd480680615a9fefd2266f1182", size = 5768082 },
+    { url = "https://files.pythonhosted.org/packages/02/10/a9bc1446a48d3a15940eb1af79a71978f368f27e2cc86f9ec3ec2d206a20/pymediainfo-7.0.1-py3-none-manylinux_2_27_x86_64.whl", hash = "sha256:cde98112f1ce486589b17a12e5da42085faea996224f7c67fa45b8c1dca719c6", size = 6001553 },
+    { url = "https://files.pythonhosted.org/packages/ed/7f/c48f8514cb60c9ff9be81b6f383e73e66c7461ef854a1b62628e3c823f13/pymediainfo-7.0.1-py3-none-win32.whl", hash = "sha256:01bcaf82b72cefbf4b96f13b2547e1b2e0e734bab7173d7c33f7f01acc07c98b", size = 3125046 },
+    { url = "https://files.pythonhosted.org/packages/e7/26/9d50c2a330541bc36c0ea7ce29eeff5b0c35c2624139660df8bcfa9ae3ce/pymediainfo-7.0.1-py3-none-win_amd64.whl", hash = "sha256:13224fa7590e198763b8baf072e704ea81d334e71aa32a469091460e243893c7", size = 3271232 },
 ]
 
 [[package]]

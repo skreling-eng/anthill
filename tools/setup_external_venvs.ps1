@@ -22,7 +22,7 @@ function Sync-Venv($RelPath, $Extras) {
 }
 
 Write-Host "Anthill external venvs under .venvs/"
-Sync-Venv ".venvs/media" "media,clip,music_separation"
+Sync-Venv ".venvs/media" "media,clip,music_separation,video_thumbnailer"
 
 # WanVideoWrapper + VHS under comfy_lib/ (heavier sklearn stack; do not merge with music)
 Sync-Venv ".venvs/comfy-wan" "media,comfy-wan,clip"

@@ -55,6 +55,12 @@ def _variant_count(inp: ExternalInput) -> int:
 
 
 def _gpu_layers_from_args(inp: ExternalInput) -> int | None:
+    force_raw = inp.args.get("force_gpu", "").strip()
+    if force_raw:
+        if force_raw.lower() in ("1", "true", "yes", "on"):
+            return -1
+    elif os.environ.get("LLM_FORCE_GPU", "").lower() in ("1", "true", "yes"):
+        return -1
     raw = inp.args.get("gpu_layers", inp.args.get("n_gpu_layers"))
     if raw is None or raw == "":
         return None

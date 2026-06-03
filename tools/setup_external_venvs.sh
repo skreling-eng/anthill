@@ -41,7 +41,7 @@ sync_venv() {
 }
 
 echo "Anthill external venvs under .venvs/"
-sync_venv ".venvs/media" "media,clip,music_separation"
+sync_venv ".venvs/media" "media,clip,music_separation,video_thumbnailer"
 sync_venv ".venvs/comfy-wan" "media,comfy-wan,clip"
 
 echo ""

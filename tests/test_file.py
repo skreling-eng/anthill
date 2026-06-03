@@ -10,6 +10,7 @@ from pathlib import Path
 from ahlib.ah_actions import ExternalAction, parse_actions
 from externals.api import ExternalContext, ExternalInput
 from externals.file.run import run
+from externals.invoke import subprocess_enabled
 from ahlib.ah_runtime import ArrayBundle, Session, create_session_dir
 
 
@@ -29,6 +30,14 @@ def _png_bytes() -> bytes:
 
 
 class TestFileExternal(unittest.TestCase):
+    def test_file_inprocess_by_default(self) -> None:
+        for key in ("AH_EXTERNAL_INPROCESS", "AH_EXTERNAL_SUBPROCESS"):
+            os.environ.pop(key, None)
+        self.assertFalse(subprocess_enabled("file"))
+        os.environ["AH_EXTERNAL_SUBPROCESS"] = "file"
+        self.assertTrue(subprocess_enabled("file"))
+        os.environ.pop("AH_EXTERNAL_SUBPROCESS", None)
+
     def test_parse_file_source_path(self) -> None:
         expr = parse_actions("$file('_lang_desc', source_path=True)")
         self.assertIsInstance(expr, ExternalAction)
@@ -57,6 +66,27 @@ class TestFileExternal(unittest.TestCase):
             self.assertNotIn(b"[emulated file:", data)
         finally:
             asset.unlink(missing_ok=True)
+
+    def test_resolves_lang_desc_at_repo_root(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        lang_desc = repo / "_lang_desc"
+        if not lang_desc.is_file():
+            self.skipTest("_lang_desc missing at repo root")
+        session_dir = create_session_dir(repo / "sessions")
+        session = Session(session_dir)
+        op_dir = session.next_op_dir("file")
+        ctx = ExternalContext(session=session, op_dir=op_dir)
+        inp = ExternalInput(
+            bundle=ArrayBundle(),
+            args={"_path": "_lang_desc", "source_path": "True"},
+            prompt_text="",
+        )
+        from unittest import mock
+
+        with mock.patch("externals.file.run._REPO_ROOT", repo):
+            out = run(ctx, inp)
+        self.assertEqual(len(out.files), 1)
+        self.assertEqual(Path(out.files[0]).resolve(), lang_desc.resolve())
 
     def test_source_path_links_without_copy(self) -> None:
         repo = Path(__file__).resolve().parents[1]

@@ -29,6 +29,7 @@ SKIP_DIR_NAMES = frozenset(
         ".hub_tmp",
         "huggingface",  # models/huggingface/ (HF_HOME) and */.cache/huggingface/
         "openvino-cache",
+        "llm_user",
         ".git",
         ".pytest_cache",
         ".mypy_cache",

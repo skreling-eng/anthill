@@ -1,0 +1,15 @@
+
+
+
+@data: $folder('test_data\clip')
+
+@thumbnails: @data -> $video_thumbnailer
+
+@thumbnail_description: $image2text
+You have video thumbnails on the image.
+Can you describe this video based on these thumbnails?
+
+@video_description: @thumbnails -> @thumbnail_description
+
+run @video_description
+

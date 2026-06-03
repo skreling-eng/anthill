@@ -88,6 +88,15 @@ prefer `.venvs/*` for production runs.
 
 Child loads `.env` (`ACESTEP_BACKEND=native`, etc.) via `externals/bootstrap.py`.
 
+## Lightweight externals (in-process by default)
+
+These run in the orchestrator process (no `uv run` subprocess per call):
+`file`, `folder`, `clear`, `pass`, `list`, `first_image`, `input_json`, `save`,
+`output`, `only`, `select`, `texts_to_prompts` / `texts2prompts`,
+`prompts_to_texts` / `prompts2texts`, `json2texts`.
+
+Force subprocess for one of them, e.g. `AH_EXTERNAL_SUBPROCESS=file`.
+
 ## Overrides
 
 | Variable | Effect |

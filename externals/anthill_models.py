@@ -39,6 +39,7 @@ CHECKS: dict[str, list[str]] = {
     "roformer_viperx": ["roformer/model_bs_roformer_ep_317_sdr_12.9755.ckpt"],
     "llm_gemma": ["llm/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-IQ4_XS/model.gguf"],
     "code_qwen": ["code/Qwen2.5-Coder-14B-Instruct/model.gguf"],
+    "math_qwen36": ["math/Qwen3.6-35B-A3B-GGUF/model.gguf"],
     "ocr_en": [
         "ocr/PP-OCRv4/en/det/inference.pdmodel",
         "ocr/PP-OCRv4/en/rec/inference.pdmodel",

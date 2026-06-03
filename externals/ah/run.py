@@ -14,13 +14,26 @@ from ahlib.ah_runtime import ArrayBundle, Runtime, RuntimeCancelled, Session
 _FENCE_START = ("```ah", "```anthill", "```")
 
 
+def _prefilter_ah_text(text: str) -> str:
+    """Unescape LLM-style \\n and \\\" in texts[] before nested .ah parse ($ah only)."""
+    if not text:
+        return text
+    if "\\n" not in text and '\\"' not in text and "\\t" not in text:
+        return text
+    protected = text.replace("\\\\", "\x00")
+    protected = protected.replace("\\r\\n", "\n").replace("\\r", "\n")
+    protected = protected.replace("\\n", "\n").replace("\\t", "\t")
+    protected = protected.replace('\\"', '"').replace("\\'", "'")
+    return protected.replace("\x00", "\\")
+
+
 def _emulate_enabled() -> bool:
     return os.environ.get("AH_EMULATE_AH", "").lower() in ("1", "true", "yes")
 
 
 def _unwrap_source(text: str) -> str:
     """Strip optional markdown fence from LLM-generated scripts."""
-    text = text.strip()
+    text = _prefilter_ah_text(text.strip())
     if not text.startswith("```"):
         return text
     lines = text.splitlines()

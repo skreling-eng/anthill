@@ -49,19 +49,43 @@ def _resolve_device(use_gpu: bool) -> str:
     return "cpu"
 
 
-def _load_qwen2(model_dir: Path, *, use_gpu: bool) -> tuple[object, object]:
+def _cuda_load_kwargs(*, force_gpu: bool) -> dict:
+    """Build transformers load kwargs for CUDA (auto offload vs full GPU)."""
+    if force_gpu:
+        return {"dtype": "auto", "device_map": {"": 0}}
+    return {"dtype": "auto", "device_map": "auto"}
+
+
+def _verify_full_gpu(model: object, *, profile_name: str) -> None:
+    """Raise if any parameter is not on CUDA (catches silent CPU offload)."""
+    import torch
+
+    off_device: list[str] = []
+    for name, param in model.named_parameters():
+        if param.device.type != "cuda":
+            off_device.append(f"{name} ({param.device})")
+            if len(off_device) >= 5:
+                break
+    if not off_device:
+        return
+    sample = "; ".join(off_device)
+    raise RuntimeError(
+        f"$image2text: model={profile_name!r} is not fully on GPU ({sample}). "
+        "VRAM may be insufficient. Try model='qwen2', free GPU memory, "
+        "or omit force_gpu=1 to allow CPU offload (slower)."
+    )
+
+
+def _load_qwen2(model_dir: Path, *, use_gpu: bool, force_gpu: bool) -> tuple[object, object]:
     _normalize_hf_cache_env()
     import torch
     from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
 
     device = _resolve_device(use_gpu)
-    load_kwargs: dict = {}
     if device == "cuda":
-        load_kwargs["dtype"] = "auto"
-        load_kwargs["device_map"] = "auto"
+        load_kwargs = _cuda_load_kwargs(force_gpu=force_gpu)
     else:
-        load_kwargs["dtype"] = torch.float32
-        load_kwargs["device_map"] = "cpu"
+        load_kwargs = {"dtype": torch.float32, "device_map": "cpu"}
 
     model = _from_pretrained_with_dtype(
         Qwen2VLForConditionalGeneration, model_dir, load_kwargs
@@ -70,7 +94,7 @@ def _load_qwen2(model_dir: Path, *, use_gpu: bool) -> tuple[object, object]:
     return model, processor
 
 
-def _load_qwen3(model_dir: Path, *, use_gpu: bool) -> tuple[object, object]:
+def _load_qwen3(model_dir: Path, *, use_gpu: bool, force_gpu: bool) -> tuple[object, object]:
     _normalize_hf_cache_env()
     import torch
     from transformers import AutoProcessor
@@ -84,13 +108,10 @@ def _load_qwen3(model_dir: Path, *, use_gpu: bool) -> tuple[object, object]:
         ) from exc
 
     device = _resolve_device(use_gpu)
-    load_kwargs: dict = {}
     if device == "cuda":
-        load_kwargs["dtype"] = "auto"
-        load_kwargs["device_map"] = "auto"
+        load_kwargs = _cuda_load_kwargs(force_gpu=force_gpu)
     else:
-        load_kwargs["dtype"] = torch.float32
-        load_kwargs["device_map"] = "cpu"
+        load_kwargs = {"dtype": torch.float32, "device_map": "cpu"}
 
     model = _from_pretrained_with_dtype(
         Qwen3VLForConditionalGeneration, model_dir, load_kwargs
@@ -104,22 +125,58 @@ def load_model(
     model_dir: Path,
     *,
     use_gpu: bool,
+    force_gpu: bool = False,
 ) -> tuple[object, object]:
-    key = (profile.family, str(model_dir.resolve()), use_gpu)
+    if force_gpu and not use_gpu:
+        raise RuntimeError(
+            "$image2text: force_gpu=1 requires GPU (set gpu=1 or unset AH_IMAGE2TEXT_GPU=0)."
+        )
+    if force_gpu and _resolve_device(True) != "cuda":
+        raise RuntimeError(
+            "$image2text: force_gpu=1 but CUDA is not available (install CUDA torch or use gpu=0)."
+        )
+
+    key = (profile.family, str(model_dir.resolve()), use_gpu, force_gpu)
     if key in _MODEL_CACHE:
         return _MODEL_CACHE[key]
 
     device = _resolve_device(use_gpu)
+    mode = "cuda (full GPU)" if device == "cuda" and force_gpu else device
     print(
-        f"$image2text: loading {profile.dir_name()} ({profile.family}, {device})",
+        f"$image2text: loading {profile.dir_name()} ({profile.family}, {mode})",
         flush=True,
     )
-    if profile.family == "qwen3":
-        model, processor = _load_qwen3(model_dir, use_gpu=use_gpu)
-    else:
-        model, processor = _load_qwen2(model_dir, use_gpu=use_gpu)
+    try:
+        if profile.family == "qwen3":
+            model, processor = _load_qwen3(
+                model_dir, use_gpu=use_gpu, force_gpu=force_gpu
+            )
+        else:
+            model, processor = _load_qwen2(
+                model_dir, use_gpu=use_gpu, force_gpu=force_gpu
+            )
+    except Exception as exc:
+        if force_gpu and _is_cuda_oom(exc):
+            raise RuntimeError(
+                f"$image2text: out of GPU memory loading {profile.name!r} "
+                f"({profile.dir_name()}). Try model='qwen2', close other GPU apps, "
+                "or run without force_gpu=1 to allow CPU offload."
+            ) from exc
+        raise
+
+    if force_gpu:
+        _verify_full_gpu(model, profile_name=profile.name)
+
     _MODEL_CACHE[key] = (model, processor)
     return model, processor
+
+
+def _is_cuda_oom(exc: BaseException) -> bool:
+    name = type(exc).__name__
+    if name in ("OutOfMemoryError", "CUDAOutOfMemoryError"):
+        return True
+    text = str(exc).lower()
+    return "out of memory" in text or "cuda" in text and "memory" in text
 
 
 def _conversation(image_path: Path, prompt: str) -> list[dict]:

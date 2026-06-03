@@ -16,6 +16,7 @@ from typing import Any, Protocol
 
 from ahlib.ah_actions import (
     ActionExpr,
+    CallbackAction,
     ContextAction,
     ExternalAction,
     ForAction,
@@ -38,6 +39,9 @@ from externals import (
 
 # Externals that may output multiple prompts[] for downstream $image (do not merge after).
 _PROMPT_MULTI_OUTPUT_EXTS = frozenset({"texts_to_prompts", "texts2prompts"})
+
+# Minimum seconds between @name[inf] iterations (first iteration runs immediately).
+_INF_REPEAT_MIN_INTERVAL = 2.0
 
 # Map changes content_type to array key
 class RuntimeCancelled(Exception):
@@ -276,6 +280,15 @@ class Runtime:
     def _check_cancelled(self) -> None:
         if self.cancel_event is not None and self.cancel_event.is_set():
             raise RuntimeCancelled("Execution cancelled")
+
+    def _wait_until(self, deadline: float) -> None:
+        """Sleep until deadline, checking cancel in small steps."""
+        while time.monotonic() < deadline:
+            self._check_cancelled()
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            time.sleep(min(0.05, remaining))
 
     @staticmethod
     def _format_context_action_name(action: ContextAction) -> str:
@@ -520,6 +533,51 @@ class Runtime:
             self._notify_action_error(action_name, exc)
             raise
 
+    def _eval_callback_action(
+        self,
+        action: CallbackAction,
+        bundle: ArrayBundle,
+        parent_op_dir: Path,
+    ) -> ArrayBundle:
+        action_name = f"^{action.name}"
+        self._notify_action_start(action_name)
+        op_dir = self.session.next_op_dir(action.name)
+        self.session.write_bundle(op_dir, bundle, "input")
+        try:
+            handler = (
+                getattr(self.callback, "ah_action", None)
+                if self.callback is not None
+                else None
+            )
+            if handler is None:
+                raise RuntimeError(
+                    f"{action_name} requires a callback with ah_action()"
+                )
+            inp = ExternalInput(
+                bundle=bundle,
+                args=dict(action.args),
+                prompt_text="",
+                repeat=action.repeat or 1,
+            )
+            result = handler(
+                action.name,
+                bundle,
+                inp,
+                dict(action.args),
+                repeat=action.repeat or 1,
+            )
+            if not isinstance(result, ArrayBundle):
+                raise TypeError(
+                    f"ah_action({action.name!r}) must return ArrayBundle, "
+                    f"got {type(result).__name__}"
+                )
+            self.session.write_bundle(op_dir, result, "output")
+            self._notify_action_finish(action_name, result, op_dir)
+            return result
+        except Exception as exc:
+            self._notify_action_error(action_name, exc)
+            raise
+
     def _eval_action(
         self,
         expr: ActionExpr,
@@ -533,8 +591,40 @@ class Runtime:
         ctx_store = instruction_contexts if instruction_contexts is not None else {}
         if isinstance(expr, ContextAction):
             return self._eval_context_action(expr, bundle, ctx_store)
+        if isinstance(expr, CallbackAction):
+            return self._eval_callback_action(expr, bundle, parent_op_dir)
         if isinstance(expr, RefAction):
             use_cache = not externals_in_sequence
+            if expr.repeat_infinite:
+                action_name = f"@{expr.name}[inf]"
+                self._notify_action_start(action_name)
+                repeat_op = self.session.next_op_dir(f"{expr.name}_inf")
+                self.session.write_bundle(repeat_op, bundle, "input")
+                last: ArrayBundle | None = None
+                next_start = time.monotonic()
+                try:
+                    while True:
+                        now = time.monotonic()
+                        if now < next_start:
+                            self._wait_until(next_start)
+                        self._check_cancelled()
+                        run_result = self._execute_instruction(
+                            expr.name,
+                            bundle.copy(),
+                            use_cache=False,
+                            track_progress=False,
+                        )
+                        last = self._relocate_images_to_op(run_result, repeat_op)
+                        next_start = time.monotonic() + _INF_REPEAT_MIN_INTERVAL
+                except RuntimeCancelled:
+                    if last is not None:
+                        last = self._apply_changes(last, repeat_op)
+                        self.session.write_bundle(repeat_op, last, "output")
+                        self._notify_action_finish(action_name, last, repeat_op)
+                    raise
+                except Exception as exc:
+                    self._notify_action_error(action_name, exc)
+                    raise
             if expr.repeat is not None:
                 if expr.repeat < 1:
                     return ArrayBundle()

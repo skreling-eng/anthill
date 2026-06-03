@@ -21,12 +21,13 @@ OUTPUT
             not passed through).
 
 ARGUMENTS
-  model=        — GGUF profile name (externals/llm/model_list.py). Default: default
+  model=        — built-in profile, or name from $add_gguf_llm_model (models/llm_user/<name>/)
   max_tokens=   — generation limit (default 512)
   temperature=  — sampling temperature (default 0.7)
   seed=         — RNG seed; offset per variant when repeat > 1
   system=       — system prompt string
   gpu_layers= / n_gpu_layers= — layers on GPU (llama-cpp)
+  force_gpu=1   — all layers on GPU (same as gpu_layers=-1)
   count=        — variants if [n] suffix not used
   add_texts=    — when True, texts[] go under a __CONTENT__ section instead
                   of being merged into the main prompt

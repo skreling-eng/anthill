@@ -28,6 +28,8 @@ _KNOWN = frozenset(
         "output",
         "sound2text",
         "llm",
+        "add_gguf_llm_model",
+        "math",
         "code",
         "ah",
         "search",
@@ -53,11 +55,12 @@ _KNOWN = frozenset(
         "audio_instruct",
         "detach_audio",
         "attach_audio",
+        "video_thumbnailer",
     }
 )
 
 # Externals that honor $name(...)[n] via inp.repeat inside the handler (not runtime fan-out).
-_REPEAT_NATIVE = frozenset({"image", "image2image", "llm", "music", "code"})
+_REPEAT_NATIVE = frozenset({"image", "image2image", "llm", "math", "music", "code"})
 
 # Externals that read prompts as model input and should not pass them through.
 _PROMPT_CONSUMING = frozenset(
@@ -68,6 +71,7 @@ _PROMPT_CONSUMING = frozenset(
         "image2video",
         "comfy",
         "llm",
+        "math",
         "code",
         "search",
         "serch",
@@ -83,9 +87,13 @@ _PROMPT_CONSUMING = frozenset(
 _Handler = Callable[[ExternalContext, ExternalInput], "ArrayBundle"]
 
 
+_EXTERNAL_ALIASES: dict[str, str] = {"serch": "search"}
+
+
 def _load_handler(name: str) -> _Handler:
     if name in _KNOWN:
-        mod = importlib.import_module(f"externals.{name}.run")
+        module_name = _EXTERNAL_ALIASES.get(name, name)
+        mod = importlib.import_module(f"externals.{module_name}.run")
         return mod.run
     from externals._default.run import run as default_run
 

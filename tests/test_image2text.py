@@ -42,6 +42,10 @@ class TestImage2TextParse(unittest.TestCase):
         self.assertEqual(expr.args.get("model"), "qwen3")
         self.assertEqual(expr.args.get("gpu"), "True")
 
+    def test_parse_force_gpu(self) -> None:
+        expr = parse_actions("$image2text(model='qwen3', force_gpu=1)")
+        self.assertEqual(expr.args.get("force_gpu"), "1")
+
 
 class TestImage2TextPrompts(unittest.TestCase):
     def test_prompt_arg_repeats(self) -> None:
@@ -105,6 +109,26 @@ class TestImage2TextRun(unittest.TestCase):
             self.assertFalse(_resolve_use_gpu(inp))
         finally:
             os.environ.pop("AH_IMAGE2TEXT_GPU", None)
+
+    def test_force_gpu_implies_gpu(self) -> None:
+        from externals.image2text.run import _resolve_force_gpu, _resolve_use_gpu
+
+        os.environ.pop("AH_IMAGE2TEXT_GPU", None)
+        inp = ExternalInput(
+            bundle=ArrayBundle(), args={"force_gpu": "1"}, prompt_text=""
+        )
+        self.assertTrue(_resolve_force_gpu(inp))
+        self.assertTrue(_resolve_use_gpu(inp))
+
+    def test_force_gpu_env(self) -> None:
+        from externals.image2text.run import _resolve_force_gpu
+
+        os.environ["AH_IMAGE2TEXT_FORCE_GPU"] = "1"
+        try:
+            inp = ExternalInput(bundle=ArrayBundle(), args={}, prompt_text="")
+            self.assertTrue(_resolve_force_gpu(inp))
+        finally:
+            os.environ.pop("AH_IMAGE2TEXT_FORCE_GPU", None)
         os.environ["AH_EMULATE_IMAGE2TEXT"] = "1"
         try:
             session_dir = create_session_dir(Path("sessions"))
@@ -118,6 +142,14 @@ class TestImage2TextRun(unittest.TestCase):
             self.assertIn("no images", ctx.read_link_text(out.texts[0]))
         finally:
             os.environ.pop("AH_EMULATE_IMAGE2TEXT", None)
+
+
+class TestImage2TextCudaKwargs(unittest.TestCase):
+    def test_force_gpu_device_map(self) -> None:
+        from externals.image2text.qwen_vl import _cuda_load_kwargs
+
+        self.assertEqual(_cuda_load_kwargs(force_gpu=True)["device_map"], {"": 0})
+        self.assertEqual(_cuda_load_kwargs(force_gpu=False)["device_map"], "auto")
 
 
 class TestImage2TextModelPaths(unittest.TestCase):

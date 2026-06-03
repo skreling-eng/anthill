@@ -4,11 +4,29 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Any
 
 from externals.llm.model_paths import resolve_gguf_path
 
 _ENGINE_CACHE: dict[tuple, Any] = {}
+
+
+def _load_error_hint(path: str, exc: BaseException) -> str:
+    """Actionable hint when llama.cpp rejects a Qwen3.6 MTP / MoE GGUF."""
+    msg = str(exc)
+    if "Failed to load model" not in msg and "missing tensor" not in msg:
+        return ""
+    low_path = Path(path).as_posix().lower()
+    if "mtp" in low_path or "ssm_conv1d" in msg:
+        return (
+            "$llm: this GGUF looks like Qwen3.6 Multi-Token Prediction (MTP). "
+            "Bundled llama-cpp-python (0.3.x) cannot load MTP weights yet "
+            "(missing blk.*.ssm_conv1d.weight). Use the non-MTP repo instead, e.g. "
+            "unsloth/Qwen3.6-35B-A3B-GGUF::Qwen3.6-35B-A3B-UD-Q4_K_M.gguf, "
+            "or rebuild llama-cpp-python from current llama.cpp."
+        )
+    return ""
 
 
 def _default_gpu_layers() -> int:
@@ -70,9 +88,14 @@ class GgufLlm:
         if key not in _ENGINE_CACHE:
             from llama_cpp import Llama
 
-            supports_gpu = bool(
-                getattr(Llama, "llama_supports_gpu_offload", lambda: False)()
-            )
+            try:
+                import llama_cpp.llama_cpp as lc
+
+                supports_gpu = bool(
+                    getattr(lc, "llama_supports_gpu_offload", lambda: False)()
+                )
+            except Exception:
+                supports_gpu = False
             yarn_note = ""
             if self.yarn_orig_ctx:
                 yarn_note = f", yarn_orig_ctx={self.yarn_orig_ctx}"
@@ -97,7 +120,13 @@ class GgufLlm:
                 kwargs["yarn_orig_ctx"] = self.yarn_orig_ctx
             if self.rope_freq_scale is not None:
                 kwargs["rope_freq_scale"] = self.rope_freq_scale
-            _ENGINE_CACHE[key] = Llama(**kwargs)
+            try:
+                _ENGINE_CACHE[key] = Llama(**kwargs)
+            except ValueError as exc:
+                hint = _load_error_hint(path, exc)
+                if hint:
+                    raise ValueError(f"{exc}\n{hint}") from exc
+                raise
         return _ENGINE_CACHE[key]
 
     def complete(

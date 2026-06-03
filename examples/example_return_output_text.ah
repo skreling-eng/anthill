@@ -1,0 +1,6 @@
+
+
+@return_txt: $prompts_to_texts
+Just return this text into the output texts
+
+run @return_txt

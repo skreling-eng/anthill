@@ -1,3 +1,43 @@
-$search — web search via DuckDuckGo (alias for $serch)
+$search — web search via DuckDuckGo (results as JSON in texts[])
 
-See externals/serch/_description for full syntax and options.
+  $search
+  $search(limit=10, lang='en', region='us')
+  $search(limit=5, fetch_pages=True, fetch_max=3)
+
+  Alias: $serch (same handler)
+
+  INPUT
+    prompts[] — search query (one result JSON per prompt)
+
+  OUTPUT
+    texts[] — JSON array of objects per query:
+      { "url": "...", "text": "title/snippet [+ page body when fetched]" }
+    Optional fields when fetch_pages is enabled:
+      "page_text" — cleaned plain text extracted from the page
+      "page_fetch" — "ok", "error: …", or "skipped: fetch_max"
+
+  ARGUMENTS
+    limit=           — max search hits (default 10, max 100)
+    lang=, region=   — DuckDuckGo locale (or AH_SEARCH_KL=us-en)
+    site=            — restrict to site:domain
+    timeout=         — search HTTP timeout seconds (default 60)
+    fetch_pages=     — 1/true/yes — download result pages and merge cleaned text
+    fetch_max=       — max pages to download (default 3, capped by limit)
+    fetch_timeout=   — per-page download timeout seconds (default 15)
+    fetch_max_chars= — max characters per page after cleaning (default 12000)
+
+  Page fetch removes scripts, nav/footer/aside, cookie banners, ads (heuristic),
+  then appends readable body to each result's "text" under "--- page ---".
+
+  ENVIRONMENT
+    AH_EMULATE_SEARCH=1 | AH_EMULATE_SERCH=1 — placeholder JSON, no network
+    AH_SEARCH_KL=us-en — override kl for HTML search
+
+  EXAMPLES
+    @news: $search(limit=5)
+    latest AI agent frameworks 2026
+
+    @deep: $search(limit=8, fetch_pages=True, fetch_max=4)
+    UK renewable energy policy 2026
+
+  Prompt-consuming: Yes.

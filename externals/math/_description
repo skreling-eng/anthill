@@ -1,0 +1,12 @@
+$math — math $llm (default Qwen3.6 UD-Q4_K_M)
+
+  $math
+  $math(model='qwen36')
+
+  Same args as $llm (max_tokens, temperature, system, gpu_layers, add_texts, [n]).
+  Defaults: model=default, temperature=0.2, math-focused system prompt.
+
+  Weights: models/math/Qwen3.6-35B-A3B-GGUF/model.gguf
+  Upstream: unsloth/Qwen3.6-35B-A3B-GGUF → Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
+  (Use non-MTP GGUF; *-MTP-GGUF needs newer llama.cpp than bundled llama-cpp-python.)
+  AH_EMULATE_MATH=1 | download_models.py --upstream-fallback

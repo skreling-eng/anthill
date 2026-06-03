@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from externals.api import ExternalContext, ExternalInput
-from externals.ah.run import run
+from externals.ah.run import _prefilter_ah_text, run
 from ahlib.ah_runtime import ArrayBundle, Session, create_session_dir
 
 
@@ -131,6 +131,36 @@ run @skip
         )
         out = run(ctx, inp)
         self.assertEqual(len(out.texts), 2)
+
+    def test_prefilter_unescapes_llm_style_text(self) -> None:
+        raw = (
+            '@answer: $llm\n'
+            '\\"\\"\\"\\nThe multiline simple text question with possible empty lines\n'
+            '\\"\\"\\"\\n\\nrun @answer\n'
+        )
+        filtered = _prefilter_ah_text(raw)
+        self.assertIn('"""\nThe multiline', filtered)
+        self.assertIn("\nrun @answer", filtered)
+        self.assertNotIn("\\n", filtered)
+
+    def test_runs_escaped_llm_style_script(self) -> None:
+        script = (
+            '@answer: $clear\n'
+            '\\"\\"\\"\\nThe multiline simple text question with possible empty lines\n'
+            '\\"\\"\\"\\n\\nrun @answer\n'
+        )
+        _, ctx = self._ctx()
+        link = ctx.new_link("texts", ".txt", script)
+        inp = ExternalInput(
+            bundle=ArrayBundle(texts=[link]),
+            args={},
+            prompt_text="",
+        )
+        out = run(ctx, inp)
+        self.assertEqual(out.prompts, [])
+        saved = (ctx.op_dir / "script.ah").read_text(encoding="utf-8")
+        self.assertIn("possible empty lines", saved)
+        self.assertIn("run @answer", saved)
 
     def test_strips_markdown_fence(self) -> None:
         _, ctx = self._ctx()

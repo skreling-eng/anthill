@@ -11,6 +11,7 @@ from typing import Union
 class RefAction:
     name: str
     repeat: int | None = None  # @name[n] — run n times and join results
+    repeat_infinite: bool = False  # @name[inf] — repeat until cancel; ≥2s between iterations
 
 
 @dataclass
@@ -55,6 +56,15 @@ class ContextAction:
     scope: str  # "session" or "instruction"
 
 
+@dataclass
+class CallbackAction:
+    """UI callback step: ^name — handled by runtime callback.ah_action()."""
+
+    name: str
+    args: dict[str, str]
+    repeat: int | None = None
+
+
 ActionExpr = Union[
     RefAction,
     ExternalAction,
@@ -63,10 +73,12 @@ ActionExpr = Union[
     ForAction,
     ZipAction,
     ContextAction,
+    CallbackAction,
 ]
 
-_REF_RE = re.compile(r"^@(\w+)(?:\[(\d+)\])?$")
+_REF_RE = re.compile(r"^@(\w+)(?:\[(inf|\d+)\])?$", re.IGNORECASE)
 _EXTERNAL_RE = re.compile(r"^\$(\w+)(?:\((.*)\))?(?:\[(\d+)\])?$")
+_CALLBACK_RE = re.compile(r"^\^(\w+)(?:\((.*)\))?(?:\[(\d+)\])?$")
 _CONTEXT_RE = re.compile(
     r"^(?P<prefix>%+)?(?P<name>\w+)(?P<suffix>%+)?$"
 )
@@ -247,7 +259,7 @@ def _tokenize_actions(source: str) -> list[str]:
                     tokens.append(tok.strip())
                     i = k
                     continue
-        if source[i] in "@$":
+        if source[i] in "@$^":
             j = i + 1
             depth = 0
             while j < len(source):
@@ -339,9 +351,26 @@ def _parse_expr(tokens: list[str], pos: int = 0) -> tuple[ActionExpr, int]:
         ctx = _parse_context_token(tok)
         if ctx is not None:
             node = ctx
+        elif (m_cb := _CALLBACK_RE.match(tok)):
+            args = _parse_args(m_cb.group(2) or "")
+            repeat = int(m_cb.group(3)) if m_cb.group(3) else None
+            node = CallbackAction(name=m_cb.group(1), args=args, repeat=repeat)
         elif (m_ref := _REF_RE.match(tok)):
-            repeat = int(m_ref.group(2)) if m_ref.group(2) else None
-            node = RefAction(name=m_ref.group(1), repeat=repeat)
+            suffix = m_ref.group(2)
+            if suffix is None:
+                repeat: int | None = None
+                repeat_infinite = False
+            elif suffix.lower() == "inf":
+                repeat = None
+                repeat_infinite = True
+            else:
+                repeat = int(suffix)
+                repeat_infinite = False
+            node = RefAction(
+                name=m_ref.group(1),
+                repeat=repeat,
+                repeat_infinite=repeat_infinite,
+            )
         else:
             m_ext = _EXTERNAL_RE.match(tok)
             if not m_ext:

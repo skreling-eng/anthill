@@ -28,9 +28,10 @@ _TAG_RE = re.compile(r"<[^>]+>")
 
 
 def _kl(lang: str, region: str) -> str:
-    raw = os.environ.get("AH_SERCH_KL", "").strip()
-    if raw:
-        return raw
+    for key in ("AH_SEARCH_KL", "AH_SERCH_KL"):
+        raw = os.environ.get(key, "").strip()
+        if raw:
+            return raw
     region = region.strip().lower()
     lang = lang.strip().lower()
     if region and "-" in region:

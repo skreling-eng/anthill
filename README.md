@@ -264,6 +264,8 @@ Handlers live in `externals/<name>/` with a `run.py` entry point.
 |----------|------|
 | `$file`, `$folder`, `$save`, `$output` | Load / write session files |
 | `$llm` | Local LLM (llama.cpp) |
+| `$add_gguf_llm_model` | Fetch user GGUF into `models/llm_user/` for `$llm` |
+| `$math` | Math-focused LLM (`$llm` + Qwen3.6 UD-Q4_K_M default) |
 | `$texts_to_prompts`, `$prompts_to_texts` | Prompt ↔ text conversion |
 | `$image` | FLUX / LoRA text-to-image (diffusers) |
 | `$image2image` | Qwen-Rapid-AIO prompt-guided edit ([`comfy_lib/`](comfy_lib/), in-process — no Comfy server) |
@@ -275,6 +277,7 @@ Handlers live in `externals/<name>/` with a `run.py` entry point.
 | `$image_clip`, `$video_clip`, `$clip` | Slideshow / mux video |
 | `$sound2text` | Whisper transcription |
 | `$draw_text` | Text overlay on images |
+| `$video_thumbnailer` | Contact-sheet JPEG preview per video |
 | `$only`, `$select`, `$clear`, `$check_image` | Bundle utilities |
 | `$list`, `$first_image`, `$input_json` | Lists and replay helpers |
 

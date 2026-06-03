@@ -1,0 +1,43 @@
+
+@clear_answer:
+Return only the final result without comments, clarifications, or explanations.
+
+
+@ah_code: {
+    #$file('_lang_desc', source_path=True)
+    #-> $folder('examples', source_path=True)
+    $file('AH_CODEGEN_INSTRUCTIONS.md')
+    -> $code -> ^show_code -> $ah
+}
+"""
+__ASK__
+Create a script in Anthill that answers the user question or fulfills their request.
+
+First analyze the user message (see AH_CODEGEN_INSTRUCTIONS.md section 8.1):
+- If the answer needs current or verified facts from the web (news, prices, "latest", named real-world entities, lookup, research): use $search with a short focused query in the search step body, then @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True). For deeper answers add fetch_pages=True and fetch_max=3 on $search so page bodies are downloaded and cleaned into the JSON. In the $llm body put the user's question and instruct the model to read __CONTENT__ (search results, including page_text) and answer from those results.
+- If not (greetings, creative, timeless knowledge, codegen, rewriting user text): use $llm only (example_llm.ah): @answer: $llm, plain body lines with the user's exact words, then the return-only line, then run @answer.
+
+If you don't understand how to solve the task, return that in texts via example_return_output_text.ah pattern.
+
+__CONTEXT___
+In the field 'files', you have AH_CODEGEN_INSTRUCTIONS.md with language rules and examples.
+
+__CONSTRAINTS__
+- Don't use $ah for the top level tasks. Only if you need it for subtasks.
+- Try to use the most straight forward script.
+- Return only the text of the script.
+- The script is plain .ah source, NOT JSON: never write \n or \" or \"\"\" with backslashes; use real line breaks.
+- Put the user's exact words on a body line after @answer: $llm (e.g. user said hi -> body line hi). For search pipelines, put a focused web query on the $search step body and the user's question on the $llm step body. Never use placeholders.
+- For short chat messages, do not use triple-quoted blocks; use plain body lines.
+- Don't return any intro out outro for your answer.
+- Don't use any infinite repeats 
+- Return only the final result without comments, clarifications, or explanations.
+"""
+
+@chat: ^user_input -> ^store_message -> @ah_code -> ^answer
+
+@start_chat: @clear_answer -> $llm -> ^answer -> @chat[inf]
+Create a text where the chat bot say hello to the user.
+Don't return any tags.
+
+run @start_chat

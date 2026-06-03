@@ -70,6 +70,7 @@ Call another instruction. Optional repeat suffix:
 
 ```ah
 @image[20]    @name runs 20 times; results are joined
+@chat[inf]    @name repeats until the run is stopped (Stop / cancel); at most one iteration every 2 seconds; output is the last completed iteration (not a join of all rounds)
 ```
 
 ### 3.2 External calls — `$name(...)`
@@ -255,6 +256,8 @@ Registered handlers (see `externals/__init__.py`). Per-external detail: `externa
 | `$image2text` | Qwen2-VL vision-language |
 | `$comfy` | ComfyUI **server** HTTP API (workflow JSON on a running Comfy instance) |
 | `$llm` | LLM text generation |
+| `$add_gguf_llm_model` | Download GGUF to `models/llm_user/<name>/` for `$llm(model=…)` (pass-through) |
+| `$math` | Math-focused `$llm` (default [Qwen3.6 UD-Q4_K_M](https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF)) |
 | `$code` | Local coding LLM (generates text, often .ah scripts) |
 | `$ah` | Execute .ah source from texts[] (nested run; same session + callback) |
 | `$texts_to_prompts`, `$prompts_to_texts` | Convert between texts and prompts |
@@ -262,6 +265,7 @@ Registered handlers (see `externals/__init__.py`). Per-external detail: `externa
 | `$image_clip`, `$video_clip`, `$clip` | Video from images/sounds or joined videos + sound |
 | `$sound2text` | Speech-to-text (optional JSON word timestamps) |
 | `$draw_text` | Overlay multiline text on `images[]` (Pillow) |
+| `$video_thumbnailer` | Contact-sheet JPEG preview per `videos[]` entry |
 | `$only` | Keep only listed arrays, e.g. `$only(images, prompts)` |
 | `$select` | Pick elements by index, e.g. `$select(sounds=[1], texts=[0])` |
 | `$check_image` | Image validation (may emit `del` changes) |
@@ -305,6 +309,8 @@ Each `$` call gets an op folder with `input.json`, `invoke.json`, and `output.js
 | `AH_EMULATE_IMAGE2IMAGE=1`, `AH_EMULATE_IMAGE2VIDEO=1` | Placeholder outputs, no GPU |
 | `AH_EXTERNAL_INPROCESS=all` or per-name list | Skip subprocess; run in orchestrator |
 | `AH_EXTERNAL_SUBPROCESS=0` | Same as in-process |
+| (default) | `file`, `folder`, `clear`, `pass`, `list`, … — cheap externals in-process |
+| `AH_EXTERNAL_SUBPROCESS=file,…` | Force subprocess for named externals |
 | `AH_IMAGE2IMAGE_WORKER=0`, `AH_IMAGE2VIDEO_WORKER=0` | One-shot subprocess per op (no warm worker) |
 | `AH_RELEASE_GPU_ON_RUN_END=0` | Keep warm workers alive after run |
 

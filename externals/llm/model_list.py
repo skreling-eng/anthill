@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from externals.llm.gguf_llm import GgufLlm
 from externals.llm.model_paths import _GEMMA_DEFAULT_DIR
+from externals.llm.user_models import user_llm_profile
 
 _GEMMA_GGUF = f"{_GEMMA_DEFAULT_DIR}/model.gguf"
 
@@ -39,11 +40,15 @@ def get_llm(
 ) -> GgufLlm:
     if name in llms:
         llm = llms[name]
-    elif name.endswith(".gguf") or "/" in name or "\\" in name:
-        llm = GgufLlm(name, name, chat_format="gemma")
     else:
-        available = ", ".join(sorted(llms))
-        raise KeyError(f"Unknown LLM model {name!r}. Available: {available}")
+        user = user_llm_profile(name)
+        if user is not None:
+            llm = user
+        elif name.endswith(".gguf") or "/" in name or "\\" in name:
+            llm = GgufLlm(name, name, chat_format="gemma")
+        else:
+            available = ", ".join(sorted(llms))
+            raise KeyError(f"Unknown LLM model {name!r}. Available: {available}")
 
     overrides: dict = {}
     if n_gpu_layers is not None:

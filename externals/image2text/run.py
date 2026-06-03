@@ -37,7 +37,20 @@ def _cuda_available() -> bool:
         return False
 
 
+def _resolve_force_gpu(inp: ExternalInput) -> bool:
+    """Require the full model on GPU (no CPU offload); fail if VRAM is insufficient."""
+    raw = inp.args.get("force_gpu", "").strip()
+    if raw:
+        return _truthy(raw)
+    env = os.environ.get("AH_IMAGE2TEXT_FORCE_GPU", "").strip()
+    if env:
+        return _truthy(env)
+    return False
+
+
 def _resolve_use_gpu(inp: ExternalInput) -> bool:
+    if _resolve_force_gpu(inp):
+        return True
     raw = inp.args.get("gpu", "").strip()
     if raw:
         return _truthy(raw)
@@ -113,6 +126,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
 
     prompts = _prompts_for_images(ctx, inp, len(images))
     max_tokens = _int_arg(inp.args, "max_tokens", 512)
+    force_gpu = _resolve_force_gpu(inp)
     use_gpu = _resolve_use_gpu(inp)
     model_name = read_arg_list(inp, "model", "qwen2")[0]
     profile = _resolve_model(inp, model_name)
@@ -133,7 +147,9 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
         raise RuntimeError(_help()) from exc
 
     model_dir = ensure_model(profile)
-    model, processor = load_model(profile, model_dir, use_gpu=use_gpu)
+    model, processor = load_model(
+        profile, model_dir, use_gpu=use_gpu, force_gpu=force_gpu
+    )
 
     for image_path, prompt in zip(images, prompts):
         if ctx.cancel_event is not None and ctx.cancel_event.is_set():

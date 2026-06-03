@@ -1,0 +1,7 @@
+
+
+@data: $folder('test_data\clip')
+
+@thumbnails: @data -> $video_thumbnailer
+
+run @thumbnails

@@ -99,6 +99,21 @@ class CodeRequestTests(unittest.TestCase):
         self.assertTrue(trimmed.get("_truncated"))
         self.assertTrue(any("duplicate" in n for n in notes))
 
+    def test_emulate_run_does_not_passthrough_input_texts(self) -> None:
+        os.environ["AH_EMULATE_CODE"] = "1"
+        try:
+            ctx, inp = self._ctx_and_inp(
+                prompts=["task"],
+                texts=["old context", "more context"],
+            )
+            input_links = list(inp.bundle.texts)
+            out = run(ctx, inp)
+            self.assertEqual(len(out.texts), 1)
+            for link in input_links:
+                self.assertNotIn(link, out.texts)
+        finally:
+            os.environ.pop("AH_EMULATE_CODE", None)
+
     def test_emulate_run_writes_texts(self) -> None:
         os.environ["AH_EMULATE_CODE"] = "1"
         try:

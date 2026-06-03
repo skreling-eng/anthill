@@ -93,6 +93,20 @@ class TestExternalRepeatSuffix(unittest.TestCase):
         self.assertEqual(expr.name, "image")
         self.assertEqual(expr.repeat, 3)
 
+    def test_ref_infinite_repeat_suffix(self) -> None:
+        tokens = _tokenize_actions("@chat[inf]")
+        self.assertEqual(tokens, ["@chat[inf]"])
+        expr = parse_actions("@chat[inf]")
+        self.assertIsInstance(expr, RefAction)
+        self.assertEqual(expr.name, "chat")
+        self.assertIsNone(expr.repeat)
+        self.assertTrue(expr.repeat_infinite)
+
+    def test_ref_infinite_repeat_case_insensitive(self) -> None:
+        expr = parse_actions("@loop[INF]")
+        self.assertIsInstance(expr, RefAction)
+        self.assertTrue(expr.repeat_infinite)
+
     def test_collapses_line_break_arrow_duplicates(self) -> None:
         tokens = _tokenize_actions("%stems ->\n-> $select(sounds=[0])")
         self.assertEqual(tokens, ["%stems", "->", "$select(sounds=[0])"])

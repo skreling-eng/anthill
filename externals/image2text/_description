@@ -22,6 +22,9 @@ ARGUMENTS
   prompt=     — same prompt for every image (overrides prompts[])
   max_tokens= — generation limit (default 512)
   gpu=        — use CUDA (default: on when torch sees a GPU; gpu=False for CPU)
+  force_gpu=1 — load entire model on GPU (device_map to cuda:0); no CPU offload.
+                Fails with OOM or an error if VRAM is too small. Use to test fit for qwen3.
+                Default (force_gpu=0): device_map=auto may offload layers to CPU (slower).
 
 MODELS
   Default: models/qwen-vl/Qwen2-VL-2B-Instruct/ (~4 GB)
@@ -33,14 +36,15 @@ DEPENDENCIES
   Or: uv sync --extra media
 
 ENVIRONMENT
-  AH_EMULATE_IMAGE2TEXT=1 — placeholder text, no model load.
-  AH_IMAGE2TEXT_GPU=0       — force CPU even when CUDA is available.
+  AH_EMULATE_IMAGE2TEXT=1   — placeholder text, no model load.
+  AH_IMAGE2TEXT_GPU=0         — force CPU even when CUDA is available.
+  AH_IMAGE2TEXT_FORCE_GPU=1   — same as force_gpu=1
 
 EXAMPLE
   @photo: $file('garden.jpg') -> $image2text
   What species of bird is in this photo?
 
-  @detail: $file('scene.jpg') -> $image2text(model='qwen3')
+  @detail: $file('scene.jpg') -> $image2text(model='qwen3', force_gpu=1)
   List every object and its approximate position.
 
 PROMPT-CONSUMING

@@ -233,6 +233,10 @@ def _run_upstream_fallback(*, dry_run: bool, profile: str) -> None:
         from externals.code.model_paths import ensure_model
 
         ensure_model()
+    if "math_qwen36" in missing:
+        from externals.math.model_paths import ensure_model
+
+        ensure_model()
     if any(g.startswith("ocr_") for g in missing):
         from externals.ocr.model_paths import ensure_all_core_packs
 

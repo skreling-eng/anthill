@@ -1,0 +1,11 @@
+
+
+@setup: $add_gguf_llm_model(
+  name='new_qwen_model',
+  gguf='unsloth/Qwen3.6-35B-A3B-GGUF::Qwen3.6-35B-A3B-UD-Q4_K_M.gguf'
+)
+
+@solve: @setup -> $llm(model='new_qwen_model', force_gpu=1)
+Calculate log(16) / log(2)
+
+run @solve

@@ -36,10 +36,10 @@ def _source_path_from_args(args: dict[str, str]) -> bool:
 
 def _resolve_source_path(ctx: ExternalContext, ref: str) -> Path:
     raw = Path(ref)
-    candidates: list[Path] = []
+    direct: list[Path] = []
     if raw.is_absolute():
-        candidates.append(raw)
-    candidates.extend(
+        direct.append(raw)
+    direct.extend(
         [
             Path.cwd() / raw,
             _REPO_ROOT / raw,
@@ -47,21 +47,16 @@ def _resolve_source_path(ctx: ExternalContext, ref: str) -> Path:
             ctx.base_dir.parent / raw,
         ]
     )
-    if raw.name == ref.replace("\\", "/"):
-        sessions = _REPO_ROOT / "sessions"
-        if sessions.is_dir():
-            for path in sorted(sessions.rglob(raw.name)):
-                candidates.append(path)
-
     seen: set[Path] = set()
-    for path in candidates:
+    for path in direct:
         key = path.resolve()
         if key in seen:
             continue
         seen.add(key)
         if path.is_file():
             return path.resolve()
-    tried = ", ".join(str(p) for p in candidates[:6])
+
+    tried = ", ".join(str(p) for p in direct[:6])
     raise FileNotFoundError(f"$file: not found: {ref!r} (tried {tried})")
 
 

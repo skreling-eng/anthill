@@ -2,6 +2,7 @@
 
 from ahlib.ah_actions import (
     ActionExpr,
+    CallbackAction,
     ExternalAction,
     ForAction,
     ParallelAction,
@@ -36,6 +37,7 @@ __all__ = [
     "ArrayBundle",
     "bundle_compact_dict",
     "bundle_compact_str",
+    "CallbackAction",
     "ExternalAction",
     "ForAction",
     "Instruction",

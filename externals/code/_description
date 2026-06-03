@@ -15,7 +15,8 @@ INPUT
   files[]   — source files as JSON "files" entries ({path, name, content}).
 
 OUTPUT
-  texts[] — one .txt link per completion variant.
+  texts[] — one .txt link per completion variant (input texts[] are consumed,
+            not passed through).
   request.json — the JSON request written under the op dir (inspectable).
 
 REQUEST JSON
