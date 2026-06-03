@@ -1,0 +1,6 @@
+
+
+@solve: $math
+Calculate log(16) / log(2)
+
+run @solve
