@@ -1,0 +1,9 @@
+# Request: I'd like a visual of a lighthouse during a storm. (variant 2753)
+
+@prompts: $llm -> $texts_to_prompts
+a lighthouse during a storm, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

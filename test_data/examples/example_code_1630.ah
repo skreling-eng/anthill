@@ -1,0 +1,7 @@
+# Request: Write a JavaScript snippet to find anagrams in a word list.
+
+@answer: $code
+Write a JavaScript snippet to find anagrams in a word list.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

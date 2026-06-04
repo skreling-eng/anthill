@@ -1,0 +1,9 @@
+# Request: I'd like a visual of underwater coral reef turtles.
+
+@prompts: $llm -> $texts_to_prompts
+underwater coral reef turtles, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

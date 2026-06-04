@@ -1,0 +1,9 @@
+# Request: Generate an image of a robot assembling flowers. (variant 2570)
+
+@prompts: $llm -> $texts_to_prompts
+a robot assembling flowers, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

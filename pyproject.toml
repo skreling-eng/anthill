@@ -82,6 +82,18 @@ image2video-fast = [
     "pillow>=10.0.0",
 ]
 draw_text = ["Pillow>=10.0.0"]
+finetune = [
+    "torch>=2.1",
+    "transformers>=4.57.0",
+    "accelerate>=1.0.0",
+    "peft>=0.13.0",
+    "bitsandbytes>=0.43.0",
+    "datasets>=3.0.0",
+    "trl>=0.12.0",
+    "safetensors>=0.4.0",
+    "sentencepiece>=0.2.0",
+    "gguf>=0.10.0",
+]
 video_thumbnailer = [
     "av>=12.0.0",
     "pymediainfo>=6.0.0",

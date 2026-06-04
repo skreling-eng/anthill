@@ -1,0 +1,7 @@
+# Request: List 7 interesting facts about Roman history.
+
+@answer: $llm
+List 7 interesting facts about Roman history.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

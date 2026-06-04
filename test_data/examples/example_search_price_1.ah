@@ -1,0 +1,11 @@
+# Request: What is the current price of Bitcoin in USD?
+
+@search_step: $search(limit=6, fetch_pages=True, fetch_max=3)
+Bitcoin price USD today
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is the current price of Bitcoin in USD?
+Use __CONTENT__; include approximate value and source date if visible.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

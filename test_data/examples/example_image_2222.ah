@@ -1,0 +1,9 @@
+# Request: Produce artwork depicting a rain-soaked ukulele busker.
+
+@prompts: $llm -> $texts_to_prompts
+a rain-soaked ukulele busker, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

@@ -1,0 +1,9 @@
+# Request: Generate an image of a bicycle race.
+
+@prompts: $llm -> $texts_to_prompts
+a bicycle race, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

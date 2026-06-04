@@ -1,0 +1,10 @@
+# Request: What is nutrition?
+
+@search_step: $search(limit=5)
+nutrition definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is nutrition?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

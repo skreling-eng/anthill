@@ -1,0 +1,7 @@
+# Request: Give a two-sentence horror story about data visualization.
+
+@answer: $llm
+Give a two-sentence horror story about data visualization.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

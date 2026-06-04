@@ -1,0 +1,9 @@
+# Request: Could this work as a product photo? Why or why not?
+
+@load: $file('test_data/same_person/1/0.png')
+
+@describe: @load -> $image2text(model='default')
+Is this image suitable as a product photo? Explain briefly.
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

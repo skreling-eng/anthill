@@ -1,0 +1,9 @@
+# Request: Generate an image of penguins on ice.
+
+@prompts: $llm -> $texts_to_prompts
+penguins on ice, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

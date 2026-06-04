@@ -1,0 +1,9 @@
+# Request: Run $image2image to achieve a kelp forest sea otter. (variant 5386)
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Make the image evoke a kelp forest sea otter. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

@@ -1,0 +1,9 @@
+# Request: What image quality issues do you see?
+
+@load: $file('test_data/images/20260524_051310_crazy_desire_image_10.png')
+
+@describe: @load -> $image2text(model='default')
+Note any quality issues: blur, noise, cropping, or artifacts.
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

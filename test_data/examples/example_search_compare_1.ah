@@ -1,0 +1,10 @@
+# Request: Which is lighter: iPhone 16 or Samsung Galaxy S25? Use the web.
+
+@search_step: $search(limit=6, fetch_pages=True, fetch_max=3)
+iPhone 16 weight vs Samsung Galaxy S25 weight
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+Which is lighter: iPhone 16 or Samsung Galaxy S25? Use facts from __CONTENT__.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

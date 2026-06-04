@@ -1,0 +1,9 @@
+# Request: Generate spoken audio describing a carnival ferris wheel at dusk.
+
+@text: $llm
+Write a two-sentence narration about a carnival ferris wheel at dusk.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=am_adam)
+
+run @say

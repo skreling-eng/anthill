@@ -1,0 +1,9 @@
+# Request: Apply a a moonlit owl in pine forest look to the input photo. (variant 5370)
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Make the image evoke a moonlit owl in pine forest. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

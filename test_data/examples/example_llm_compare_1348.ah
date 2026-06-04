@@ -1,0 +1,7 @@
+# Request: Compare Git workflows and SQL joins in a short table.
+
+@answer: $llm
+Compare Git workflows and SQL joins in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

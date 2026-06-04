@@ -1,0 +1,9 @@
+# Request: Run $image2image to achieve a rainy window café scene.
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Make the image evoke a rainy window café scene. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

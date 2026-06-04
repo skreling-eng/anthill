@@ -1,0 +1,7 @@
+# Request: Write a limerick about Docker.
+
+@answer: $llm
+Write a limerick about Docker.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

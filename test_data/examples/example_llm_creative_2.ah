@@ -1,0 +1,7 @@
+# Request: Give me a one-paragraph science fiction story idea involving time loops.
+
+@answer: $llm
+Give me a one-paragraph science fiction story idea involving time loops.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

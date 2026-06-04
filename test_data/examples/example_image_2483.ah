@@ -1,0 +1,9 @@
+# Request: I'd like a visual of a pastry chef piping macarons. (variant 2483)
+
+@prompts: $llm -> $texts_to_prompts
+a pastry chef piping macarons, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

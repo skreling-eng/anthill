@@ -1,0 +1,13 @@
+# Request: Make a cinematic video of a vintage cinema marquee. (variant 248)
+
+@prompts: $llm -> $texts_to_prompts
+Still frame of a vintage cinema marquee, photorealistic, sharp detail.
+Return only the prompt, under 50 words.
+
+@image: @prompts -> $image(model='default')
+
+@video: @image -> $image2video(model='default', width=768, height=512, frames=49, steps=4, guidance=1)
+gentle camera pan, natural motion, cinematic light
+Return only the final result without comments, clarifications, or explanations.
+
+run @video

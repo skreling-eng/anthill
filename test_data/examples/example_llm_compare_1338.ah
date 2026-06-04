@@ -1,0 +1,7 @@
+# Request: Compare remote work and Docker in a short table.
+
+@answer: $llm
+Compare remote work and Docker in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

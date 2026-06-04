@@ -1,0 +1,10 @@
+# Request: What is bread baking?
+
+@search_step: $search(limit=5)
+bread baking definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is bread baking?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

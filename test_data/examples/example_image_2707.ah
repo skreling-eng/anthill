@@ -1,0 +1,9 @@
+# Request: Synthesize a cinematic still of a samurai in cherry blossom rain. (variant 2707)
+
+@prompts: $llm -> $texts_to_prompts
+a samurai in cherry blossom rain, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

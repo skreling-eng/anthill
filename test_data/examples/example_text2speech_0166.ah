@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining a ballerina in an empty theater.
+
+@text: $llm
+Write a two-sentence narration about a ballerina in an empty theater.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

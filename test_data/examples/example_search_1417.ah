@@ -1,0 +1,11 @@
+# Request: What should I know about CI/CD in 2026?
+
+@search_step: $search(limit=6, fetch_pages=True, fetch_max=3)
+CI/CD overview 2026
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What should I know about CI/CD in 2026?
+Use __CONTENT__ from search results.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

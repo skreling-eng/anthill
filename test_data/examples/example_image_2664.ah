@@ -1,0 +1,9 @@
+# Request: Build an Anthill pipeline to generate an image of a craftsman blowing glass. (variant 2664)
+
+@prompts: $llm -> $texts_to_prompts
+a craftsman blowing glass, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

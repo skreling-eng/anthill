@@ -1,0 +1,7 @@
+# Request: Solve: determinant of [[2,1],[4,3]]. Show main steps.
+
+@answer: $math
+Solve: determinant of [[2,1],[4,3]]. Show main steps.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

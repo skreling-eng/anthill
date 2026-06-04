@@ -1,0 +1,9 @@
+# Request: Sharpen edges while keeping skin smooth.
+
+@load: $file('test_data/same_person/2/3.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Sharpen edges while keeping skin smooth.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

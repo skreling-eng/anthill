@@ -1,0 +1,9 @@
+# Request: Describe colors and lighting in this image.
+
+@load: $file('test_data/images/20260524_051555_realitsic_fantasy_image_15.png')
+
+@describe: @load -> $image2text(model='default')
+Describe colors, lighting, and time of day if inferable.
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

@@ -1,0 +1,9 @@
+# Request: I'd like a visual of a sand mandala monastery. (variant 2263)
+
+@prompts: $llm -> $texts_to_prompts
+a sand mandala monastery, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

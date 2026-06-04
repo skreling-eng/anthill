@@ -1,0 +1,7 @@
+# Request: Solve: gcd(48, 18). Show main steps.
+
+@answer: $math
+Solve: gcd(48, 18). Show main steps.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

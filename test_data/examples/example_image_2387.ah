@@ -1,0 +1,9 @@
+# Request: Synthesize a cinematic still of children flying kites on a beach. (variant 2387)
+
+@prompts: $llm -> $texts_to_prompts
+children flying kites on a beach, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

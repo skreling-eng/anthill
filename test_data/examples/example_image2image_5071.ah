@@ -1,0 +1,9 @@
+# Request: Align colors for consistent product photography.
+
+@load: $file('test_data/text_images/20260530_020727_default_image_0.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Align colors for consistent product photography.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

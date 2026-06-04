@@ -1,0 +1,21 @@
+# Request: Generate an image clip about a fireworks display.
+
+@quality: $list
+High resolution, best quality, photorealistic, cinematic
+
+@clip_images: @quality -> $llm -> $texts_to_prompts -> $image(model='default')[12]
+Create prompts for still images about a fireworks display.
+Return only the final result without comments, clarifications, or explanations.
+
+@music_style: $list
+jazz
+
+@lyrics_text: $llm
+Write short song lyrics about a fireworks display.
+Return only the final result without comments, clarifications, or explanations.
+
+@track: (@music_style, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
+
+@gen_clip: (@clip_images, @track) -> $image_clip -> $output
+
+run @gen_clip

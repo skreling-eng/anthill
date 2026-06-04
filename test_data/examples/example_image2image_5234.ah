@@ -1,0 +1,9 @@
+# Request: Improve this picture for a copper mine open pit. (variant 5234)
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Make the image evoke a copper mine open pit. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

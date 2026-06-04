@@ -1,0 +1,9 @@
+# Request: Generate spoken audio describing a marching band in New Orleans.
+
+@text: $llm
+Write a two-sentence narration about a marching band in New Orleans.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=am_adam)
+
+run @say

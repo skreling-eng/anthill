@@ -88,6 +88,8 @@ _DEFAULT_UV_EXTRAS: dict[str, list[str]] = {
     "translate": ["media"],
     "audio_instruct": ["media"],
     "video_thumbnailer": ["video_thumbnailer"],
+    "model_ah_train_lora": ["finetune"],
+    "model_ah_merge_lora": ["finetune"],
 }
 
 # Cheap I/O / bundle ops — avoid uv-run subprocess spawn per call (override with
@@ -110,6 +112,9 @@ _DEFAULT_INPROCESS = frozenset(
         "prompts_to_texts",
         "prompts2texts",
         "json2texts",
+        "ah_code_examples",
+        "model_ah_create_jsonl",
+        "code",
     }
 )
 

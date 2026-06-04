@@ -1,0 +1,9 @@
+# Request: Build an Anthill pipeline to generate an image of a greenhouse full of orchids. (variant 2464)
+
+@prompts: $llm -> $texts_to_prompts
+a greenhouse full of orchids, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

@@ -1,0 +1,9 @@
+# Request: Apply summer warmth and sun flare mood.
+
+@load: $file('test_data/images/20260524_051849_aibeauty01_image_19.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Apply summer warmth and sun flare mood.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

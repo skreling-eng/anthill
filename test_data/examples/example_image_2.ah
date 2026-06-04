@@ -1,0 +1,9 @@
+# Request: Create a cozy coffee shop interior at night with warm lighting.
+
+@prompts: $llm -> $texts_to_prompts
+Cozy coffee shop interior at night, warm lamps, rain on windows, cinematic.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

@@ -1,0 +1,33 @@
+$ah_code_examples — load Anthill example scripts as grouped JSON
+
+SUMMARY
+  Scans a directory for example_<usecase>_<n>.ah files and returns one JSON document
+  in texts[], grouped by use case, capped at per_usecase examples each (max 20).
+
+SYNTAX
+  $ah_code_examples(folder='test_data/examples')
+  $ah_code_examples(folder='examples', per_usecase=10)
+
+INPUT
+  prompts, images, sounds, videos, files — unchanged (copied through)
+
+OUTPUT
+  texts[] — single link containing JSON:
+    folder, per_usecase, usecases{ <name>: [{ file, request, script }, ...] }
+
+ARGUMENTS
+  folder= or positional path — directory to scan (non-recursive).
+  per_usecase= — max examples per use case (default 20, hard cap 20).
+
+BEHAVIOR
+  Filenames must match example_<usecase>_<number>.ah.
+  Optional first-line hint: # Request: <user prompt text>
+  Sorted by numeric suffix within each use case.
+
+EXAMPLE
+  @refs: $ah_code_examples(folder='test_data/examples', per_usecase=20)
+  @gen: @refs -> $code
+  Write a script that …
+
+PROMPT-CONSUMING
+  No.

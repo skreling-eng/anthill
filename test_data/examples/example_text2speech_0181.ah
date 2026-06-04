@@ -1,0 +1,9 @@
+# Request: Generate spoken audio describing a rainy window café scene.
+
+@text: $llm
+Write a two-sentence narration about a rainy window café scene.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=am_adam)
+
+run @say

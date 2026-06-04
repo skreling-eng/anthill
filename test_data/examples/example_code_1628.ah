@@ -1,0 +1,7 @@
+# Request: Write a Bash one-liner to hash a string with SHA-256.
+
+@answer: $code
+Write a Bash one-liner to hash a string with SHA-256.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

@@ -1,0 +1,10 @@
+# Request: What is machine learning?
+
+@search_step: $search(limit=5)
+machine learning definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is machine learning?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

@@ -1,0 +1,7 @@
+# Request: Compare 3D printing and Arctic ice in a short table.
+
+@answer: $llm
+Compare 3D printing and Arctic ice in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

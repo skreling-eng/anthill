@@ -1,0 +1,11 @@
+# Request: What are the most popular UK garden birds right now?
+
+@search_step: $search(limit=6, fetch_pages=True, fetch_max=3)
+most popular UK garden birds 2026
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What are the most popular UK garden birds right now?
+Use __CONTENT__ (search results include page_text). List species with brief notes.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

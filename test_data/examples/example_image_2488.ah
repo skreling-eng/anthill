@@ -1,0 +1,9 @@
+# Request: I want a poster featuring a hummingbird at a feeder. (variant 2488)
+
+@prompts: $llm -> $texts_to_prompts
+a hummingbird at a feeder, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

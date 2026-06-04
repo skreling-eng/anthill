@@ -1,0 +1,12 @@
+# Request: Produce an audio track themed on a lighthouse during a storm. (variant 313)
+
+@music_style: $list
+blues
+
+@lyrics_text: $llm
+Write lyrics for a song about a lighthouse during a storm.
+Return only the final result without comments, clarifications, or explanations.
+
+@track: (@music_style, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
+
+run @track

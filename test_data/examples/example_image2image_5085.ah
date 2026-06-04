@@ -1,0 +1,9 @@
+# Request: Brighten underexposed areas without blowing highlights.
+
+@load: $file('test_data/images/20260524_051036_default_image_4.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Brighten underexposed areas without blowing highlights.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

@@ -1,0 +1,9 @@
+# Request: Enhance contrast for a crisp documentary look.
+
+@load: $file('test_data/same_person/1/0.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Enhance contrast for a crisp documentary look.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

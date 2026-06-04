@@ -1,0 +1,9 @@
+# Request: Read and list visible text in this image.
+
+@load: $file('test_data/images/20260524_051849_aibeauty01_image_21.png')
+
+@describe: @load -> $image2text(model='default')
+List any visible text verbatim, then summarize the image.
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

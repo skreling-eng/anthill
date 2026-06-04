@@ -9,8 +9,16 @@ import sys
 from pathlib import Path
 
 from externals.api import ExternalContext, ExternalInput
+from externals.code.script_fixup import fixup_generated_ah
 from externals.llm.context_limit import prompt_char_budget, trim_code_request
 from ahlib.ah_runtime import ArrayBundle
+
+_DEFAULT_CODE_SYSTEM = (
+    "You are an expert Anthill (.ah) coding assistant. Follow the JSON request. "
+    "Output only valid .ah source. Every script MUST end with exactly one line "
+    "run @instruction_name (e.g. run @answer) for the main entry instruction; "
+    "without it the runtime does nothing."
+)
 
 
 def _variant_count(inp: ExternalInput) -> int:
@@ -99,10 +107,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     max_tokens = int(inp.args.get("max_tokens", "2048"))
     temperature = float(inp.args.get("temperature", "0.2"))
     seed_base = int(inp.args.get("seed", "0"))
-    system = inp.args.get(
-        "system",
-        "You are an expert coding assistant. Follow the JSON request.",
-    )
+    system = inp.args.get("system", _DEFAULT_CODE_SYSTEM)
 
     if os.environ.get("AH_EMULATE_CODE", "").lower() in ("1", "true", "yes"):
         request_json = build_request_json(ctx, inp)
@@ -114,15 +119,38 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
         from externals.llm.context_limit import estimate_tokens
 
         raw_request = build_request(ctx, inp)
-        sizing_json = json.dumps(raw_request, ensure_ascii=False)
         n_ctx_raw = inp.args.get("n_ctx", "").strip()
         explicit_ctx = int(n_ctx_raw) if n_ctx_raw else None
+
+        from externals.code.model_list import (
+            YARN_ORIG_CTX,
+            auto_max_code_n_ctx,
+            extended_code_ctx_enabled,
+        )
+
+        trim_notes: list[str] = []
+        sizing_request = raw_request
+        if explicit_ctx is None:
+            pre_cap = auto_max_code_n_ctx()
+            if not extended_code_ctx_enabled():
+                pre_cap = min(pre_cap, YARN_ORIG_CTX)
+            sizing_request, trim_notes = trim_code_request(
+                raw_request,
+                budget_chars=prompt_char_budget(pre_cap, max_tokens),
+            )
+
+        sizing_json = json.dumps(sizing_request, ensure_ascii=False)
         n_ctx = resolve_code_n_ctx(
             sizing_json, max_tokens, explicit=explicit_ctx
         )
-        request_json, trim_notes = _prepare_request(
-            ctx, inp, n_ctx=n_ctx, max_tokens=max_tokens, raw_request=raw_request
+        request_json, more_trim_notes = _prepare_request(
+            ctx,
+            inp,
+            n_ctx=n_ctx,
+            max_tokens=max_tokens,
+            raw_request=sizing_request if explicit_ctx is None else raw_request,
         )
+        trim_notes = trim_notes + more_trim_notes
         (ctx.op_dir / "request.json").write_text(request_json + "\n", encoding="utf-8")
         est_prompt = estimate_tokens(request_json)
         print(
@@ -153,6 +181,9 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
                 temperature=temperature,
                 seed=seed,
             )
+            text, fix_notes = fixup_generated_ah(text)
+            for note in fix_notes:
+                print(f"$code: {note}", file=sys.stderr, flush=True)
             link = ctx.new_link("texts", ".txt", text + "\n")
             out.texts.append(link)
     except ImportError as exc:

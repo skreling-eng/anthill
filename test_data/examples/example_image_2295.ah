@@ -1,0 +1,9 @@
+# Request: Use $image to make a snow leopard on a ridge. (variant 2295)
+
+@prompts: $llm -> $texts_to_prompts
+a snow leopard on a ridge, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

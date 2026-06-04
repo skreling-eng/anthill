@@ -1,0 +1,9 @@
+# Request: Use $image to make a steam train crossing the Alps. (variant 2495)
+
+@prompts: $llm -> $texts_to_prompts
+a steam train crossing the Alps, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

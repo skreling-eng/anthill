@@ -1,0 +1,10 @@
+# Request: Store a fact in session context and read it back in the next step.
+
+@seed: $list
+alpha, beta
+
+@save: @seed -> %items
+
+@read: items% -> $only(texts)
+
+run @read

@@ -1,0 +1,9 @@
+# Request: Make the image look like golden-hour photography.
+
+@load: $file('test_data/same_person/2/0.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Make the image look like golden-hour photography.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

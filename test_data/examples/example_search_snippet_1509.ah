@@ -1,0 +1,10 @@
+# Request: What is meditation?
+
+@search_step: $search(limit=5)
+meditation definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is meditation?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

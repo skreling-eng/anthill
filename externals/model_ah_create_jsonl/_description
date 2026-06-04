@@ -1,0 +1,21 @@
+$model_ah_create_jsonl — build Anthill codegen fine-tune JSONL from .ah files
+
+SUMMARY
+  Reads .ah scripts from files[] and writes one JSONL file to files[].
+
+SYNTAX
+  @jsonl: @scripts -> $model_ah_create_jsonl
+
+INPUT
+  files[] — .ah source texts (e.g. from $folder). Each file should start with:
+    # Request: <user task text>
+  followed by the full .ah script ending with run @…
+
+OUTPUT
+  files[] — one .jsonl link (user = optional request_prefix + # Request text, assistant = script body)
+
+ARGUMENTS
+  request_prefix= — optional text prepended to each # Request line (newline added if missing)
+
+PROMPT-CONSUMING
+  No.

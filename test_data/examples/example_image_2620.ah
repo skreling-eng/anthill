@@ -1,0 +1,9 @@
+# Request: Generate an image of a moonlit owl in pine forest. (variant 2620)
+
+@prompts: $llm -> $texts_to_prompts
+a moonlit owl in pine forest, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

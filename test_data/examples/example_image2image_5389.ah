@@ -1,0 +1,9 @@
+# Request: Improve this picture for a neon arcade in the 1980s. (variant 5389)
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Make the image evoke a neon arcade in the 1980s. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

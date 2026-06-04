@@ -1,0 +1,7 @@
+# Request: Compare bird watching and remote work in a short table.
+
+@answer: $llm
+Compare bird watching and remote work in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

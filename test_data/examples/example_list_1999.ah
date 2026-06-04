@@ -1,0 +1,7 @@
+# Request: List 7 interesting facts about antibiotics.
+
+@answer: $llm
+List 7 interesting facts about antibiotics.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

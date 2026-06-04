@@ -27,7 +27,7 @@ REQUEST JSON
   }
 
 ARGUMENTS
-  model=        — GGUF profile (externals/code/model_list.py). Default: default
+  model=        — GGUF profile (externals/code/model_paths.py CODE_MODELS). Default: default
   max_tokens=   — generation limit (default 2048)
   temperature=  — sampling temperature (default 0.2)
   seed=         — RNG seed; offset per variant when repeat > 1
@@ -37,9 +37,14 @@ ARGUMENTS
   count=        — variants if [n] suffix not used
 
 CONTEXT
-  n_ctx is chosen automatically: smallest power-of-two that fits the JSON request,
-  max_tokens, and template reserve (e.g. ~35k prompt → n_ctx=65536). YaRN is enabled
-  only when n_ctx > 32768. Caps: AH_CODE_MAX_N_CTX (default 131072), min 4096.
+  n_ctx is chosen automatically from the trimmed JSON request (smallest power-of-two
+  that fits). Default auto cap: AH_CODE_AUTO_MAX_N_CTX=16384 (faster than 32k).
+  Set AH_CODE_AUTO_MAX_N_CTX=32768 for larger prompts; AH_CODE_EXTENDED_CTX=1 for
+  YaRN above 32k (slower; llama.cpp may warn n_ctx_seq > n_ctx_train).
+
+  $code runs in-process by default (model cached). Subprocess: AH_EXTERNAL_SUBPROCESS=code.
+
+  Caps: AH_CODE_MAX_N_CTX (131072), AH_CODE_MIN_N_CTX (4096).
 
   Large folders: request is trimmed if it still exceeds the chosen window.
   stderr logs the chosen n_ctx and any truncated/omitted files.
@@ -48,9 +53,13 @@ REPEAT SYNTAX
   $code[n] — n separate completions.
 
 MODEL
-  models/code/Qwen2.5-Coder-14B-Instruct/model.gguf
-  Download: uv run python tools/download_models.py --upstream-fallback
-  Or: from externals.code.model_paths import ensure_model; ensure_model()
+  model=default / 14b — models/code/Qwen2.5-Coder-14B-Instruct/model.gguf
+  model=1.5b — models/code/Qwen2.5-Coder-1.5B-Instruct/model.gguf (~1 GB Q4_K_M)
+  Download:
+    uv run python tools/download_code_model.py --model 1.5b
+    uv run python tools/download_models.py --upstream-fallback
+  HF instruct (QLoRA): uv run python tools/download_code_model.py --model 1.5b --hf-instruct
+    → models/code/Qwen2.5-Coder-1.5B-Instruct-HF/ from Qwen/Qwen2.5-Coder-1.5B-Instruct
 
 ENVIRONMENT
   AH_EMULATE_CODE=1 — placeholder text files, no model load.

@@ -1,0 +1,9 @@
+# Request: I want a poster featuring a carnival ferris wheel at dusk. (variant 2348)
+
+@prompts: $llm -> $texts_to_prompts
+a carnival ferris wheel at dusk, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

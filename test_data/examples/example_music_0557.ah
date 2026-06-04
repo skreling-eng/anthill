@@ -1,0 +1,12 @@
+# Request: Use $music to write a song about a bioluminescent bay kayak trip. (variant 557)
+
+@music_style: $list
+electronic dance
+
+@lyrics_text: $llm
+Write lyrics for a song about a bioluminescent bay kayak trip.
+Return only the final result without comments, clarifications, or explanations.
+
+@track: (@music_style, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
+
+run @track

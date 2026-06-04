@@ -1,0 +1,8 @@
+# Request: Make a video clip from test assets about a vintage typewriter on a desk.
+
+@get_clip: $file('test_data/clip/demo-poster.png')
+  -> $folder('test_data/clip', source_path=True)
+  -> $video_clip
+  -> $output
+
+run @get_clip

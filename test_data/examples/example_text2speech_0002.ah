@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining children flying kites on a beach.
+
+@text: $llm
+Write a two-sentence narration about children flying kites on a beach.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

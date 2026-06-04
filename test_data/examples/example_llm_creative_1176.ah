@@ -1,0 +1,7 @@
+# Request: Write a limerick about Japanese culture.
+
+@answer: $llm
+Write a limerick about Japanese culture.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

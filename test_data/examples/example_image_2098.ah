@@ -1,0 +1,9 @@
+# Request: I want a poster featuring a tea ceremony in Kyoto.
+
+@prompts: $llm -> $texts_to_prompts
+a tea ceremony in Kyoto, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

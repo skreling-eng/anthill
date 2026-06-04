@@ -1,0 +1,7 @@
+# Request: Write a limerick about unit testing.
+
+@answer: $llm
+Write a limerick about unit testing.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

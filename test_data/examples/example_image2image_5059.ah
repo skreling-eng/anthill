@@ -1,0 +1,9 @@
+# Request: Remove color cast and restore neutral tones.
+
+@load: $file('test_data/same_person/2/0.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Remove color cast and restore neutral tones.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

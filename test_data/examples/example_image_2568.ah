@@ -1,0 +1,9 @@
+# Request: I want a poster featuring a vintage typewriter on a desk. (variant 2568)
+
+@prompts: $llm -> $texts_to_prompts
+a vintage typewriter on a desk, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

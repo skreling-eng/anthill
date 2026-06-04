@@ -1,0 +1,7 @@
+# Request: Solve: probability of two heads in 3 coin flips. Show main steps.
+
+@answer: $math
+Solve: probability of two heads in 3 coin flips. Show main steps.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

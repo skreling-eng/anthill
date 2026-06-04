@@ -1,0 +1,7 @@
+# Request: Compare password managers and chess strategy in a short table.
+
+@answer: $llm
+Compare password managers and chess strategy in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

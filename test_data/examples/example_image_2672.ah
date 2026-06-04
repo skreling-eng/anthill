@@ -1,0 +1,9 @@
+# Request: Produce artwork depicting a blacksmith forging a sword. (variant 2672)
+
+@prompts: $llm -> $texts_to_prompts
+a blacksmith forging a sword, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

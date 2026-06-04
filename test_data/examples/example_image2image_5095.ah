@@ -1,0 +1,9 @@
+# Request: Add subtle film grain for a cinematic feel.
+
+@load: $file('test_data/images/20260524_051555_realitsic_fantasy_image_14.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Add subtle film grain for a cinematic feel.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

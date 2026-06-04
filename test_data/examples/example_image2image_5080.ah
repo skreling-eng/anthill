@@ -1,0 +1,9 @@
+# Request: Reduce background clutter.
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Reduce background clutter; keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

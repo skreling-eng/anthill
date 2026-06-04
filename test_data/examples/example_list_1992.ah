@@ -1,0 +1,7 @@
+# Request: List 7 interesting facts about Japanese culture.
+
+@answer: $llm
+List 7 interesting facts about Japanese culture.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

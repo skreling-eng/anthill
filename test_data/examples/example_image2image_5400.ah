@@ -1,0 +1,9 @@
+# Request: Apply a a red fox in snow look to the input photo. (variant 5400)
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Make the image evoke a red fox in snow. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

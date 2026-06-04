@@ -1,0 +1,9 @@
+# Request: Apply a a vintage motorcycle on Route 66 look to the input photo. (variant 5250)
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Make the image evoke a vintage motorcycle on Route 66. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

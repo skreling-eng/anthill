@@ -1,0 +1,9 @@
+# Request: Generate an image of a desert road trip.
+
+@prompts: $llm -> $texts_to_prompts
+a desert road trip, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

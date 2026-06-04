@@ -1,0 +1,9 @@
+# Request: Apply a a Martian rover panorama look to the input photo. (variant 5340)
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Make the image evoke a Martian rover panorama. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

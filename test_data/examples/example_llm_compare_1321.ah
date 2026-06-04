@@ -1,0 +1,7 @@
+# Request: Compare cryptocurrency and fermentation in a short table.
+
+@answer: $llm
+Compare cryptocurrency and fermentation in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

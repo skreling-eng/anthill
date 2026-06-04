@@ -1,0 +1,9 @@
+# Request: Make a voice narration of children flying kites on a beach.
+
+@text: $llm
+Write a two-sentence narration about children flying kites on a beach.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bm_george)
+
+run @say

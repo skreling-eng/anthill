@@ -1,0 +1,7 @@
+# Request: Write a haiku about Rust programming.
+
+@answer: $llm
+Write a haiku about Rust programming.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

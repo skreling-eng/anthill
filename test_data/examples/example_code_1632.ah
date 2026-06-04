@@ -1,0 +1,7 @@
+# Request: Write a Python function to deduplicate a list preserving order.
+
+@answer: $code
+Write a Python function to deduplicate a list preserving order.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

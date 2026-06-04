@@ -1,0 +1,7 @@
+# Request: Compare piano practice and startup funding in a short table.
+
+@answer: $llm
+Compare piano practice and startup funding in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

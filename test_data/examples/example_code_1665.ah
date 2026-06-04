@@ -1,0 +1,7 @@
+# Request: Write a Python function to read a CSV and print row count.
+
+@answer: $code
+Write a Python function to read a CSV and print row count.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

@@ -1,0 +1,9 @@
+# Request: Generate an image of hot air balloons.
+
+@prompts: $llm -> $texts_to_prompts
+hot air balloons, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

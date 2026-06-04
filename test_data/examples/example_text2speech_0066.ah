@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining a monk meditating by a waterfall.
+
+@text: $llm
+Write a two-sentence narration about a monk meditating by a waterfall.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

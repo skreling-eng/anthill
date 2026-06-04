@@ -1,0 +1,9 @@
+# Request: What is in focus versus background in this image?
+
+@load: $file('test_data/images/20260524_051849_aibeauty01_image_18.png')
+
+@describe: @load -> $image2text(model='default')
+Compare foreground and background; what is in focus?
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

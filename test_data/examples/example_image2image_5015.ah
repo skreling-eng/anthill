@@ -1,0 +1,9 @@
+# Request: Reduce background clutter.
+
+@load: $file('test_data/text_images/20260530_021445_default_image_0.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Reduce background clutter; keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining a glassblower making a vase.
+
+@text: $llm
+Write a two-sentence narration about a glassblower making a vase.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

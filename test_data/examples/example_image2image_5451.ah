@@ -1,0 +1,9 @@
+# Request: Run $image2image to achieve neon Tokyo alley at midnight. (variant 5451)
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Make the image evoke neon Tokyo alley at midnight. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

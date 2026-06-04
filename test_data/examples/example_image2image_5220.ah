@@ -1,0 +1,9 @@
+# Request: Apply a a prairie thunderhead look to the input photo.
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Make the image evoke a prairie thunderhead. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

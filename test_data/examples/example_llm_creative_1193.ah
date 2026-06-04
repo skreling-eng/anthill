@@ -1,0 +1,7 @@
+# Request: Describe yoga as if you were a tour guide.
+
+@answer: $llm
+Describe yoga as if you were a tour guide.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

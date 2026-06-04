@@ -1,0 +1,10 @@
+# Request: Add a title overlay on this image.
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@label: $list
+Demo Poster
+
+@titled: (@load, @label) -> zip(images, texts){ $draw_text(size=72) }
+
+run @titled

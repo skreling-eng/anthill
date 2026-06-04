@@ -1,0 +1,9 @@
+# Request: Generate spoken audio describing neon Tokyo alley at midnight.
+
+@text: $llm
+Write a two-sentence narration about neon Tokyo alley at midnight.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=am_adam)
+
+run @say

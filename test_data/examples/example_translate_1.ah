@@ -1,0 +1,9 @@
+# Request: Translate to Russian: The garden is quiet in the morning.
+
+@en: $llm
+The garden is quiet in the morning.
+Return only the English sentence.
+
+@ru: @en -> $translate(src='en', dst='ru')
+
+run @ru

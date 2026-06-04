@@ -1,0 +1,9 @@
+# Request: Improve this picture for a spacecraft orbiting Saturn.
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Make the image evoke a spacecraft orbiting Saturn. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

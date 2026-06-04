@@ -1,0 +1,9 @@
+# Request: Synthesize a cinematic still of a crystal geode cave. (variant 2277)
+
+@prompts: $llm -> $texts_to_prompts
+a crystal geode cave, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

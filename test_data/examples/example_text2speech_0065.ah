@@ -1,0 +1,9 @@
+# Request: Generate spoken audio describing a puppet maker's workshop.
+
+@text: $llm
+Write a two-sentence narration about a puppet maker's workshop.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=am_adam)
+
+run @say

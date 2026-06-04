@@ -1,0 +1,9 @@
+# Request: Make a voice narration of a glassblower making a vase.
+
+@text: $llm
+Write a two-sentence narration about a glassblower making a vase.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bm_george)
+
+run @say

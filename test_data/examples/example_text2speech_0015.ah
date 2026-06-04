@@ -1,0 +1,9 @@
+# Request: Make a voice narration of a snow leopard on a ridge.
+
+@text: $llm
+Write a two-sentence narration about a snow leopard on a ridge.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bm_george)
+
+run @say

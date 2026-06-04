@@ -1,0 +1,12 @@
+
+
+@scripts: $folder('test_data/examples')
+@jsonl: @scripts -> $model_ah_create_jsonl(
+    request_prefix='Write an Anthill (.ah) script for this request: '
+)
+
+@lora: @jsonl -> $model_ah_train_lora(model='1.5b', epochs=2)
+
+@gguf: @lora -> $model_ah_merge_lora(model='1.5b', quant='Q4_K_M')
+
+run @gguf

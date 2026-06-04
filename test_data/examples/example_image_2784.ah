@@ -1,0 +1,9 @@
+# Request: Build an Anthill pipeline to generate an image of a coral snake in jungle leaf litter. (variant 2784)
+
+@prompts: $llm -> $texts_to_prompts
+a coral snake in jungle leaf litter, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

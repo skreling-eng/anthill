@@ -1,0 +1,9 @@
+# Request: What open questions or action items are still unresolved in this chat?
+
+@history: ^get_messages
+
+@answer: @history -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+From __CONTENT__, list unresolved questions or action items. Bullet list; say none if clear.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

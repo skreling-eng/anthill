@@ -1,0 +1,7 @@
+# Request: Write a haiku about Roman history.
+
+@answer: $llm
+Write a haiku about Roman history.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

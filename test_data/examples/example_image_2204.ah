@@ -1,0 +1,9 @@
+# Request: Build an Anthill pipeline to generate an image of a marching band in New Orleans.
+
+@prompts: $llm -> $texts_to_prompts
+a marching band in New Orleans, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

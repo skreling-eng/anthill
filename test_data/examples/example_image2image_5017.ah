@@ -1,0 +1,9 @@
+# Request: Fix crooked horizon and mild perspective distortion..
+
+@load: $file('test_data/abnormal_images/20260530_025631_default_image_0.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Fix crooked horizon and mild perspective distortion.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

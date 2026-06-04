@@ -1,0 +1,9 @@
+# Request: I need an image showing a pack of wolves in winter. (variant 2301)
+
+@prompts: $llm -> $texts_to_prompts
+a pack of wolves in winter, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

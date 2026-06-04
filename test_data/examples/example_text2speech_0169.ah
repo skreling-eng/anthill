@@ -1,0 +1,9 @@
+# Request: Generate spoken audio describing a rooftop garden in Barcelona.
+
+@text: $llm
+Write a two-sentence narration about a rooftop garden in Barcelona.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=am_adam)
+
+run @say

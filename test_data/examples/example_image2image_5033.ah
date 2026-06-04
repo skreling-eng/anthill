@@ -1,0 +1,9 @@
+# Request: Enhance foliage greens naturally.
+
+@load: $file('test_data/images/20260524_051310_crazy_desire_image_7.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Enhance foliage greens naturally.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining wild horses at dawn.
+
+@text: $llm
+Write a two-sentence narration about wild horses at dawn.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

@@ -1,0 +1,9 @@
+# Request: Increase sharpness and clarity without changing composition.
+
+@load: $file('test_data/app/app_screenshot_1.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Increase sharpness and clarity without changing composition.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

@@ -232,7 +232,11 @@ def _run_upstream_fallback(*, dry_run: bool, profile: str) -> None:
     if "code_qwen" in missing:
         from externals.code.model_paths import ensure_model
 
-        ensure_model()
+        ensure_model(key="14b")
+    if "code_qwen_15b" in missing:
+        from externals.code.model_paths import ensure_model
+
+        ensure_model(key="1.5b")
     if "math_qwen36" in missing:
         from externals.math.model_paths import ensure_model
 

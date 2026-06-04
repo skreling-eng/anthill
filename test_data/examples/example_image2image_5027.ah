@@ -1,0 +1,9 @@
+# Request: Darken edges for a subtle vignette effect.
+
+@load: $file('test_data/images/20260524_051036_default_image_3.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Darken edges for a subtle vignette effect.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

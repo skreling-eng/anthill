@@ -1,0 +1,9 @@
+# Request: Make concept art of a cyberpunk hacker den. (variant 2609)
+
+@prompts: $llm -> $texts_to_prompts
+a cyberpunk hacker den, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

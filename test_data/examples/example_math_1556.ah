@@ -1,0 +1,7 @@
+# Request: Solve: sum of first n integers. Show main steps.
+
+@answer: $math
+Solve: sum of first n integers. Show main steps.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

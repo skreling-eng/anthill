@@ -1,0 +1,10 @@
+# Request: What is Roman history?
+
+@search_step: $search(limit=5)
+Roman history definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is Roman history?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

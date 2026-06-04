@@ -1,0 +1,7 @@
+# Request: A train travels 120 km in 1.5 hours. What is its average speed in km/h?
+
+@answer: $math
+A train travels 120 km in 1.5 hours. What is its average speed in km/h?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

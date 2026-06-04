@@ -1,0 +1,9 @@
+# Request: Make concept art of a marching band in New Orleans. (variant 2309)
+
+@prompts: $llm -> $texts_to_prompts
+a marching band in New Orleans, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining a farmer's market in Provence.
+
+@text: $llm
+Write a two-sentence narration about a farmer's market in Provence.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

@@ -1,0 +1,9 @@
+# Request: Run $image2image to achieve a volcanic lava tube explorer. (variant 5291)
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Make the image evoke a volcanic lava tube explorer. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

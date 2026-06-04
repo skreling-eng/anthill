@@ -1,0 +1,7 @@
+# Request: Explain CI/CD in simple terms for a beginner.
+
+@answer: $llm
+Explain CI/CD in simple terms for a beginner.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

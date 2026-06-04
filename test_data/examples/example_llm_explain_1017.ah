@@ -1,0 +1,7 @@
+# Request: Explain Redis caching in simple terms for a beginner.
+
+@answer: $llm
+Explain Redis caching in simple terms for a beginner.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

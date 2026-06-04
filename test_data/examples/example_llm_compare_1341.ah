@@ -1,0 +1,7 @@
+# Request: Compare product design and Git workflows in a short table.
+
+@answer: $llm
+Compare product design and Git workflows in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

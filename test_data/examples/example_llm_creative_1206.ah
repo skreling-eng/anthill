@@ -1,0 +1,7 @@
+# Request: Write a limerick about UX research.
+
+@answer: $llm
+Write a limerick about UX research.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

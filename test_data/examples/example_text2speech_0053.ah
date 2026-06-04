@@ -1,0 +1,9 @@
+# Request: Generate spoken audio describing a lighthouse during a storm.
+
+@text: $llm
+Write a two-sentence narration about a lighthouse during a storm.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=am_adam)
+
+run @say

@@ -1,0 +1,7 @@
+# Request: Write a short Bash script that backs up a folder to a dated zip file.
+
+@answer: $code
+Write a short Bash script that backs up a folder to a dated zip file.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

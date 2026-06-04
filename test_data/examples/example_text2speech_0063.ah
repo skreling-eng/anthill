@@ -1,0 +1,9 @@
+# Request: Make a voice narration of a whale breaching near icebergs.
+
+@text: $llm
+Write a two-sentence narration about a whale breaching near icebergs.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bm_george)
+
+run @say

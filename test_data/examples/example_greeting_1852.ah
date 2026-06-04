@@ -1,0 +1,7 @@
+# Request: hey there
+
+@answer: $llm
+hey there
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

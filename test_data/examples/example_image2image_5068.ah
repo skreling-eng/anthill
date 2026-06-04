@@ -1,0 +1,9 @@
+# Request: Enhance foliage greens naturally.
+
+@load: $file('test_data/same_person/2/8.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Enhance foliage greens naturally.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

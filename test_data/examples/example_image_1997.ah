@@ -1,0 +1,9 @@
+# Request: Generate an image of sailing boats at dawn.
+
+@prompts: $llm -> $texts_to_prompts
+sailing boats at dawn, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

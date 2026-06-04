@@ -1,0 +1,7 @@
+# Request: Write a Python function to retry an HTTP GET with timeout.
+
+@answer: $code
+Write a Python function to retry an HTTP GET with timeout.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

@@ -1,0 +1,9 @@
+# Request: Correct white balance for natural skin tones.
+
+@load: $file('test_data/images/20260524_051849_aibeauty01_image_20.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Correct white balance for natural skin tones.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

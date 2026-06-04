@@ -1,0 +1,9 @@
+# Request: Build an Anthill pipeline to generate an image of a copper mine open pit. (variant 2484)
+
+@prompts: $llm -> $texts_to_prompts
+a copper mine open pit, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

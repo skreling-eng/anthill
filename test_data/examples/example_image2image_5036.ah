@@ -1,0 +1,9 @@
+# Request: Align colors for consistent product photography.
+
+@load: $file('test_data/images/20260524_051555_realitsic_fantasy_image_12.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Align colors for consistent product photography.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

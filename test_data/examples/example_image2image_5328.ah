@@ -1,0 +1,9 @@
+# Request: Transform the loaded image toward a sand mandala monastery. (variant 5328)
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Make the image evoke a sand mandala monastery. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

@@ -1,0 +1,9 @@
+# Request: Add subtle vibrance.
+
+@load: $file('test_data/same_person/1/20260530_063818_default_image_0.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Add subtle vibrance; avoid oversaturation.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

@@ -1,0 +1,10 @@
+# Request: What is watercolor painting?
+
+@search_step: $search(limit=5)
+watercolor painting definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is watercolor painting?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

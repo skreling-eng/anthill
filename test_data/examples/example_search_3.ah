@@ -1,0 +1,11 @@
+# Request: Who is the current CEO of NVIDIA?
+
+@search_step: $search(limit=6, fetch_pages=True, fetch_max=3)
+NVIDIA CEO 2026
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+Who is the current CEO of NVIDIA?
+Answer from __CONTENT__; cite uncertainty if sources conflict.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

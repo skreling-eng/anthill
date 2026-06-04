@@ -1,0 +1,9 @@
+# Request: I need an image showing a jazz trio in a smoky bar. (variant 2651)
+
+@prompts: $llm -> $texts_to_prompts
+a jazz trio in a smoky bar, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

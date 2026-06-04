@@ -1,0 +1,9 @@
+# Request: Synthesize a cinematic still of a stone circle at solstice. (variant 2517)
+
+@prompts: $llm -> $texts_to_prompts
+a stone circle at solstice, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

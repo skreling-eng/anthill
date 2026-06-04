@@ -1,0 +1,9 @@
+# Request: Make concept art of a silk weaver in Kyoto.
+
+@prompts: $llm -> $texts_to_prompts
+a silk weaver in Kyoto, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

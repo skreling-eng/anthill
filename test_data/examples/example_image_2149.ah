@@ -1,0 +1,9 @@
+# Request: Make concept art of a greenhouse full of orchids.
+
+@prompts: $llm -> $texts_to_prompts
+a greenhouse full of orchids, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

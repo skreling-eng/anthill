@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining a deep cave spelunker headlamp.
+
+@text: $llm
+Write a two-sentence narration about a deep cave spelunker headlamp.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

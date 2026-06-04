@@ -1,0 +1,9 @@
+# Request: Remove a small watermark area if visible.
+
+@load: $file('test_data/same_person/2/20260530_062758_default_image_0.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Remove a small watermark area if visible; preserve content.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

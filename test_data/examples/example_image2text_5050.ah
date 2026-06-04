@@ -1,0 +1,9 @@
+# Request: Describe what you see in this image.
+
+@load: $file('test_data/same_person/1/4.png')
+
+@describe: @load -> $image2text(model='qwen3')
+Describe the scene, main subjects, and setting in 6-8 sentences.
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

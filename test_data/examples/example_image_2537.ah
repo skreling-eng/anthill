@@ -1,0 +1,9 @@
+# Request: Synthesize a cinematic still of a rain-soaked ukulele busker. (variant 2537)
+
+@prompts: $llm -> $texts_to_prompts
+a rain-soaked ukulele busker, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

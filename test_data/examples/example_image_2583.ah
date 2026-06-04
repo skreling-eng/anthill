@@ -1,0 +1,9 @@
+# Request: I'd like a visual of a vintage cinema marquee. (variant 2583)
+
+@prompts: $llm -> $texts_to_prompts
+a vintage cinema marquee, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

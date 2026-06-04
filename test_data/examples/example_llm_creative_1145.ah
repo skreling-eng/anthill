@@ -1,0 +1,7 @@
+# Request: Write a haiku about CI/CD.
+
+@answer: $llm
+Write a haiku about CI/CD.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

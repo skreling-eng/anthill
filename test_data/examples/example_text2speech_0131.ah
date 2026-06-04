@@ -1,0 +1,9 @@
+# Request: Make a voice narration of a surfer riding a barrel wave.
+
+@text: $llm
+Write a two-sentence narration about a surfer riding a barrel wave.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bm_george)
+
+run @say

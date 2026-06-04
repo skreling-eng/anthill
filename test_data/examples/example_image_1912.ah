@@ -1,0 +1,9 @@
+# Request: Generate an image of a lighthouse in fog at dawn.
+
+@prompts: $llm -> $texts_to_prompts
+a lighthouse in fog at dawn, photorealistic, high detail.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

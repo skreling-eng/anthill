@@ -1,0 +1,9 @@
+# Request: Write accessibility alt text for this image.
+
+@load: $file('test_data/same_person/1/20260530_063818_default_image_0.png')
+
+@describe: @load -> $image2text(model='default')
+Write alt text for web accessibility (one paragraph).
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

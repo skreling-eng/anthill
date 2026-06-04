@@ -1,0 +1,9 @@
+# Request: Synthesize a cinematic still of a bioluminescent bay kayak trip. (variant 2577)
+
+@prompts: $llm -> $texts_to_prompts
+a bioluminescent bay kayak trip, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

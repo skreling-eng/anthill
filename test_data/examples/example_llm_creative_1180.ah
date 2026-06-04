@@ -1,0 +1,7 @@
+# Request: Write a haiku about space exploration.
+
+@answer: $llm
+Write a haiku about space exploration.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

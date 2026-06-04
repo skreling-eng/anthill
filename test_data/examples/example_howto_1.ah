@@ -1,0 +1,7 @@
+# Request: How do I create a new git branch and push it to origin?
+
+@answer: $llm
+How do I create a new git branch and push it to origin?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

@@ -1,0 +1,9 @@
+# Request: Make concept art of a spacecraft orbiting Saturn. (variant 2339)
+
+@prompts: $llm -> $texts_to_prompts
+a spacecraft orbiting Saturn, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

@@ -1,0 +1,12 @@
+# Request: Compose a short track about a jazz trio in a smoky bar.
+
+@music_style: $list
+celtic
+
+@lyrics_text: $llm
+Write lyrics for a song about a jazz trio in a smoky bar.
+Return only the final result without comments, clarifications, or explanations.
+
+@track: (@music_style, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
+
+run @track

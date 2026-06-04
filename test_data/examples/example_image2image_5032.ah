@@ -1,0 +1,9 @@
+# Request: Fix overexposed highlights on the subject.
+
+@load: $file('test_data/images/20260524_051310_crazy_desire_image_6.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Fix overexposed highlights on the subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

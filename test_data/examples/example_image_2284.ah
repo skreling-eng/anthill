@@ -1,0 +1,9 @@
+# Request: Build an Anthill pipeline to generate an image of northern lights over a fjord. (variant 2284)
+
+@prompts: $llm -> $texts_to_prompts
+northern lights over a fjord, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

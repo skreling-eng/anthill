@@ -1,0 +1,9 @@
+# Request: Generate spoken audio describing a glacier calving into the sea.
+
+@text: $llm
+Write a two-sentence narration about a glacier calving into the sea.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=am_adam)
+
+run @say

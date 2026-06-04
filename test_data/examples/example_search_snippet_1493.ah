@@ -1,0 +1,10 @@
+# Request: What is Redis caching?
+
+@search_step: $search(limit=5)
+Redis caching definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is Redis caching?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

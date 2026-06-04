@@ -1,0 +1,9 @@
+# Request: Produce artwork depicting a watchmaker at a bench. (variant 2312)
+
+@prompts: $llm -> $texts_to_prompts
+a watchmaker at a bench, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

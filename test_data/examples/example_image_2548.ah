@@ -1,0 +1,9 @@
+# Request: I want a poster featuring wild horses at dawn. (variant 2548)
+
+@prompts: $llm -> $texts_to_prompts
+wild horses at dawn, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

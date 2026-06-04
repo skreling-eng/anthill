@@ -1,0 +1,9 @@
+# Request: Synthesize a cinematic still of a mountain rescue dog team. (variant 2527)
+
+@prompts: $llm -> $texts_to_prompts
+a mountain rescue dog team, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

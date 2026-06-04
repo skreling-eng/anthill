@@ -1,0 +1,7 @@
+# Request: Write a limerick about time management.
+
+@answer: $llm
+Write a limerick about time management.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

@@ -1,0 +1,9 @@
+# Request: Draw a kite surfer at golden hour with the image model. (variant 2276)
+
+@prompts: $llm -> $texts_to_prompts
+a kite surfer at golden hour, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

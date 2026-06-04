@@ -1,0 +1,9 @@
+# Request: Run $image2image to achieve a monk meditating by a waterfall. (variant 5411)
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Make the image evoke a monk meditating by a waterfall. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

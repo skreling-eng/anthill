@@ -1,0 +1,9 @@
+# Request: Remove sensor noise and grain while keeping detail.
+
+@load: $file('test_data/app/app_screenshot_2.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Remove sensor noise and grain while keeping detail.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

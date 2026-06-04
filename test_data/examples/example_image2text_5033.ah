@@ -1,0 +1,9 @@
+# Request: What mood does this image convey?
+
+@load: $file('test_data/images/20260524_051555_realitsic_fantasy_image_12.png')
+
+@describe: @load -> $image2text(model='default')
+What emotions or mood does this image convey?
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

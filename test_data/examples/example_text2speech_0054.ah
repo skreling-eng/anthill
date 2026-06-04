@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining a medieval blacksmith at work.
+
+@text: $llm
+Write a two-sentence narration about a medieval blacksmith at work.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

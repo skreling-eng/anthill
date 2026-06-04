@@ -1,0 +1,7 @@
+# Request: good morning
+
+@answer: $llm
+good morning
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

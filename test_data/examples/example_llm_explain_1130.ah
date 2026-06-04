@@ -1,0 +1,7 @@
+# Request: Explain watercolor painting in simple terms for a beginner.
+
+@answer: $llm
+Explain watercolor painting in simple terms for a beginner.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

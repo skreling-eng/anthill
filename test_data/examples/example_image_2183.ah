@@ -1,0 +1,9 @@
+# Request: I'd like a visual of a street food vendor in Bangkok.
+
+@prompts: $llm -> $texts_to_prompts
+a street food vendor in Bangkok, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

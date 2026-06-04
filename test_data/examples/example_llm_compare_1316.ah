@@ -1,0 +1,7 @@
+# Request: Compare space exploration and web accessibility in a short table.
+
+@answer: $llm
+Compare space exploration and web accessibility in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

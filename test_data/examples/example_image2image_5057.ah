@@ -1,0 +1,9 @@
+# Request: Make the background softer and more bokeh-like.
+
+@load: $file('test_data/same_person/1/8.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Make the background softer and more bokeh-like.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

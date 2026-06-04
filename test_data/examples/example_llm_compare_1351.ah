@@ -1,0 +1,7 @@
+# Request: Compare TypeScript and message queues in a short table.
+
+@answer: $llm
+Compare TypeScript and message queues in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

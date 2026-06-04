@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining a vintage motorcycle on Route 66.
+
+@text: $llm
+Write a two-sentence narration about a vintage motorcycle on Route 66.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

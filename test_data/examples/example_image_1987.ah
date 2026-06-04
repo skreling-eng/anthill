@@ -1,0 +1,9 @@
+# Request: Generate an image of northern lights over a lake.
+
+@prompts: $llm -> $texts_to_prompts
+northern lights over a lake, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

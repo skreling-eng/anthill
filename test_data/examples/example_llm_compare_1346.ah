@@ -1,0 +1,7 @@
+# Request: Compare Kubernetes and data visualization in a short table.
+
+@answer: $llm
+Compare Kubernetes and data visualization in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

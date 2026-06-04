@@ -1,0 +1,7 @@
+# Request: Compare open source and yoga in a short table.
+
+@answer: $llm
+Compare open source and yoga in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

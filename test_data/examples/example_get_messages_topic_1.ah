@@ -1,0 +1,9 @@
+# Request: What is the main topic of our conversation so far?
+
+@history: ^get_messages
+
+@answer: @history -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is the main topic of the conversation in __CONTENT__? One short paragraph.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

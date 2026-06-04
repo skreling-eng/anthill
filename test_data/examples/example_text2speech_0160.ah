@@ -1,0 +1,9 @@
+# Request: Convert text to speech about a red fox in snow.
+
+@text: $llm
+Write a two-sentence narration about a red fox in snow.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=af_bella)
+
+run @say

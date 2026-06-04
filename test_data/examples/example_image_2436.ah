@@ -1,0 +1,9 @@
+# Request: Draw a volcanic lava tube explorer with the image model. (variant 2436)
+
+@prompts: $llm -> $texts_to_prompts
+a volcanic lava tube explorer, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

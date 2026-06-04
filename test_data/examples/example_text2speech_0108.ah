@@ -1,0 +1,9 @@
+# Request: Convert text to speech about underwater coral reef turtles.
+
+@text: $llm
+Write a two-sentence narration about underwater coral reef turtles.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=af_bella)
+
+run @say

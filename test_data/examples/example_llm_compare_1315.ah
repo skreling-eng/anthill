@@ -1,0 +1,7 @@
+# Request: Compare ocean pollution and open source in a short table.
+
+@answer: $llm
+Compare ocean pollution and open source in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

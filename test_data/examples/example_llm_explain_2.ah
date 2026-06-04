@@ -1,0 +1,7 @@
+# Request: What is the difference between Docker and a virtual machine?
+
+@answer: $llm
+What is the difference between Docker and a virtual machine?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

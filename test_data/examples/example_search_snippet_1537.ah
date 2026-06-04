@@ -1,0 +1,10 @@
+# Request: What is piano practice?
+
+@search_step: $search(limit=5)
+piano practice definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is piano practice?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

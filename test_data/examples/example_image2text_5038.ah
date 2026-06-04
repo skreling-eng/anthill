@@ -1,0 +1,9 @@
+# Request: Write accessibility alt text for this image.
+
+@load: $file('test_data/images/20260524_051555_realitsic_fantasy_image_17.png')
+
+@describe: @load -> $image2text(model='qwen3')
+Write alt text for web accessibility (one paragraph).
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

@@ -1,0 +1,9 @@
+# Request: Make concept art of a vinyl record shop. (variant 2369)
+
+@prompts: $llm -> $texts_to_prompts
+a vinyl record shop, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

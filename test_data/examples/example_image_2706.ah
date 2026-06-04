@@ -1,0 +1,9 @@
+# Request: Draw a cozy bookshop in autumn rain with the image model. (variant 2706)
+
+@prompts: $llm -> $texts_to_prompts
+a cozy bookshop in autumn rain, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

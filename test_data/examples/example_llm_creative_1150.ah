@@ -1,0 +1,7 @@
+# Request: Write a haiku about pandas.
+
+@answer: $llm
+Write a haiku about pandas.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

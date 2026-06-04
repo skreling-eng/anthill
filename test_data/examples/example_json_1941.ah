@@ -1,0 +1,8 @@
+# Request: Return JSON with keys topic, summary, difficulty for: yoga.
+
+@answer: $llm
+Return JSON with keys topic, summary, difficulty for: yoga.
+Return only valid JSON, no markdown.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

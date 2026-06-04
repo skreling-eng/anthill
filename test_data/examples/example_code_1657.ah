@@ -1,0 +1,7 @@
+# Request: Write a JavaScript snippet to read a CSV and print row count.
+
+@answer: $code
+Write a JavaScript snippet to read a CSV and print row count.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

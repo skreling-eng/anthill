@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining a puppet maker's workshop.
+
+@text: $llm
+Write a two-sentence narration about a puppet maker's workshop.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

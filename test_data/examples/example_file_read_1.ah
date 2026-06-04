@@ -1,0 +1,9 @@
+# Request: In one sentence, what is Anthill based on the language description file?
+
+@load: $file('_lang_desc', source_path=True)
+
+@answer: @load -> $llm(add_texts=True)
+In one sentence, what is Anthill based on the language description in __CONTENT__?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

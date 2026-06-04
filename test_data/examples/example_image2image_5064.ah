@@ -1,0 +1,9 @@
+# Request: Make the scene look like winter with cool tones.
+
+@load: $file('test_data/same_person/2/4.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Make the scene look like winter with cool tones.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

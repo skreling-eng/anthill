@@ -34,7 +34,7 @@ ENVIRONMENT
   AH_EMULATE_AH=1 — placeholder texts[] output, no nested execution.
 
 EXAMPLE
-  @ah_code: $file('_lang_desc', source_path=True) -> $folder('examples', source_path=True) -> $code -> $ah
+  @ah_code: $file('_lang_desc', source_path=True) -> $ah_code_examples(folder='examples', per_usecase=20) -> $code -> $ah
   Create a script that builds an image clip about cats.
 
 PROMPT-CONSUMING

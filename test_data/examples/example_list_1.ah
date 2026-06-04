@@ -1,0 +1,7 @@
+# Request: List ten weekend project ideas for learning machine learning.
+
+@answer: $llm
+List ten weekend project ideas for learning machine learning.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

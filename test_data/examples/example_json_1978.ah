@@ -1,0 +1,8 @@
+# Request: Return JSON with keys topic, summary, difficulty for: microservices.
+
+@answer: $llm
+Return JSON with keys topic, summary, difficulty for: microservices.
+Return only valid JSON, no markdown.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

@@ -1,0 +1,7 @@
+# Request: Solve: 2+2*3. Show main steps.
+
+@answer: $math
+Solve: 2+2*3. Show main steps.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

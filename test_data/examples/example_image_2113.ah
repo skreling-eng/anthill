@@ -1,0 +1,9 @@
+# Request: I'd like a visual of a mushroom forager's basket.
+
+@prompts: $llm -> $texts_to_prompts
+a mushroom forager's basket, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

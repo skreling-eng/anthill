@@ -1,0 +1,9 @@
+# Request: Remove sensor noise and grain while keeping detail.
+
+@load: $file('test_data/images/20260524_051849_aibeauty01_image_19.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Remove sensor noise and grain while keeping detail.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

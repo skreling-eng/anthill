@@ -151,7 +151,7 @@ class GgufLlm:
                 temperature=temperature,
                 seed=seed if seed else None,
             )
-            return out["choices"][0]["message"]["content"].strip()
+            text = out["choices"][0]["message"]["content"].strip()
         except Exception:
             # Models without chat template: fall back to plain completion.
             prefix = f"{system.strip()}\n\n" if system.strip() else ""
@@ -163,4 +163,7 @@ class GgufLlm:
                 seed=seed if seed else None,
                 echo=False,
             )
-            return out["choices"][0]["text"].strip()
+            text = out["choices"][0]["text"].strip()
+        from ahlib.text_clean import clean_display_text
+
+        return clean_display_text(text)

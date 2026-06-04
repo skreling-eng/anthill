@@ -1,0 +1,9 @@
+# Request: Generate spoken audio describing a coral garden aquarium.
+
+@text: $llm
+Write a two-sentence narration about a coral garden aquarium.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=am_adam)
+
+run @say

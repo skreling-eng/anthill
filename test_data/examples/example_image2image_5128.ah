@@ -1,0 +1,9 @@
+# Request: Transform the loaded image toward a pastry chef piping macarons.
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Make the image evoke a pastry chef piping macarons. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

@@ -1,0 +1,7 @@
+# Request: Write a limerick about SQL joins.
+
+@answer: $llm
+Write a limerick about SQL joins.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

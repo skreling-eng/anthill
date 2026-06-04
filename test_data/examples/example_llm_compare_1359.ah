@@ -1,0 +1,7 @@
+# Request: Compare event-driven architecture and microservices in a short table.
+
+@answer: $llm
+Compare event-driven architecture and microservices in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

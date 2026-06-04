@@ -1,0 +1,9 @@
+# Request: Make concept art of a choir in a Gothic nave. (variant 2699)
+
+@prompts: $llm -> $texts_to_prompts
+a choir in a Gothic nave, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

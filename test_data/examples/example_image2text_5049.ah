@@ -1,0 +1,9 @@
+# Request: What is in focus versus background in this image?
+
+@load: $file('test_data/same_person/1/3.png')
+
+@describe: @load -> $image2text
+Compare foreground and background; what is in focus?
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

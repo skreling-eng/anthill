@@ -1,0 +1,11 @@
+# Request: Write an Anthill script that answers hello with $llm.
+
+@gen: {
+  $file('AH_CODEGEN_INSTRUCTIONS.md', source_path=True)
+  -> $code
+}
+Write an Anthill script that greets the user with $llm when they say hello.
+Return only the .ah script text, no markdown fences.
+Return only the final result without comments, clarifications, or explanations.
+
+run @gen

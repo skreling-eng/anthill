@@ -1,0 +1,7 @@
+# Request: Explain what a REST API is in simple terms.
+
+@answer: $llm
+Explain what a REST API is in simple terms.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

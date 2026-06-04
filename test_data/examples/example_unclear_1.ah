@@ -1,0 +1,8 @@
+# Request: Build a full Windows kernel driver for me in one click.
+
+@report: $prompts_to_texts
+Cannot fulfill: writing a production Windows kernel driver requires specialized
+toolchains, signing, and hardware context not available in this pipeline.
+Suggest: specify driver type (WDF/KMDF), target OS build, and hardware ID.
+
+run @report

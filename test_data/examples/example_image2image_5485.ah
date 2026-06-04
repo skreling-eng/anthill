@@ -1,0 +1,9 @@
+# Request: Apply a a calligrapher writing kanji look to the input photo. (variant 5485)
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Make the image evoke a calligrapher writing kanji. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

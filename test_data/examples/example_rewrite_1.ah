@@ -1,0 +1,7 @@
+# Request: Rewrite this sentence in a formal business tone: kinda stuck on the deadline
+
+@answer: $llm
+Rewrite this sentence in a formal business tone: kinda stuck on the deadline
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

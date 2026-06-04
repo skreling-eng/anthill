@@ -1,0 +1,8 @@
+# Request: From a list external, return only the second item as text.
+
+@items: $list
+first, second, third
+
+@pick: @items -> $select(texts=[1]) -> $only(texts)
+
+run @pick

@@ -1,0 +1,9 @@
+# Request: Generate an image of a sunset beach.
+
+@prompts: $llm -> $texts_to_prompts
+a sunset beach, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

@@ -1,0 +1,9 @@
+# Request: Improve lighting and make colors more natural.
+
+@load: $file('test_data/same_person/1/4.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Improve lighting and make colors more natural; keep the same subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

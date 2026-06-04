@@ -1,0 +1,8 @@
+# Request: Build a video clip pipeline for a bioluminescent bay kayak trip. (variant 192)
+
+@get_clip: $file('test_data/clip/demo-poster.png')
+  -> $folder('test_data/clip', source_path=True)
+  -> $video_clip
+  -> $output
+
+run @get_clip

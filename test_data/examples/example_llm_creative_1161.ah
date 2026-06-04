@@ -1,0 +1,7 @@
+# Request: Write a limerick about PostgreSQL indexing.
+
+@answer: $llm
+Write a limerick about PostgreSQL indexing.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

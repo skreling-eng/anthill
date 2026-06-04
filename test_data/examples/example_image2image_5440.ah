@@ -1,0 +1,9 @@
+# Request: Apply a a tango couple in Buenos Aires look to the input photo. (variant 5440)
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Make the image evoke a tango couple in Buenos Aires. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

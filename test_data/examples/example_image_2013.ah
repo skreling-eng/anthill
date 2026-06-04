@@ -1,0 +1,9 @@
+# Request: Generate an image of mountain hikers.
+
+@prompts: $llm -> $texts_to_prompts
+mountain hikers, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

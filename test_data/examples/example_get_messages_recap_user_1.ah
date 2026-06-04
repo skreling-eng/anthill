@@ -1,0 +1,9 @@
+# Request: Recap only what the user asked for across the whole chat.
+
+@history: ^get_messages
+
+@answer: @history -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+Recap only user-side requests from __CONTENT__ (ignore bot replies except for context).
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

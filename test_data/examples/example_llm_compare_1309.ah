@@ -1,0 +1,7 @@
+# Request: Compare jazz music and space exploration in a short table.
+
+@answer: $llm
+Compare jazz music and space exploration in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

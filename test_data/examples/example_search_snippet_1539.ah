@@ -1,0 +1,10 @@
+# Request: What is creative writing?
+
+@search_step: $search(limit=5)
+creative writing definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is creative writing?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

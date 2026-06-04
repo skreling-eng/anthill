@@ -1,0 +1,7 @@
+# Request: Compare home networking and piano practice in a short table.
+
+@answer: $llm
+Compare home networking and piano practice in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

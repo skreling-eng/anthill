@@ -1,0 +1,9 @@
+# Request: What was my previous question? Answer using chat history.
+
+@history: ^get_messages
+
+@answer: @history -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What was the user's most recent question before this message? Use __CONTENT__ only.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

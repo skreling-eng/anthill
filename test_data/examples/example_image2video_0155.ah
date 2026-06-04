@@ -1,0 +1,13 @@
+# Request: Create a short video of rabbits in a sunlit meadow.
+
+@prompts: $llm -> $texts_to_prompts
+Still frame of rabbits in a sunlit meadow, photorealistic, sharp detail.
+Return only the prompt, under 50 words.
+
+@image: @prompts -> $image(model='default')
+
+@video: @image -> $image2video(model='default', width=768, height=512, frames=49, steps=4, guidance=1)
+fluid motion, dynamic framing, high detail
+Return only the final result without comments, clarifications, or explanations.
+
+run @video

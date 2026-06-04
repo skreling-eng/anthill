@@ -1,0 +1,9 @@
+# Request: Use $image to make a maple syrup harvest. (variant 2615)
+
+@prompts: $llm -> $texts_to_prompts
+a maple syrup harvest, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

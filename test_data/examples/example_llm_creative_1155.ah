@@ -1,0 +1,7 @@
+# Request: Write a haiku about event-driven architecture.
+
+@answer: $llm
+Write a haiku about event-driven architecture.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

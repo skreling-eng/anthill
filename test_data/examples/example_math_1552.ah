@@ -1,0 +1,7 @@
+# Request: Solve: lim(x->0) sin(x)/x. Show main steps.
+
+@answer: $math
+Solve: lim(x->0) sin(x)/x. Show main steps.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

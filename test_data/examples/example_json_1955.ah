@@ -1,0 +1,8 @@
+# Request: Return JSON with keys topic, summary, difficulty for: API design.
+
+@answer: $llm
+Return JSON with keys topic, summary, difficulty for: API design.
+Return only valid JSON, no markdown.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

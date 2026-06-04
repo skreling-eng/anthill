@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining a silk road camel train.
+
+@text: $llm
+Write a two-sentence narration about a silk road camel train.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

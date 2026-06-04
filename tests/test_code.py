@@ -86,6 +86,25 @@ class CodeRequestTests(unittest.TestCase):
         )
         self.assertEqual(resolve_code_n_ctx(small, 512, explicit=8192), 8192)
 
+    def test_resolve_code_n_ctx_caps_at_auto_max_by_default(self) -> None:
+        big = "x" * 110_000
+        payload = json.dumps({"prompts": ["t"], "code_context": big, "files": []})
+        self.assertEqual(resolve_code_n_ctx(payload, 2048, explicit=None), 16384)
+
+    def test_resolve_code_n_ctx_extended_env(self) -> None:
+        big = "x" * 110_000
+        payload = json.dumps({"prompts": ["t"], "code_context": big, "files": []})
+        os.environ["AH_CODE_EXTENDED_CTX"] = "1"
+        os.environ["AH_CODE_AUTO_MAX_N_CTX"] = "131072"
+        try:
+            self.assertEqual(
+                resolve_code_n_ctx(payload, 2048, explicit=None),
+                65536,
+            )
+        finally:
+            os.environ.pop("AH_CODE_EXTENDED_CTX", None)
+            os.environ.pop("AH_CODE_AUTO_MAX_N_CTX", None)
+
     def test_trim_code_request_fits_budget(self) -> None:
         huge = "x" * 50_000
         request = {

@@ -1,0 +1,7 @@
+# Request: Give a two-sentence horror story about TypeScript.
+
+@answer: $llm
+Give a two-sentence horror story about TypeScript.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

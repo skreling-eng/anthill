@@ -1,0 +1,10 @@
+# Request: Extract user messages only as a JSON array of strings from chat history.
+
+@history: ^get_messages
+
+@answer: @history -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+From __CONTENT__, output a JSON array containing only user message text fields.
+Skip summaries unless they quote the user. Valid JSON only, no markdown.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

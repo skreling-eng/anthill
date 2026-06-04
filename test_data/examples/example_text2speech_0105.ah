@@ -1,0 +1,9 @@
+# Request: Generate spoken audio describing rabbits in a sunlit meadow.
+
+@text: $llm
+Write a two-sentence narration about rabbits in a sunlit meadow.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=am_adam)
+
+run @say

@@ -6,7 +6,7 @@ Return only the final result without comments, clarifications, or explanations.
 @ah_code: {
     @clear_answer
     -> $file('_lang_desc', source_path=True)
-    -> $folder('examples', source_path=True)
+    -> $ah_code_examples(folder='examples', per_usecase=20)
     -> $code -> $ah
 }
 Create a script in Anthill to generate an image clip about rabbits.

@@ -1,0 +1,9 @@
+# Request: Improve this picture for a flamenco dancer mid-spin. (variant 5259)
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Make the image evoke a flamenco dancer mid-spin. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

@@ -1,0 +1,9 @@
+# Request: Improve this picture for a coral restoration diver. (variant 5369)
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Make the image evoke a coral restoration diver. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

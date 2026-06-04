@@ -1,0 +1,12 @@
+# Request: Using chat history and the web, what country did we talk about visiting?
+
+@history: ^get_messages
+
+@search_step: $search(limit=5)
+travel destination country tourism 2026
+
+@answer: (@history, @search_step) -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+From __CONTENT__, infer which country the user wanted to visit and add brief travel facts from search.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

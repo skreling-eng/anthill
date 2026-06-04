@@ -1,0 +1,7 @@
+# Request: Compare CRISPR and password managers in a short table.
+
+@answer: $llm
+Compare CRISPR and password managers in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

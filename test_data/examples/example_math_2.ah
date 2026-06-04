@@ -1,0 +1,7 @@
+# Request: If I roll two fair dice, what is the probability the sum is 7?
+
+@answer: $math
+If I roll two fair dice, what is the probability the sum is 7?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

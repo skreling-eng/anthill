@@ -1,0 +1,9 @@
+# Request: I'd like a visual of wild horses at dawn. (variant 2653)
+
+@prompts: $llm -> $texts_to_prompts
+wild horses at dawn, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

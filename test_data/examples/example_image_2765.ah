@@ -1,0 +1,9 @@
+# Request: Use $image to make a puppet maker's workshop. (variant 2765)
+
+@prompts: $llm -> $texts_to_prompts
+a puppet maker's workshop, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

@@ -1,0 +1,13 @@
+# Request: Using chat history and the web, what do we know about chess strategy?
+
+@history: ^get_messages
+
+@search_step: $search(limit=5)
+chess strategy latest facts 2026
+
+@answer: (@history, @search_step) -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+Using chat history and the web, what do we know about chess strategy?
+Use __CONTENT__.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

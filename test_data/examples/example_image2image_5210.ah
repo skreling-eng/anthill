@@ -1,0 +1,9 @@
+# Request: Apply a a chocolatier decorating truffles look to the input photo.
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Make the image evoke a chocolatier decorating truffles. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

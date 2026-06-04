@@ -1,0 +1,7 @@
+# Request: Write a metaphor comparing ocean pollution to weather.
+
+@answer: $llm
+Write a metaphor comparing ocean pollution to weather.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

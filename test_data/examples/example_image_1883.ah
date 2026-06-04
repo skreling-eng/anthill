@@ -1,0 +1,9 @@
+# Request: Generate an image of a bowl of ramen with steam.
+
+@prompts: $llm -> $texts_to_prompts
+a bowl of ramen with steam, photorealistic, high detail.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

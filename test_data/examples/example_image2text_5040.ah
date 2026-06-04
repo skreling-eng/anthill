@@ -1,0 +1,9 @@
+# Request: Describe what you see in this image.
+
+@load: $file('test_data/images/20260524_051849_aibeauty01_image_19.png')
+
+@describe: @load -> $image2text
+Describe the scene, main subjects, and setting in 6-8 sentences.
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

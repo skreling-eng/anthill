@@ -1,0 +1,26 @@
+$model_ah_train_lora — QLoRA fine-tune Anthill codegen model
+
+SUMMARY
+  Trains a LoRA adapter from JSONL in files[] (from $model_ah_create_jsonl).
+  Requires uv sync --extra finetune and HF instruct weights (model=1.5b).
+
+SYNTAX
+  @lora: @jsonl -> $model_ah_train_lora(model='1.5b', epochs=2)
+
+INPUT
+  files[] — JSONL training file
+
+OUTPUT
+  files[] — .zip of LoRA adapter (adapter_config.json + weights)
+
+ARGUMENTS
+  model= — 1.5b (default)
+  epochs=, batch_size=, grad_accum=, lr=, max_seq_len=
+  lora_r=, lora_alpha=, save_steps=, qlora=true|false
+  output_name= — zip basename (default lora_adapter)
+
+ENV
+  AH_EMULATE_MODEL_AH_TRAIN_LORA=1 — stub adapter for tests
+
+PROMPT-CONSUMING
+  No.

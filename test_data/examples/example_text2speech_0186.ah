@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining a glacier calving into the sea.
+
+@text: $llm
+Write a two-sentence narration about a glacier calving into the sea.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

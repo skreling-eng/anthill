@@ -1,0 +1,9 @@
+# Request: Make a voice narration of a volcanic lava tube explorer.
+
+@text: $llm
+Write a two-sentence narration about a volcanic lava tube explorer.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bm_george)
+
+run @say

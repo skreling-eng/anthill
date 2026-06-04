@@ -1,0 +1,9 @@
+# Request: Apply summer warmth and sun flare mood.
+
+@load: $file('test_data/images/20260524_051310_crazy_desire_image_10.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Apply summer warmth and sun flare mood.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

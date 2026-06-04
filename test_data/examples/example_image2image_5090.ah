@@ -1,0 +1,9 @@
+# Request: Apply a warm vintage film look.
+
+@load: $file('test_data/images/20260524_051310_crazy_desire_image_7.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Apply a warm vintage film look.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

@@ -203,8 +203,23 @@ Before writing the script, **analyze the user question**. Pick one path:
 | Rewriting, summarizing, or translating **text the user already gave** | Named entities you would verify on the web (people, products, places) |
 | Generating `.ah`, code, or media pipelines | User wants sources, citations, or “use the web” |
 | Task is fully specified in the message (no external facts needed) | Comparison of real-world options (“best X in 2026”, “vs”) |
+| **Generate image, clip, video, or music** (see §8.2) | Answer is plain text/chat only |
 
-When unsure: if a wrong answer would embarrass you because **reality changed since training**, use `$search`. If the user only needs reasoning or prose, use `$llm` only.
+When unsure: if a wrong answer would embarrass you because **reality changed since training**, use `$search`. If the user only needs reasoning or prose, use `$llm` only. If they want **media output** (image, clip, song, edited photo, animated video), use **`$image` / `$image_clip` / `$image2video` / `$music` / `$image2image`** — never `$llm` alone.
+
+### 8.2 Media tasks — never use `$llm` alone
+
+If the user asks to **generate**, **create**, or **make** an image, photo, clip, video, song, track, or to **edit/transform** an image, route to the matching external:
+
+| User says (examples) | Use | Not |
+|--------------------|-----|-----|
+| “Generate an image of …” | `$llm` → `$texts_to_prompts` → `$image` | `$llm` only |
+| “Generate / make an image clip about …” | images + `$music` → `$image_clip` | `$llm` only |
+| “Create a video of …” / “animate this image” | `$image` → `$image2video` | `$llm` only |
+| “Create a song about …” / “make music for …” | `$music` with style + lyrics | `$llm` only |
+| “Edit this photo …” / “change the image …” | `$file` → `$image2image` + edit body | `$llm` only |
+
+**Image clip** = slideshow-style video from **multiple images** + **audio track** (`$image_clip`). Pattern: generate images `[n]`, generate song with `$music`, merge with `$image_clip` → `$output`. See `examples/example_image_clip.ah`.
 
 **Search query:** In `@search_step: $search`, the body should be a **short focused web query** you derive from the user (keywords, not the whole chat paragraph). The user’s full question goes in the **`$llm(add_texts=True)`** body so the model analyzes `__CONTENT__` from search results.
 
@@ -214,10 +229,12 @@ When unsure: if a wrong answer would embarrass you because **reality changed sin
 | Needs fresh or verified facts | `$search(limit=6, fetch_pages=True, fetch_max=3)` → `$json2texts` → `$texts2prompts` → `$llm(add_texts=True)` | §8 below, `examples/example_search.ah` |
 | Math-heavy reasoning | `$math` | (see `externals/math/_description`) |
 | Generate Python/code | `$code` + body | `examples/example_code.ah` |
-| Generate another `.ah` | `$file('_lang_desc')` + `$folder('examples')` + `$code` | `examples/example_generate_ah_code.ah` |
-| Text-to-image | body + `$image` | `examples/example_simple_image_generation.ah` |
+| Generate another `.ah` | `$file('_lang_desc')` + `$ah_code_examples(folder='examples')` + `$code` | `examples/example_generate_ah_code.ah` |
+| Text-to-image | `$llm` → `$texts_to_prompts` → `$image` | `examples/example_simple_image_generation.ah` |
+| **Image clip** (images + music → video) | images `[n]` + `$music` → `$image_clip` | `examples/example_image_clip.ah` |
 | Edit image | `@photo -> $image2image(...)` + body | `examples/example_image2image.ah` |
 | Image → video | `@still -> $image2video(...)` + body | `examples/example_image2video.ah` |
+| **Generate music / song** | style + lyrics → `$music` | `examples/example_image_clip.ah` (track step) |
 | Describe image/video | `$image2text` | `examples/example_image2text.ah` |
 | Load / save files | `$file`, `$folder`, `$save`, `$output` | `examples/example_combine_data.ah` |
 | Return text to caller | `$prompts_to_texts` or body on `$llm` | `examples/example_return_output_text.ah` |
@@ -267,7 +284,7 @@ Other args: `lang='en'`, `region='us'`, `site='gov.uk'` — see `externals/searc
 ```ah
 @gen: {
   $file('_lang_desc', source_path=True)
-  -> $folder('examples', source_path=True)
+  -> $ah_code_examples(folder='examples', per_usecase=20)
   -> $code
 }
 Write a script that …
@@ -385,19 +402,31 @@ Remove blemishes and improve natural lighting.
 run @edit
 ```
 
-### 9.7 Parallel branches then merge
+### 9.7 Image clip (`$image_clip` — images + music)
 
 ```ah
-@captions: $llm
-One-line caption for the image.
+@quality: $list
+High resolution, best quality, photorealistic, cinematic
 
-@lyrics: $llm
-Two lines of song lyrics.
+@clip_images: @quality -> $llm -> $texts_to_prompts -> $image(model='default')[8]
+Create image prompts for a short clip about rabbits in a meadow.
+Return only the final result without comments, clarifications, or explanations.
 
-@clip: (@captions, @lyrics) -> $image_clip -> $save('out.mp4')
+@music_style: $list
+irish traditional
 
-run @clip
+@lyrics_text: $llm
+Write short song lyrics about rabbits in a meadow.
+Return only the final result without comments, clarifications, or explanations.
+
+@track: (@music_style, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
+
+@gen_clip: (@clip_images, @track) -> $image_clip -> $output
+
+run @gen_clip
 ```
+
+Do **not** answer “generate an image clip” with `@answer: $llm` — that produces text, not a clip.
 
 ### 9.8 Context `%` for multi-step audio
 
@@ -460,7 +489,7 @@ Return only the final result without comments, clarifications, or explanations.
 @ah_code: {
   @clear_answer
   -> $file('_lang_desc', source_path=True)
-  -> $folder('examples', source_path=True)
+  -> $ah_code_examples(folder='examples', per_usecase=20)
   -> $code
 }
 <user task description here>
@@ -531,6 +560,7 @@ Full list: `_lang_desc` §6 and `externals/<name>/_description`.
 - [ ] Chosen `$llm`-only vs `$search` → `$llm` using §8.1 (not always the same path)
 - [ ] User’s message appears verbatim in the `$llm` body (search query is separate, focused)
 - [ ] Valid syntax: `@name:`, `->`, `$name(args)`, `run @name`
+- [ ] **Last line is `run @entry`** (e.g. `run @answer`) — required or the script never starts
 - [ ] No `[inf]`
 - [ ] No top-level `$ah` unless user explicitly required nested execution
 - [ ] User task captured in body or correct array

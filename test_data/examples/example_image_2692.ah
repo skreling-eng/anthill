@@ -1,0 +1,9 @@
+# Request: Produce artwork depicting a cedar forest temple. (variant 2692)
+
+@prompts: $llm -> $texts_to_prompts
+a cedar forest temple, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

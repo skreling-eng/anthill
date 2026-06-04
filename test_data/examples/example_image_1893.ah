@@ -1,0 +1,9 @@
+# Request: Generate an image of an astronaut planting a flag.
+
+@prompts: $llm -> $texts_to_prompts
+an astronaut planting a flag, photorealistic, high detail.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

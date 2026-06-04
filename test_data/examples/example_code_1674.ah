@@ -1,0 +1,7 @@
+# Request: Write a Python function to parse JSON from a file.
+
+@answer: $code
+Write a Python function to parse JSON from a file.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

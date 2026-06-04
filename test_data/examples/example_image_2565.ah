@@ -1,0 +1,9 @@
+# Request: Use $image to make a chocolatier decorating truffles. (variant 2565)
+
+@prompts: $llm -> $texts_to_prompts
+a chocolatier decorating truffles, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

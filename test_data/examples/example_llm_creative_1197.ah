@@ -1,0 +1,7 @@
+# Request: Give a two-sentence horror story about piano practice.
+
+@answer: $llm
+Give a two-sentence horror story about piano practice.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

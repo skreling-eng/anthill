@@ -1,0 +1,9 @@
+# Request: I need an image showing a kelp forest sea otter. (variant 2531)
+
+@prompts: $llm -> $texts_to_prompts
+a kelp forest sea otter, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

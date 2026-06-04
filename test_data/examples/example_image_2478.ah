@@ -1,0 +1,9 @@
+# Request: I want a poster featuring a vintage cinema marquee. (variant 2478)
+
+@prompts: $llm -> $texts_to_prompts
+a vintage cinema marquee, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

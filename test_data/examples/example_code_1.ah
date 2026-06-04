@@ -1,0 +1,7 @@
+# Request: Write a Python function that returns the nth Fibonacci number.
+
+@answer: $code
+Write a Python function that returns the nth Fibonacci number.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

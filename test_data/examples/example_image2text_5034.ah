@@ -1,0 +1,9 @@
+# Request: What are the main objects and how are they arranged?
+
+@load: $file('test_data/images/20260524_051555_realitsic_fantasy_image_13.png')
+
+@describe: @load -> $image2text
+Identify the main objects and their spatial relationships.
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

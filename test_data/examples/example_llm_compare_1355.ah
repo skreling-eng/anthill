@@ -1,0 +1,7 @@
+# Request: Compare SQL joins and electric vehicles in a short table.
+
+@answer: $llm
+Compare SQL joins and electric vehicles in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

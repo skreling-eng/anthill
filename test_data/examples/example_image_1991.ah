@@ -1,0 +1,9 @@
+# Request: Generate an image of underwater coral reef fish.
+
+@prompts: $llm -> $texts_to_prompts
+underwater coral reef fish, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

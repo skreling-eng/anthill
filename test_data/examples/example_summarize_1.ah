@@ -1,0 +1,12 @@
+# Request: Summarize this paragraph in three bullet points.
+
+@answer: $llm
+Summarize this paragraph in three bullet points.
+
+Anthill is an agentic pipeline language. Programs chain instructions and externals.
+Each step passes arrays of file links through a session directory. The runtime
+executes @ instructions and $ handlers such as llm, search, and image.
+
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

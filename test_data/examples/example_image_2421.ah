@@ -1,0 +1,9 @@
+# Request: I need an image showing a coral garden aquarium. (variant 2421)
+
+@prompts: $llm -> $texts_to_prompts
+a coral garden aquarium, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

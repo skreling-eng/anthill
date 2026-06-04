@@ -1,0 +1,10 @@
+# Request: What is vaccines?
+
+@search_step: $search(limit=5)
+vaccines definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is vaccines?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

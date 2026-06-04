@@ -1,0 +1,13 @@
+# Request: Make a cinematic video of wild horses at dawn. (variant 213)
+
+@prompts: $llm -> $texts_to_prompts
+Still frame of wild horses at dawn, photorealistic, sharp detail.
+Return only the prompt, under 50 words.
+
+@image: @prompts -> $image(model='default')
+
+@video: @image -> $image2video(model='default', width=768, height=512, frames=49, steps=4, guidance=1)
+subtle head turn, soft wind, ambient movement
+Return only the final result without comments, clarifications, or explanations.
+
+run @video

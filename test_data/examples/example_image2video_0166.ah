@@ -1,0 +1,13 @@
+# Request: Generate a moving video clip of a candlelit violin recital.
+
+@prompts: $llm -> $texts_to_prompts
+Still frame of a candlelit violin recital, photorealistic, sharp detail.
+Return only the prompt, under 50 words.
+
+@image: @prompts -> $image(model='default')
+
+@video: @image -> $image2video(model='default', width=768, height=512, frames=49, steps=4, guidance=1)
+slow zoom, atmospheric depth, golden hour
+Return only the final result without comments, clarifications, or explanations.
+
+run @video

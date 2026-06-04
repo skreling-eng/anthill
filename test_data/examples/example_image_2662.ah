@@ -1,0 +1,9 @@
+# Request: Produce artwork depicting a lavender field in Provence. (variant 2662)
+
+@prompts: $llm -> $texts_to_prompts
+a lavender field in Provence, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

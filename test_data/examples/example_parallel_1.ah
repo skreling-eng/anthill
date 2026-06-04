@@ -1,0 +1,13 @@
+# Request: Give me both a one-line image caption and a mood line for a rainy city.
+
+@caption: $llm
+One-line caption for a photo of a rainy city at night.
+Return only the final result without comments, clarifications, or explanations.
+
+@mood: $llm
+One short mood line (under 12 words) for the same scene.
+Return only the final result without comments, clarifications, or explanations.
+
+@both: (@caption, @mood) -> $only(texts)
+
+run @both

@@ -1,0 +1,7 @@
+# Request: Solve: integrate x^2 * e^x dx. Show main steps.
+
+@answer: $math(model='qwen36')
+Solve: integrate x^2 * e^x dx. Show main steps.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

@@ -1,0 +1,9 @@
+# Request: Synthesize a cinematic still of a submarine exploring a trench.
+
+@prompts: $llm -> $texts_to_prompts
+a submarine exploring a trench, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

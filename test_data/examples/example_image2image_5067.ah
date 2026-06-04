@@ -1,0 +1,9 @@
+# Request: Fix overexposed highlights on the subject.
+
+@load: $file('test_data/same_person/2/7.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Fix overexposed highlights on the subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

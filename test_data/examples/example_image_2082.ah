@@ -1,0 +1,9 @@
+# Request: Produce artwork depicting a thunderstorm over wheat fields.
+
+@prompts: $llm -> $texts_to_prompts
+a thunderstorm over wheat fields, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

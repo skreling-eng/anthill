@@ -1,0 +1,9 @@
+# Request: Could this work as a product photo? Why or why not?
+
+@load: $file('test_data/images/20260524_051555_realitsic_fantasy_image_14.png')
+
+@describe: @load -> $image2text(model='qwen3')
+Is this image suitable as a product photo? Explain briefly.
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

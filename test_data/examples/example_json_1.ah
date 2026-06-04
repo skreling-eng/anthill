@@ -1,0 +1,8 @@
+# Request: Return a JSON array of three European capital cities with country names.
+
+@answer: $llm
+Return a JSON array of three European capital cities with country names.
+Return only valid JSON, no markdown.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

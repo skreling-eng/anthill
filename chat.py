@@ -4,19 +4,36 @@ from __future__ import annotations
 import atexit
 import html
 import json
+import os
 import threading
 from pathlib import Path
 
 import webview
 
 from ahlib.ah_parser import parse_ah_source
-from ahlib.ah_runtime import ArrayBundle, Runtime, RuntimeCancelled, Session, create_session_dir
+from ahlib.ah_runtime import (
+    ArrayBundle,
+    Runtime,
+    RuntimeCancelled,
+    Session,
+    create_session_dir,
+    run_program,
+)
 from ahlib.run_ah import _bootstrap_env
+from ahlib.text_clean import clean_display_text
 from app import Interface, session_root_from_input_json_ref
 from externals.api import ExternalInput
 from externals.invoke import release_gpu_resources, terminate_active_subprocesses
 
 CHAT_SCRIPT = Path("chat") / "chat.ah"
+
+# Compaction thresholds (see ^maybe_summarize).
+CHAT_MAX_MESSAGES = 20
+CHAT_MAX_TOKENS = 20_000
+CHAT_KEEP_RECENT_MESSAGES = 8
+
+# Stored chat history item: role, text, and optional session-relative media links.
+ChatMessage = dict[str, str | list[str]]
 
 
 def chat_script_path(base_dir: Path) -> Path:
@@ -161,7 +178,8 @@ class LinkApi:
 class ChatInterface(Interface):
     def __init__(self, api: LinkApi):
         super().__init__(api)
-        self._messages: list[str] = []
+        self._messages: list[ChatMessage] = []
+        self._summaries: list[ChatMessage] = []
         self._answer_parts: list[str] = []
         self._code_html = ""
         self._waiting_for_input = False
@@ -209,9 +227,10 @@ class ChatInterface(Interface):
                 self._request_chat_input_enabled(True)
                 self.add_action_results("<b>No run in progress</b>")
         elif action == "clear":
+            if self._run_thread is not None and self._run_thread.is_alive():
+                self.request_stop_run()
             self.data = []
-            self._answer_parts = []
-            self.linkapi.set_html("top-right", "")
+            self._clear_conversation()
             self.add_action_results("<b>Clear</b>")
             try:
                 self.save_actions_now()
@@ -230,6 +249,16 @@ class ChatInterface(Interface):
             self._append_chat_pane(stripped, role="user")
         self._clear_chat_input_field()
         self._request_chat_input_enabled(False)
+
+    def _clear_conversation(self) -> None:
+        """Drop in-memory messages, summaries, and chat/code panes."""
+        self._messages = []
+        self._summaries = []
+        self._answer_parts = []
+        self._code_html = ""
+        self.linkapi.set_html("top-right", "")
+        self.linkapi.set_html("bottom-left", "")
+        self._release_user_input_wait()
 
     def _append_chat_pane(self, text: str, *, role: str = "bot") -> None:
         css = "chat-user" if role == "user" else "chat-bot"
@@ -261,6 +290,8 @@ class ChatInterface(Interface):
             return self._action_store_message(bundle)
         if name == "get_messages":
             return self._action_get_messages()
+        if name == "maybe_summarize":
+            return self._action_maybe_summarize(bundle)
         if name == "answer":
             return self._action_answer(bundle)
         if name == "show_code":
@@ -309,24 +340,140 @@ class ChatInterface(Interface):
             out.texts.append(self._new_text_link(text.strip()))
         return out
 
-    def _action_store_message(self, bundle: ArrayBundle) -> ArrayBundle:
-        for link in bundle.texts:
-            text = self._chat_read_link_text(link).strip()
-            if text:
-                self._messages.append(text)
+    @staticmethod
+    def _media_links_from_bundle(bundle: ArrayBundle) -> dict[str, list[str]]:
+        return {
+            "images": list(bundle.images),
+            "sounds": list(bundle.sounds),
+            "videos": list(bundle.videos),
+        }
+
+    def _text_from_bundle(self, bundle: ArrayBundle) -> str:
+        parts = [
+            clean_display_text(self._chat_read_link_text(link).strip())
+            for link in bundle.texts
+        ]
+        return "\n\n".join(p for p in parts if p)
+
+    def _message_from_bundle(
+        self, bundle: ArrayBundle, *, role: str
+    ) -> ChatMessage | None:
+        text = self._text_from_bundle(bundle)
+        media = self._media_links_from_bundle(bundle)
+        if not text and not any(media.values()):
+            return None
+        msg: ChatMessage = {"role": role, "text": text}
+        for key in ("images", "sounds", "videos"):
+            links = media[key]
+            if links:
+                msg[key] = links
+        return msg
+
+    def _append_stored_message(self, msg: ChatMessage) -> None:
+        self._messages.append(msg)
+
+    @staticmethod
+    def _estimate_message_tokens(messages: list[ChatMessage]) -> int:
+        if not messages:
+            return 0
+        return len(json.dumps(messages, ensure_ascii=False)) // 4
+
+    def _needs_message_compaction(self) -> bool:
+        return len(self._messages) > CHAT_MAX_MESSAGES or (
+            self._estimate_message_tokens(self._messages) > CHAT_MAX_TOKENS
+        )
+
+    def _run_messages_summary(self, batch: list[ChatMessage]) -> str:
+        """Run @messages_summary from chat.ah on a JSON array of messages."""
+        payload = json.dumps(batch, ensure_ascii=False, indent=2)
+        source = (
+            "@messages_summary: $llm\n"
+            "Summarize the following conversation history (JSON array). "
+            "Preserve user goals, facts, decisions, and paths in images, sounds, "
+            "and videos fields.\n"
+            "Return only the final result without comments, clarifications, "
+            "or explanations.\n\n"
+            f"{payload}\n\n"
+            "run @messages_summary\n"
+        )
+        os.environ.setdefault("AH_EXTERNAL_INPROCESS", "clear,llm")
+        os.environ.setdefault("AH_EXTERNAL_SUBPROCESS", "0")
+        meta, session_dir = run_program(
+            source,
+            sessions_root=self.session_dir.parent if self.session_dir else Path("sessions"),
+            callback=self,
+            cancel_event=self._cancel_event,
+        )
+        texts = meta.get("output", {}).get("texts") or []
+        if not texts:
+            return "[summary unavailable]"
+        path = Path(texts[0])
+        if not path.is_absolute() and self.session_dir is not None:
+            path = session_dir / texts[0]
+        if path.is_file():
+            return clean_display_text(
+                path.read_text(encoding="utf-8", errors="replace").strip()
+            )
+        return "[summary unavailable]"
+
+    def _compact_messages_once(self) -> bool:
+        """Summarize oldest messages into _summaries; return True if compacted."""
+        if not self._needs_message_compaction():
+            return False
+        n = len(self._messages)
+        keep = min(CHAT_KEEP_RECENT_MESSAGES, max(0, n - 1))
+        take = n - keep
+        if take < 1:
+            if (
+                self._estimate_message_tokens(self._messages) > CHAT_MAX_TOKENS
+                and n >= 1
+            ):
+                take = 1
+                keep = n - take
+            else:
+                return False
+        batch = self._messages[:take]
+        summary_text = self._run_messages_summary(batch)
+        self._summaries.append(
+            {
+                "role": "summary",
+                "text": summary_text,
+                "message_count": take,
+            }
+        )
+        self._messages = self._messages[take:]
+        return True
+
+    def _action_maybe_summarize(self, bundle: ArrayBundle) -> ArrayBundle:
+        while self._needs_message_compaction():
+            if not self._compact_messages_once():
+                break
         return bundle.copy()
+
+    def _action_store_message(self, bundle: ArrayBundle) -> ArrayBundle:
+        msg = self._message_from_bundle(bundle, role="user")
+        if msg is not None:
+            self._append_stored_message(msg)
+        return bundle.copy()
+
+    def _history_for_export(self) -> list[ChatMessage]:
+        """Summaries first, then live messages (for ^get_messages)."""
+        return list(self._summaries) + list(self._messages)
 
     def _action_get_messages(self) -> ArrayBundle:
         out = ArrayBundle()
-        for msg in self._messages:
-            out.texts.append(self._new_text_link(msg))
+        for msg in self._history_for_export():
+            payload = json.dumps(msg, ensure_ascii=False, indent=2) + "\n"
+            out.texts.append(self._new_text_link(payload))
         return out
 
     def _action_answer(self, bundle: ArrayBundle) -> ArrayBundle:
-        for link in bundle.texts:
-            text = self._chat_read_link_text(link)
-            if text.strip():
-                self._append_chat_pane(text.strip(), role="bot")
+        msg = self._message_from_bundle(bundle, role="bot")
+        if msg is not None:
+            text = str(msg.get("text") or "")
+            if text:
+                self._append_chat_pane(text, role="bot")
+            self._append_stored_message(msg)
         return bundle.copy()
 
     def _action_show_code(self, bundle: ArrayBundle) -> ArrayBundle:

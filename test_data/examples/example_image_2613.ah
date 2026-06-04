@@ -1,0 +1,9 @@
+# Request: I'd like a visual of a beekeeper checking hives. (variant 2613)
+
+@prompts: $llm -> $texts_to_prompts
+a beekeeper checking hives, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

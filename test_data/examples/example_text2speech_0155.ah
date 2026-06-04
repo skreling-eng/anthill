@@ -1,0 +1,9 @@
+# Request: Make a voice narration of a noir detective office.
+
+@text: $llm
+Write a two-sentence narration about a noir detective office.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bm_george)
+
+run @say

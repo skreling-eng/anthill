@@ -1,0 +1,9 @@
+# Request: I need an image showing a monk meditating by a waterfall.
+
+@prompts: $llm -> $texts_to_prompts
+a monk meditating by a waterfall, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

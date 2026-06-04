@@ -1,0 +1,15 @@
+# Request: Generate an image of a red fox in snow at golden hour.
+
+@quality: $list
+default
+
+@style: @quality
+photorealistic, high detail, soft golden light
+
+@prompts: @style -> $llm -> $texts_to_prompts
+A red fox standing in fresh snow, golden hour, shallow depth of field.
+Return only the image prompt text, under 60 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

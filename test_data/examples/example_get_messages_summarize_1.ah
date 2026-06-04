@@ -1,0 +1,10 @@
+# Request: Summarize everything we discussed so far in this chat.
+
+@history: ^get_messages
+
+@answer: @history -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+Summarize the full conversation in __CONTENT__ (JSON messages and summaries).
+Use 5-8 bullet points. Include both user and bot turns.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

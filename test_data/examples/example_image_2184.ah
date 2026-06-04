@@ -1,0 +1,9 @@
+# Request: Build an Anthill pipeline to generate an image of a desert caravan at sunset.
+
+@prompts: $llm -> $texts_to_prompts
+a desert caravan at sunset, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

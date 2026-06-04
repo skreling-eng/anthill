@@ -1,0 +1,7 @@
+# Request: Compare SQL and NoSQL databases for a small startup.
+
+@answer: $llm
+Compare SQL and NoSQL databases for a small startup. Use a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

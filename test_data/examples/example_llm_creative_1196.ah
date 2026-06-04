@@ -1,0 +1,7 @@
+# Request: Write a limerick about chess strategy.
+
+@answer: $llm
+Write a limerick about chess strategy.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

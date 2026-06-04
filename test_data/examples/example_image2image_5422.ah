@@ -1,0 +1,9 @@
+# Request: Change the mood of the photo to match a blacksmith forging a sword. (variant 5422)
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Make the image evoke a blacksmith forging a sword. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

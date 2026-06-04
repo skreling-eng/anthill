@@ -1,0 +1,9 @@
+# Request: Build an Anthill pipeline to generate an image of a spacecraft orbiting Saturn.
+
+@prompts: $llm -> $texts_to_prompts
+a spacecraft orbiting Saturn, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

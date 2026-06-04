@@ -1,0 +1,9 @@
+# Request: Use chat history: what media file paths appear in __content__?.
+
+@history: ^get_messages
+
+@answer: @history -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What media file paths appear in __CONTENT__?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

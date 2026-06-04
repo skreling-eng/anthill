@@ -1,0 +1,7 @@
+# Request: List 7 interesting facts about sleep hygiene.
+
+@answer: $llm
+List 7 interesting facts about sleep hygiene.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

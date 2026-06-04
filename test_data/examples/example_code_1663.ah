@@ -1,0 +1,7 @@
+# Request: Write a JavaScript snippet to validate an email with regex.
+
+@answer: $code
+Write a JavaScript snippet to validate an email with regex.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

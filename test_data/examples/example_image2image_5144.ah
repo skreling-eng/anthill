@@ -1,0 +1,9 @@
+# Request: Improve this picture for a desert caravan at sunset.
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Make the image evoke a desert caravan at sunset. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

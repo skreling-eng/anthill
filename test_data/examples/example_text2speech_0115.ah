@@ -1,0 +1,9 @@
+# Request: Make a voice narration of a vintage motorcycle on Route 66.
+
+@text: $llm
+Write a two-sentence narration about a vintage motorcycle on Route 66.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bm_george)
+
+run @say

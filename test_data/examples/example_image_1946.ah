@@ -1,0 +1,9 @@
+# Request: Generate an image of skateboarders in a park.
+
+@prompts: $llm -> $texts_to_prompts
+skateboarders in a park, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

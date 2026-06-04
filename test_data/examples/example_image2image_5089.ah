@@ -1,0 +1,9 @@
+# Request: Convert dull grey sky to dramatic sunset tones in place.
+
+@load: $file('test_data/images/20260524_051310_crazy_desire_image_6.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Convert dull grey sky to dramatic sunset tones in place.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

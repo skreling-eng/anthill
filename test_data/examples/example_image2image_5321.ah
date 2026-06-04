@@ -1,0 +1,9 @@
+# Request: Run $image2image to achieve a glacier calving into the sea. (variant 5321)
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Make the image evoke a glacier calving into the sea. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

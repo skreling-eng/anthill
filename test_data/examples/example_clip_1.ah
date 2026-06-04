@@ -1,0 +1,8 @@
+# Request: Make a short clip from images in test_data/clip and a wav track.
+
+@get_clip: $file('test_data/clip/demo-poster.png')
+  -> $folder('test_data', source_path=True)
+  -> $video_clip
+  -> $save('test_data/examples/out_clip.mp4')
+
+run @get_clip

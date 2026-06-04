@@ -1,0 +1,13 @@
+# Request: Produce an animated scene of a rooftop garden in Barcelona. (variant 429)
+
+@prompts: $llm -> $texts_to_prompts
+Still frame of a rooftop garden in Barcelona, photorealistic, sharp detail.
+Return only the prompt, under 50 words.
+
+@image: @prompts -> $image(model='default')
+
+@video: @image -> $image2video(model='default', width=768, height=512, frames=49, steps=4, guidance=1)
+subtle head turn, soft wind, ambient movement
+Return only the final result without comments, clarifications, or explanations.
+
+run @video

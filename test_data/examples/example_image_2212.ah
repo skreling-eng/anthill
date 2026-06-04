@@ -1,0 +1,9 @@
+# Request: Produce artwork depicting a mountain rescue dog team.
+
+@prompts: $llm -> $texts_to_prompts
+a mountain rescue dog team, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

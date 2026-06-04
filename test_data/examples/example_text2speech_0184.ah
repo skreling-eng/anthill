@@ -1,0 +1,9 @@
+# Request: Convert text to speech about a greenhouse full of orchids.
+
+@text: $llm
+Write a two-sentence narration about a greenhouse full of orchids.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=af_bella)
+
+run @say

@@ -1,0 +1,10 @@
+# Request: What is Amazon rainforest?
+
+@search_step: $search(limit=5)
+Amazon rainforest definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is Amazon rainforest?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

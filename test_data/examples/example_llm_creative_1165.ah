@@ -1,0 +1,7 @@
+# Request: Write a haiku about renewable energy.
+
+@answer: $llm
+Write a haiku about renewable energy.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

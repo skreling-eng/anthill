@@ -1,0 +1,9 @@
+# Request: I need an image showing a cheese aging cave. (variant 2471)
+
+@prompts: $llm -> $texts_to_prompts
+a cheese aging cave, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

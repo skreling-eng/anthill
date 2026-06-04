@@ -1,0 +1,9 @@
+# Request: Brighten shadows for a high-key portrait look.
+
+@load: $file('test_data/same_person/2/2.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Brighten shadows for a high-key portrait look.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

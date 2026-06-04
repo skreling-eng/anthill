@@ -1,0 +1,7 @@
+# Request: Write a limerick about vaccines.
+
+@answer: $llm
+Write a limerick about vaccines.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

@@ -1,0 +1,9 @@
+# Request: Add subtle film grain for a cinematic feel.
+
+@load: $file('test_data/same_person/2/1.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Add subtle film grain for a cinematic feel.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

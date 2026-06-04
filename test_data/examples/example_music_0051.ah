@@ -1,0 +1,12 @@
+# Request: Create a short song about city traffic at night.
+
+@music_style: $list
+irish traditional
+
+@lyrics_text: $llm
+Write lyrics for a song about city traffic at night.
+Return only the final result without comments, clarifications, or explanations.
+
+@track: (@music_style, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
+
+run @track

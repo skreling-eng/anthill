@@ -1,0 +1,7 @@
+# Request: Solve: sqrt(200) approximated. Show main steps.
+
+@answer: $math
+Solve: sqrt(200) approximated. Show main steps.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

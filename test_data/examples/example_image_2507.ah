@@ -1,0 +1,9 @@
+# Request: Synthesize a cinematic still of a canoe on a misty lake. (variant 2507)
+
+@prompts: $llm -> $texts_to_prompts
+a canoe on a misty lake, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

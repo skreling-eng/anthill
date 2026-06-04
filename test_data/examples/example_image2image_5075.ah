@@ -1,0 +1,9 @@
+# Request: Improve lighting and make colors more natural.
+
+@load: $file('test_data/abnormal_images/good/20260530_024944_default_image_0.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Improve lighting and make colors more natural; keep the same subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

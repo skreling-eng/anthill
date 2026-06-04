@@ -1,0 +1,9 @@
+# Request: Generate an image of a chocolatier decorating truffles. (variant 2670)
+
+@prompts: $llm -> $texts_to_prompts
+a chocolatier decorating truffles, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

@@ -1,0 +1,7 @@
+# Request: Compare Amazon rainforest and inflation in a short table.
+
+@answer: $llm
+Compare Amazon rainforest and inflation in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

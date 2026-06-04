@@ -1,0 +1,10 @@
+# Request: What is CI/CD?
+
+@search_step: $search(limit=5)
+CI/CD definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is CI/CD?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

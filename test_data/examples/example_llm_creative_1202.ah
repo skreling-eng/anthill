@@ -1,0 +1,7 @@
+# Request: Give a two-sentence horror story about remote work.
+
+@answer: $llm
+Give a two-sentence horror story about remote work.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

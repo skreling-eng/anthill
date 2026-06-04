@@ -1,0 +1,10 @@
+# Request: What is electric vehicles?
+
+@search_step: $search(limit=5)
+electric vehicles definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is electric vehicles?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

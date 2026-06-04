@@ -1,0 +1,9 @@
+# Request: Change the mood of the photo to match a meteor shower over desert dunes.
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Make the image evoke a meteor shower over desert dunes. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

@@ -1,0 +1,9 @@
+# Request: I need an image showing neon Tokyo alley at midnight. (variant 2491)
+
+@prompts: $llm -> $texts_to_prompts
+neon Tokyo alley at midnight, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

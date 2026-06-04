@@ -1,0 +1,10 @@
+# Request: What is home networking?
+
+@search_step: $search(limit=5)
+home networking definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is home networking?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

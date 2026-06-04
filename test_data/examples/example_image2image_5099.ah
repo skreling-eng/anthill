@@ -1,0 +1,9 @@
+# Request: Make the scene look like winter with cool tones.
+
+@load: $file('test_data/images/20260524_051849_aibeauty01_image_18.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Make the scene look like winter with cool tones.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

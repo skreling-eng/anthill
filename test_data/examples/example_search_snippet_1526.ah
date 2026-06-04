@@ -1,0 +1,10 @@
+# Request: What is open source?
+
+@search_step: $search(limit=5)
+open source definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is open source?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

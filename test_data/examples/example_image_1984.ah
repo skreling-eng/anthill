@@ -1,0 +1,9 @@
+# Request: Generate an image of children playing in snow.
+
+@prompts: $llm -> $texts_to_prompts
+children playing in snow, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

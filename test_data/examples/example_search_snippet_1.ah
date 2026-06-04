@@ -1,0 +1,11 @@
+# Request: What is the capital of Australia?
+
+@search_step: $search(limit=5)
+capital of Australia
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is the capital of Australia?
+Answer using __CONTENT__.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

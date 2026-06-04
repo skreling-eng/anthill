@@ -1,0 +1,9 @@
+# Request: Create a TTS clip explaining a pack of wolves in winter.
+
+@text: $llm
+Write a two-sentence narration about a pack of wolves in winter.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bf_emma)
+
+run @say

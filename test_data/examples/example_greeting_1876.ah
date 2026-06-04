@@ -1,0 +1,7 @@
+# Request: thank you
+
+@answer: $llm
+thank you
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

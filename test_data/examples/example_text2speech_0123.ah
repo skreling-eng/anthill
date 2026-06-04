@@ -1,0 +1,9 @@
+# Request: Make a voice narration of a beekeeper checking hives.
+
+@text: $llm
+Write a two-sentence narration about a beekeeper checking hives.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bm_george)
+
+run @say

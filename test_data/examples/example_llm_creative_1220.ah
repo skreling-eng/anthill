@@ -1,0 +1,7 @@
+# Request: Write a haiku about NoSQL.
+
+@answer: $llm
+Write a haiku about NoSQL.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

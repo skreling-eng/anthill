@@ -1,0 +1,7 @@
+# Request: Compare Python asyncio and event-driven architecture in a short table.
+
+@answer: $llm
+Compare Python asyncio and event-driven architecture in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

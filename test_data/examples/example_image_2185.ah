@@ -1,0 +1,9 @@
+# Request: Use $image to make a vintage motorcycle on Route 66.
+
+@prompts: $llm -> $texts_to_prompts
+a vintage motorcycle on Route 66, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

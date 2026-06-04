@@ -1,0 +1,9 @@
+# Request: I want a poster featuring a coral pink salt flats.
+
+@prompts: $llm -> $texts_to_prompts
+a coral pink salt flats, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

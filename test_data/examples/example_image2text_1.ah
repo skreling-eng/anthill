@@ -1,0 +1,9 @@
+# Request: Describe what you see in this app screenshot.
+
+@load: $file('test_data/app/app_screenshot_1.png')
+
+@describe: @load -> $image2text
+Describe the UI layout, main elements, and purpose of this screen in 5-8 sentences.
+Return only the final result without comments, clarifications, or explanations.
+
+run @describe

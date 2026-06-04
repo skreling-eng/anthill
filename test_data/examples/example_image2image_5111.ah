@@ -1,0 +1,9 @@
+# Request: Fix red eyes and soften harsh shadows.
+
+@load: $file('test_data/same_person/1/5.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Fix red eyes and soften harsh shadows.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

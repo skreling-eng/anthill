@@ -1,0 +1,7 @@
+# Request: Write a limerick about bread baking.
+
+@answer: $llm
+Write a limerick about bread baking.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

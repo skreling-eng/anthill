@@ -1,0 +1,9 @@
+# Request: Build an Anthill pipeline to generate an image of a silk weaver in Kyoto. (variant 2774)
+
+@prompts: $llm -> $texts_to_prompts
+a silk weaver in Kyoto, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

@@ -1,0 +1,9 @@
+# Request: Generate an image of a calligrapher writing kanji. (variant 2630)
+
+@prompts: $llm -> $texts_to_prompts
+a calligrapher writing kanji, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

@@ -1,0 +1,7 @@
+# Request: Compare NoSQL and machine learning in a short table.
+
+@answer: $llm
+Compare NoSQL and machine learning in a short table.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

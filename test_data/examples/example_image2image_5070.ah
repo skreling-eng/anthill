@@ -1,0 +1,9 @@
+# Request: Remove dust spots and minor blemishes.
+
+@load: $file('test_data/text_images/20260530_013337_default_image_0.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Remove dust spots and minor blemishes.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

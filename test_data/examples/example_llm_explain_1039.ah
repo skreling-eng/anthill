@@ -1,0 +1,7 @@
+# Request: Explain Roman history in simple terms for a beginner.
+
+@answer: $llm
+Explain Roman history in simple terms for a beginner.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

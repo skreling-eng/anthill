@@ -1,0 +1,9 @@
+# Request: Draw a racing sailboat regatta with the image model. (variant 2586)
+
+@prompts: $llm -> $texts_to_prompts
+a racing sailboat regatta, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

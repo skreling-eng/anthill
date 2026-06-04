@@ -1,0 +1,7 @@
+# Request: Explain vaccines in simple terms for a beginner.
+
+@answer: $llm
+Explain vaccines in simple terms for a beginner.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

@@ -1,0 +1,9 @@
+# Request: Add depth with mild contrast boost.
+
+@load: $file('test_data/same_person/1/2.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Add depth with mild contrast boost.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

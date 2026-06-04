@@ -1,0 +1,7 @@
+# Request: Describe jazz music as if you were a tour guide.
+
+@answer: $llm
+Describe jazz music as if you were a tour guide.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

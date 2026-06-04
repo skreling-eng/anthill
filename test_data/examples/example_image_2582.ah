@@ -1,0 +1,9 @@
+# Request: Produce artwork depicting a harpist in a cathedral. (variant 2582)
+
+@prompts: $llm -> $texts_to_prompts
+a harpist in a cathedral, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

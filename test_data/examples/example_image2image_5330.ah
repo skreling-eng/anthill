@@ -1,0 +1,9 @@
+# Request: Apply a a silk road camel train look to the input photo. (variant 5330)
+
+@load: $file('test_data/clip/demo-poster.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Make the image evoke a silk road camel train. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

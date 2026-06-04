@@ -1,0 +1,9 @@
+# Request: Improve this picture for a submarine coral nursery. (variant 5279)
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Make the image evoke a submarine coral nursery. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

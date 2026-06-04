@@ -1,0 +1,9 @@
+# Request: Draw a ballerina in an empty theater with the image model. (variant 2656)
+
+@prompts: $llm -> $texts_to_prompts
+a ballerina in an empty theater, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

@@ -1,0 +1,9 @@
+# Request: Smooth skin slightly while keeping texture realistic..
+
+@load: $file('test_data/same_person/2/4.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Smooth skin slightly while keeping texture realistic.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

@@ -1,0 +1,7 @@
+# Request: How do I get started with cryptocurrency? Give 5 practical steps.
+
+@answer: $llm
+How do I get started with cryptocurrency? Give 5 practical steps.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

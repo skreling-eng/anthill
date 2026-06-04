@@ -1,0 +1,9 @@
+# Request: I need an image showing a marble quarry at noon.
+
+@prompts: $llm -> $texts_to_prompts
+a marble quarry at noon, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

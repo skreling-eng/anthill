@@ -1,0 +1,9 @@
+# Request: Increase saturation for a vivid poster style.
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Increase saturation for a vivid poster style.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

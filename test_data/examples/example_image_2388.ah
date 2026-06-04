@@ -1,0 +1,9 @@
+# Request: I want a poster featuring underwater coral reef turtles. (variant 2388)
+
+@prompts: $llm -> $texts_to_prompts
+underwater coral reef turtles, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

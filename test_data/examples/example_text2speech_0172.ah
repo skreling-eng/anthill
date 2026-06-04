@@ -1,0 +1,9 @@
+# Request: Convert text to speech about a lavender field in Provence.
+
+@text: $llm
+Write a two-sentence narration about a lavender field in Provence.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=af_bella)
+
+run @say

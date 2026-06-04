@@ -1,0 +1,9 @@
+# Request: Make a voice narration of a polar research station aurora.
+
+@text: $llm
+Write a two-sentence narration about a polar research station aurora.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=bm_george)
+
+run @say

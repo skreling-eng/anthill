@@ -1,0 +1,7 @@
+# Request: List 7 interesting facts about meditation.
+
+@answer: $llm
+List 7 interesting facts about meditation.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

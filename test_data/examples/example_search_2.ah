@@ -1,0 +1,11 @@
+# Request: What is the UK renewable energy policy in 2026?
+
+@search_step: $search(limit=6, fetch_pages=True, fetch_max=3)
+UK renewable energy policy 2026
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is the UK renewable energy policy in 2026?
+Use __CONTENT__ from search. Summarize key points.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

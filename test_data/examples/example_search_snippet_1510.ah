@@ -1,0 +1,10 @@
+# Request: What is urban gardening?
+
+@search_step: $search(limit=5)
+urban gardening definition
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+What is urban gardening?
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

@@ -1,0 +1,7 @@
+# Request: Write a haiku about TypeScript.
+
+@answer: $llm
+Write a haiku about TypeScript.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

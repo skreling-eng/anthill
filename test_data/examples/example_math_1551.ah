@@ -1,0 +1,7 @@
+# Request: Solve: integral of 1/(1+x^2) dx. Show main steps.
+
+@answer: $math
+Solve: integral of 1/(1+x^2) dx. Show main steps.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

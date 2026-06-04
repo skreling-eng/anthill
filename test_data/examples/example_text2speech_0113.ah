@@ -1,0 +1,9 @@
+# Request: Generate spoken audio describing a street food vendor in Bangkok.
+
+@text: $llm
+Write a two-sentence narration about a street food vendor in Bangkok.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=am_adam)
+
+run @say

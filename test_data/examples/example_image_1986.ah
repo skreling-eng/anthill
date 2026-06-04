@@ -1,0 +1,9 @@
+# Request: Generate an image of wild horses running.
+
+@prompts: $llm -> $texts_to_prompts
+wild horses running, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

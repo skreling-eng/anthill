@@ -1,0 +1,9 @@
+# Request: Smooth skin slightly while keeping texture realistic.
+
+@load: $file('test_data/same_person/1/3.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=8)
+Smooth skin slightly while keeping texture realistic.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

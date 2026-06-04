@@ -1,0 +1,9 @@
+# Request: Use $image to make a bamboo forest path. (variant 2425)
+
+@prompts: $llm -> $texts_to_prompts
+a bamboo forest path, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='realistic')
+
+run @images

@@ -1,0 +1,7 @@
+# Request: Write a JavaScript snippet to merge two sorted lists.
+
+@answer: $code
+Write a JavaScript snippet to merge two sorted lists.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

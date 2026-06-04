@@ -1,0 +1,7 @@
+# Request: Extract all visible text from this image.
+
+@load: $file('test_data/text_images/20260530_020727_default_image_0.png')
+
+@text: @load -> $ocr
+
+run @text

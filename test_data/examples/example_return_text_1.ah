@@ -1,0 +1,6 @@
+# Request: Return exactly: Pipeline ready.
+
+@answer: $prompts_to_texts
+Pipeline ready.
+
+run @answer

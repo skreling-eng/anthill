@@ -1,0 +1,9 @@
+# Request: Give a chronological timeline of user and bot messages from the chat.
+
+@history: ^get_messages
+
+@answer: @history -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+Build a chronological timeline from __CONTENT__. Format: role — short excerpt per entry.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

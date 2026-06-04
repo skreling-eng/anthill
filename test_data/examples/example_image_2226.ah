@@ -1,0 +1,9 @@
+# Request: Draw a volcanic lava tube explorer with the image model.
+
+@prompts: $llm -> $texts_to_prompts
+a volcanic lava tube explorer, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

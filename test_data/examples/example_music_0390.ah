@@ -1,0 +1,12 @@
+# Request: Create a song about a moonlit owl in pine forest. (variant 390)
+
+@music_style: $list
+acoustic guitar
+
+@lyrics_text: $llm
+Write lyrics for a song about a moonlit owl in pine forest.
+Return only the final result without comments, clarifications, or explanations.
+
+@track: (@music_style, @lyrics_text) -> $music(model='st', guidance_scale=4.0, vocal_language='en', inference_steps=50)
+
+run @track

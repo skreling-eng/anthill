@@ -1,0 +1,7 @@
+# Request: Write a JavaScript snippet to parse JSON from a file.
+
+@answer: $code
+Write a JavaScript snippet to parse JSON from a file.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

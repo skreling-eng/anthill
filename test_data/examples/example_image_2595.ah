@@ -1,0 +1,9 @@
+# Request: Use $image to make rabbits in a sunlit meadow. (variant 2595)
+
+@prompts: $llm -> $texts_to_prompts
+rabbits in a sunlit meadow, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

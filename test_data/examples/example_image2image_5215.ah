@@ -1,0 +1,9 @@
+# Request: Apply a a robot assembling flowers look to the input photo.
+
+@load: $file('test_data/same_person/1/9.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Make the image evoke a robot assembling flowers. Keep the main subject.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

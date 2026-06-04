@@ -1,0 +1,28 @@
+$model_ah_merge_lora — merge LoRA adapter and export GGUF
+
+SUMMARY
+  Merges LoRA from files[] into Qwen2.5-Coder HF base, converts to quantized GGUF.
+
+SYNTAX
+  @gguf: @lora -> $model_ah_merge_lora(model='1.5b', quant='Q4_K_M')
+
+INPUT
+  files[] — LoRA .zip from $model_ah_train_lora (or adapter_config.json link)
+
+OUTPUT
+  files[] — .gguf model file
+
+ARGUMENTS
+  model= — 1.5b (default)
+  quant= — llama.cpp quant type (default Q4_K_M)
+  output_name= — gguf basename (default model)
+
+ENV
+  AH_LLAMA_CPP — optional path to existing llama.cpp clone
+  AH_LLAMA_CPP_AUTO_DOWNLOAD=1 — download convert tools to .cache/llama.cpp (default on)
+  AH_LLAMA_CPP_CACHE — override download cache directory
+  Without llama-quantize built, quant=Q4_K_M falls back to q8_0 GGUF
+  AH_EMULATE_MODEL_AH_MERGE_LORA=1 — stub .gguf for tests
+
+PROMPT-CONSUMING
+  No.

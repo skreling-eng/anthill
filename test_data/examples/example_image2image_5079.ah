@@ -1,0 +1,9 @@
+# Request: Correct white balance for natural skin tones.
+
+@load: $file('test_data/app/app_screenshot_3.png')
+
+@edit: @load -> $image2image(model='default', steps=10)
+Correct white balance for natural skin tones.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

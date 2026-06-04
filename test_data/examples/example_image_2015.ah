@@ -1,0 +1,9 @@
+# Request: Generate an image of a coffee shop morning.
+
+@prompts: $llm -> $texts_to_prompts
+a coffee shop morning, photorealistic, high detail, cinematic composition.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

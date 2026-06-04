@@ -1,0 +1,9 @@
+# Request: Draw a marble quarry at noon with the image model.
+
+@prompts: $llm -> $texts_to_prompts
+a marble quarry at noon, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

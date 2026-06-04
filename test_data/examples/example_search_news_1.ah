@@ -1,0 +1,11 @@
+# Request: Summarize today's top headlines about artificial intelligence.
+
+@search_step: $search(limit=6, fetch_pages=True, fetch_max=3)
+artificial intelligence news today 2026
+
+@answer: @search_step -> $json2texts -> $texts2prompts -> $llm(add_texts=True)
+Summarize today's top headlines about artificial intelligence.
+Use __CONTENT__; bullet list, max 8 items.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

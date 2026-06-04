@@ -1,0 +1,9 @@
+# Request: Produce artwork depicting a driftwood beach sculpture. (variant 2542)
+
+@prompts: $llm -> $texts_to_prompts
+a driftwood beach sculpture, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='sfw-v23')
+
+run @images

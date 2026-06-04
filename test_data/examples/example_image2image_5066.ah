@@ -1,0 +1,9 @@
+# Request: Reduce motion blur if present.
+
+@load: $file('test_data/same_person/2/6.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=6)
+Reduce motion blur if present.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

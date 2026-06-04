@@ -1,0 +1,9 @@
+# Request: Convert text to speech about a flamenco dancer mid-spin.
+
+@text: $llm
+Write a two-sentence narration about a flamenco dancer mid-spin.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=af_bella)
+
+run @say

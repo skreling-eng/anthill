@@ -1,0 +1,7 @@
+# Request: Write a haiku about autumn rain.
+
+@answer: $llm
+Write a haiku about autumn rain.
+Return only the final result without comments, clarifications, or explanations.
+
+run @answer

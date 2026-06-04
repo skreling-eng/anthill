@@ -1,0 +1,9 @@
+# Request: Sharpen eyes and face.
+
+@load: $file('test_data/same_person/1/4.png')
+
+@edit: @load -> $image2image(model='sfw-v23', steps=12)
+Sharpen eyes and face; gentle background blur effect in prompt only.
+Return only the final result without comments, clarifications, or explanations.
+
+run @edit

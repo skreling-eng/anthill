@@ -1,0 +1,9 @@
+# Request: Draw a candlelit violin recital with the image model. (variant 2396)
+
+@prompts: $llm -> $texts_to_prompts
+a candlelit violin recital, photorealistic, high detail, cinematic lighting.
+Return only the prompt, under 55 words.
+
+@images: @prompts -> $image(model='default')
+
+run @images

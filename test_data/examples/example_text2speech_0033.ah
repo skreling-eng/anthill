@@ -1,0 +1,9 @@
+# Request: Generate spoken audio describing a gondola in Venetian fog.
+
+@text: $llm
+Write a two-sentence narration about a gondola in Venetian fog.
+Return only the final result without comments, clarifications, or explanations.
+
+@say: @text -> $text2speech(voice=am_adam)
+
+run @say
