@@ -48,6 +48,14 @@ run @instruction_name
 
 Starts execution at `@instruction_name` with empty input arrays.
 
+**Shorthand:** a line that starts with `>>>` (nothing else required on that line) is the same as `run @instruction_name` where `@instruction_name` is the **last `@` definition above that line**. After the first `>>>`, any further `>>>` or `run @…` lines are ignored.
+
+```ah
+@load: $file('photo.png')
+@describe: @load -> $image2text
+>>>
+```
+
 ---
 
 ## 3. Action pipeline syntax
@@ -158,7 +166,32 @@ Example:
 @overlay: @images -> zip(images, texts){ $draw_text }
 ```
 
-### 3.6 Context storage — `%name`, `name%`, `%name%`
+### 3.7 Custom actions — `&name`
+
+Define a reusable Python transform (generated once, cached under `custom_actions/<name>/`):
+
+```ah
+&crop:
+for images, delete bottom 100 pixels
+
+@pipeline: $image -> &crop
+prompt for upstream steps
+
+>>>
+```
+
+- **Definition:** `&name:` then a specification body (what the step should do).
+- **Use in pipelines:** `&name` as a step in `@instruction:` actions (like `@ref` or `$ext`).
+- **Environment:** isolated venv `.venvs/custom_actions` (`uv sync --extra custom_actions`). Setup: `tools/setup_external_venvs.ps1`. Override: `AH_CUSTOM_ACTIONS_VENV`.
+- **Codegen:** first run calls `$code` (default GGUF model, auto-downloaded) inside that venv; result is saved as `custom_actions/<name>/run.py`.
+- **Imports:** `import` lines in generated `run.py` are parsed; new PyPI packages are installed into the custom-actions venv (`meta.json` lists `imports` / `pypi_packages`).
+- **Cache:** if `meta.json` prompt hash matches the definition body, the saved handler is reused (no regeneration).
+- **Validation:** a second `$code` pass reviews the generated code; on failure, codegen retries up to 4 more times with prior rejected code and reasons in the prompt (`AH_CUSTOM_ACTION_MAX_ATTEMPTS` to override total attempts).
+- **Execution:** handlers run in the same venv via subprocess (not the main app interpreter).
+- **Session logs:** accepted handler → `custome_code.txt`; each failed attempt → `custome_code_rejected_1.txt`, `custome_code_rejected_2.txt`, … (rejection reason on the first line).
+- **Handler API:** `def run(bundle: dict, base_dir: str) -> dict` — same array keys as ArrayBundle; paths relative to session root.
+
+### 3.8 Context storage — `%name`, `name%`, `%name%`
 
 Separate namespace from `@` instructions. Stores full **ArrayBundle** in named context.
 
@@ -265,6 +298,7 @@ Registered handlers (see `externals/__init__.py`). Per-external detail: `externa
 | `$image_clip`, `$video_clip`, `$clip` | Video from images/sounds or joined videos + sound |
 | `$sound2text` | Speech-to-text (optional JSON word timestamps) |
 | `$draw_text` | Overlay multiline text on `images[]` (Pillow) |
+| `$add_soft_subtitles` | Burn subtitles from `texts[]` onto each `videos[]` clip (ffmpeg) |
 | `$video_thumbnailer` | Contact-sheet JPEG preview per `videos[]` entry |
 | `$only` | Keep only listed arrays, e.g. `$only(images, prompts)` |
 | `$select` | Pick elements by index, e.g. `$select(sounds=[1], texts=[0])` |

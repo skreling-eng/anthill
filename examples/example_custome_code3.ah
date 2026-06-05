@@ -1,0 +1,10 @@
+
+
+&fff:
+for sounds, make it louder
+
+@track: $file('test_data\music\20260525_200821_st_music_0.wav')
+
+@test: @track -> &fff
+
+>>>

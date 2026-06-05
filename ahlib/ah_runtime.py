@@ -18,6 +18,7 @@ from ahlib.ah_actions import (
     ActionExpr,
     CallbackAction,
     ContextAction,
+    CustomActionExpr,
     ExternalAction,
     ForAction,
     ZipAction,
@@ -209,6 +210,12 @@ class Session:
         deadline = time.monotonic() + timeout
         for path in paths:
             min_size = _MIN_MEDIA_BYTES.get(path.suffix.lower(), 1)
+            if path.is_absolute() and path.is_file():
+                try:
+                    if path.stat().st_size >= min_size:
+                        continue
+                except OSError:
+                    pass
             self._wait_for_file_ready(path, min_size=min_size, deadline=deadline)
 
     def _wait_for_file_ready(
@@ -256,6 +263,13 @@ class Session:
         return str(rel).replace("\\", "/")
 
 
+def _default_repo_root(session: Session) -> Path:
+    parent = session.base_dir.parent
+    if parent.name == "sessions":
+        return parent.parent.resolve()
+    return Path.cwd().resolve()
+
+
 class Runtime:
     def __init__(
         self,
@@ -263,11 +277,15 @@ class Runtime:
         session: Session,
         callback: ActionCallback | None = None,
         cancel_event: threading.Event | None = None,
+        repo_root: Path | None = None,
     ):
         self.program = program
         self.session = session
         self.callback = callback
         self.cancel_event = cancel_event
+        self.repo_root = (
+            repo_root.resolve() if repo_root is not None else _default_repo_root(session)
+        )
         self._instruction_cache: dict[tuple[str, tuple], ArrayBundle] = {}
         self._session_contexts: dict[str, ArrayBundle] = {}
         self._instruction_call_stack: list[str] = []
@@ -533,6 +551,56 @@ class Runtime:
             self._notify_action_error(action_name, exc)
             raise
 
+    def _eval_custom_action(
+        self,
+        action: CustomActionExpr,
+        bundle: ArrayBundle,
+        parent_op_dir: Path,
+    ) -> ArrayBundle:
+        from ahlib.custom_action_codegen import generate_and_store, run_handler_subprocess
+
+        name = action.name
+        action_name = f"&{name}"
+        if name not in self.program.custom_actions:
+            self._notify_action_start(action_name)
+            self._notify_action_error(
+                action_name, KeyError(f"Unknown custom action: &{name}")
+            )
+            raise KeyError(f"Unknown custom action: &{name}")
+
+        spec = (self.program.custom_actions[name].body or "").strip()
+        if not spec:
+            self._notify_action_start(action_name)
+            self._notify_action_error(
+                action_name, ValueError(f"&{name}: empty specification")
+            )
+            raise ValueError(f"&{name}: empty specification")
+
+        self._notify_action_start(action_name)
+        op_dir = self.session.next_op_dir(f"_{name}")
+        self.session.write_bundle(op_dir, bundle, "input")
+        try:
+            run_py = generate_and_store(
+                name, spec, self.repo_root, op_dir=op_dir
+            )
+            (op_dir / "custom").mkdir(parents=True, exist_ok=True)
+            result = run_handler_subprocess(
+                run_py,
+                bundle,
+                self.session.base_dir,
+                op_dir,
+                self.repo_root,
+            )
+            result = self._apply_changes(result, op_dir)
+            self.session.write_bundle(op_dir, result, "output")
+            self._notify_action_finish(action_name, result, op_dir)
+            return result
+        except Exception as exc:
+            err_path = op_dir / "error.txt"
+            err_path.write_text(str(exc) + "\n", encoding="utf-8")
+            self._notify_action_error(action_name, exc)
+            raise
+
     def _eval_callback_action(
         self,
         action: CallbackAction,
@@ -593,6 +661,8 @@ class Runtime:
             return self._eval_context_action(expr, bundle, ctx_store)
         if isinstance(expr, CallbackAction):
             return self._eval_callback_action(expr, bundle, parent_op_dir)
+        if isinstance(expr, CustomActionExpr):
+            return self._eval_custom_action(expr, bundle, parent_op_dir)
         if isinstance(expr, RefAction):
             use_cache = not externals_in_sequence
             if expr.repeat_infinite:

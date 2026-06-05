@@ -29,6 +29,14 @@ class Instruction:
 
 
 @dataclass
+class CustomAction:
+    """&name: specification body — generates Python under custom_actions/."""
+
+    name: str
+    body: str = ""
+
+
+@dataclass
 class RunCommand:
     target: str
 
@@ -36,10 +44,12 @@ class RunCommand:
 @dataclass
 class ParsedProgram:
     instructions: dict[str, Instruction] = field(default_factory=dict)
+    custom_actions: dict[str, CustomAction] = field(default_factory=dict)
     run_target: str | None = None
 
 
 _HEADER_RE = re.compile(r"^@(\w+)\s*(?::\s*(.*))?$")
+_CUSTOM_HEADER_RE = re.compile(r"^&(\w+)\s*:?\s*(.*)$")
 _BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
 
 
@@ -165,6 +175,9 @@ def parse_ah_source(source: str) -> ParsedProgram:
     i = 0
     n = len(lines)
 
+    last_instruction: str | None = None
+    run_locked_by_caret = False
+
     while i < n:
         if _is_comment_line(lines[i]):
             i += 1
@@ -175,12 +188,63 @@ def parse_ah_source(source: str) -> ParsedProgram:
             i += 1
             continue
 
+        if line.startswith(">>>"):
+            if not run_locked_by_caret and last_instruction is not None:
+                program.run_target = last_instruction
+                run_locked_by_caret = True
+            i += 1
+            continue
+
         if line.startswith("run "):
+            if run_locked_by_caret:
+                i += 1
+                continue
             target = line[4:].strip()
             if target.startswith("@"):
                 target = target[1:]
             program.run_target = target
             i += 1
+            continue
+
+        m_custom = _CUSTOM_HEADER_RE.match(line)
+        if m_custom:
+            cname = m_custom.group(1)
+            if m_custom.group(2).strip():
+                print(
+                    f"warning: &{cname} ignores text after ':' on the header line",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            body = ""
+            i += 1
+            body_lines: list[str] = []
+            while i < n:
+                if _is_comment_line(lines[i]):
+                    i += 1
+                    continue
+                peek = _strip_line(lines[i]).strip()
+                if not peek:
+                    i += 1
+                    if body_lines:
+                        break
+                    continue
+                if (
+                    peek.startswith("@")
+                    or peek.startswith("&")
+                    or peek.startswith("run ")
+                    or peek.startswith(">>>")
+                ):
+                    break
+                body_lines.append(_strip_line(lines[i]))
+                i += 1
+            body = "\n".join(body_lines).strip()
+            if cname in program.custom_actions:
+                print(
+                    f"warning: &{cname} redefined; earlier definition is replaced",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            program.custom_actions[cname] = CustomAction(name=cname, body=body)
             continue
 
         m = _HEADER_RE.match(line)
@@ -229,7 +293,12 @@ def parse_ah_source(source: str) -> ParsedProgram:
                     if body_lines:
                         break
                     continue
-                if peek.startswith("@") or peek.startswith("run "):
+                if (
+                    peek.startswith("@")
+                    or peek.startswith("&")
+                    or peek.startswith("run ")
+                    or peek.startswith(">>>")
+                ):
                     break
                 body_lines.append(_strip_line(lines[i]))
                 i += 1
@@ -242,6 +311,7 @@ def parse_ah_source(source: str) -> ParsedProgram:
                 flush=True,
             )
         program.instructions[name] = Instruction(name=name, actions=actions, body=body)
+        last_instruction = name
 
     return program
 
@@ -255,6 +325,10 @@ def program_to_dict(program: ParsedProgram) -> dict[str, Any]:
                 "body": inst.body,
             }
             for name, inst in program.instructions.items()
+        },
+        "custom_actions": {
+            name: {"body": act.body}
+            for name, act in program.custom_actions.items()
         },
         "run": program.run_target,
     }

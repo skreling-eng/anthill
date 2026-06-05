@@ -157,10 +157,9 @@ class LinkApi:
 
     def poll_log_refresh(self) -> str | None:
         ui = self.callback_obj
-        if ui is None or not ui._log_draw_pending:
+        if ui is None:
             return None
-        ui._log_draw_pending = False
-        return ui.html_page()
+        return ui.poll_action_log_html()
 
     def submit_chat_input(self, text: str) -> dict[str, str | int]:
         if self.callback_obj is not None:
@@ -195,6 +194,8 @@ class ChatInterface(Interface):
 
     def load_actions_from_disk(self) -> None:
         self.data = load_saved_actions(self.linkapi.base_dir)
+        with self._ui_lock:
+            self._log_generation += 1
         if not self._shutting_down:
             self._queue_log_draw()
 
@@ -229,7 +230,9 @@ class ChatInterface(Interface):
         elif action == "clear":
             if self._run_thread is not None and self._run_thread.is_alive():
                 self.request_stop_run()
-            self.data = []
+            with self._ui_lock:
+                self.data = []
+                self._log_generation += 1
             self._clear_conversation()
             self.add_action_results("<b>Clear</b>")
             try:

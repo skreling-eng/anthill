@@ -10,6 +10,7 @@ from pathlib import Path
 from ahlib.ah_actions import ExternalAction, parse_actions
 from externals.api import ExternalContext, ExternalInput
 from externals.file.run import run
+from externals.file_extensions import array_for_extension
 from externals.invoke import subprocess_enabled
 from ahlib.ah_runtime import ArrayBundle, Session, create_session_dir
 
@@ -27,6 +28,15 @@ def _png_bytes() -> bytes:
             b"\x08\x02\x00\x00\x00=\x91\x10\x20\x00\x00\x00\x0cIDATx\x9cc``\x00\x00"
             b"\x00\x04\x00\x01\x5c\xcd\xff\x69\x00\x00\x00\x00IEND\xaeB`\x82"
         )
+
+
+class TestFileExtensions(unittest.TestCase):
+    def test_ass_routes_to_texts(self) -> None:
+        self.assertEqual(array_for_extension(".ass"), "texts")
+        self.assertEqual(array_for_extension(".ASS"), "texts")
+
+    def test_unknown_routes_to_files(self) -> None:
+        self.assertEqual(array_for_extension(".xyz"), "files")
 
 
 class TestFileExternal(unittest.TestCase):
@@ -87,6 +97,27 @@ class TestFileExternal(unittest.TestCase):
             out = run(ctx, inp)
         self.assertEqual(len(out.files), 1)
         self.assertEqual(Path(out.files[0]).resolve(), lang_desc.resolve())
+
+    def test_loads_ass_into_texts(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        asset = repo / "test_asset_file.ass"
+        asset.write_text("[Script Info]\nTitle: test\n", encoding="utf-8")
+        try:
+            session_dir = create_session_dir(repo / "sessions")
+            session = Session(session_dir)
+            op_dir = session.next_op_dir("file")
+            ctx = ExternalContext(session=session, op_dir=op_dir)
+            inp = ExternalInput(
+                bundle=ArrayBundle(),
+                args={"_path": "test_asset_file.ass"},
+                prompt_text="",
+            )
+            out = run(ctx, inp)
+            self.assertEqual(len(out.texts), 1)
+            data = (session_dir / out.texts[0]).read_text(encoding="utf-8")
+            self.assertIn("[Script Info]", data)
+        finally:
+            asset.unlink(missing_ok=True)
 
     def test_source_path_links_without_copy(self) -> None:
         repo = Path(__file__).resolve().parents[1]

@@ -6,20 +6,10 @@ import os
 from pathlib import Path
 
 from externals.api import ExternalContext, ExternalInput
+from externals.file_extensions import array_for_extension
 from ahlib.ah_runtime import ArrayBundle
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-
-_EXT_ARRAY = {
-    ".mp3": "sounds",
-    ".wav": "sounds",
-    ".png": "images",
-    ".jpg": "images",
-    ".jpeg": "images",
-    ".webp": "images",
-    ".mp4": "videos",
-    ".txt": "texts",
-}
 
 
 def _emulate_enabled() -> bool:
@@ -64,7 +54,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     out = inp.bundle.copy()
     path = inp.args.get("_path", inp.args.get("path", "unknown.bin"))
     ext = Path(path).suffix.lower()
-    arr_key = _EXT_ARRAY.get(ext, "files")
+    arr_key = array_for_extension(ext)
     source_path = _source_path_from_args(inp.args)
 
     if _emulate_enabled():

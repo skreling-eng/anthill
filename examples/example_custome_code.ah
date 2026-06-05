@@ -1,0 +1,10 @@
+
+
+&fff:
+for images, delete bottom 100 pixels
+
+@test: $image -> &fff
+a huge dinosaur with a soft drink
+
+
+>>>

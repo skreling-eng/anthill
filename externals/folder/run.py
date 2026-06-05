@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 from externals.api import ExternalContext, ExternalInput
-from externals.file.run import _EXT_ARRAY
+from externals.file_extensions import array_for_extension
 from ahlib.ah_runtime import ArrayBundle
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -104,7 +104,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
             if not _matches_pattern(name, pattern):
                 continue
             ext = Path(name).suffix.lower()
-            arr_key = _EXT_ARRAY.get(ext, "files")
+            arr_key = array_for_extension(ext)
             if source_path:
                 link = str((dir_path / name).resolve()).replace("\\", "/")
             else:
@@ -116,7 +116,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     dir_path = _resolve_dir_path(ctx, path)
     for src in _list_files(dir_path, pattern):
         ext = src.suffix.lower()
-        arr_key = _EXT_ARRAY.get(ext, "files")
+        arr_key = array_for_extension(ext)
         if source_path:
             link = str(src.resolve()).replace("\\", "/")
         else:

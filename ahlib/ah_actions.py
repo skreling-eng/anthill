@@ -65,6 +65,13 @@ class CallbackAction:
     repeat: int | None = None
 
 
+@dataclass
+class CustomActionExpr:
+    """Custom &name step — runs generated Python from custom_actions/."""
+
+    name: str
+
+
 ActionExpr = Union[
     RefAction,
     ExternalAction,
@@ -74,11 +81,13 @@ ActionExpr = Union[
     ZipAction,
     ContextAction,
     CallbackAction,
+    CustomActionExpr,
 ]
 
 _REF_RE = re.compile(r"^@(\w+)(?:\[(inf|\d+)\])?$", re.IGNORECASE)
 _EXTERNAL_RE = re.compile(r"^\$(\w+)(?:\((.*)\))?(?:\[(\d+)\])?$")
 _CALLBACK_RE = re.compile(r"^\^(\w+)(?:\((.*)\))?(?:\[(\d+)\])?$")
+_CUSTOM_RE = re.compile(r"^&(\w+)$")
 _CONTEXT_RE = re.compile(
     r"^(?P<prefix>%+)?(?P<name>\w+)(?P<suffix>%+)?$"
 )
@@ -259,7 +268,7 @@ def _tokenize_actions(source: str) -> list[str]:
                     tokens.append(tok.strip())
                     i = k
                     continue
-        if source[i] in "@$^":
+        if source[i] in "@$^&":
             j = i + 1
             depth = 0
             while j < len(source):
@@ -355,6 +364,8 @@ def _parse_expr(tokens: list[str], pos: int = 0) -> tuple[ActionExpr, int]:
             args = _parse_args(m_cb.group(2) or "")
             repeat = int(m_cb.group(3)) if m_cb.group(3) else None
             node = CallbackAction(name=m_cb.group(1), args=args, repeat=repeat)
+        elif (m_custom := _CUSTOM_RE.match(tok)):
+            node = CustomActionExpr(name=m_custom.group(1))
         elif (m_ref := _REF_RE.match(tok)):
             suffix = m_ref.group(2)
             if suffix is None:

@@ -348,7 +348,22 @@ def run_external_subprocess(
                 )
             time.sleep(0.1)
         if proc.returncode != 0:
-            raise subprocess.CalledProcessError(proc.returncode, cmd)
+            err_path = op_dir / "error.txt"
+            detail = ""
+            if err_path.is_file():
+                lines = [
+                    ln
+                    for ln in err_path.read_text(
+                        encoding="utf-8", errors="replace"
+                    ).splitlines()
+                    if ln.strip()
+                ]
+                if lines:
+                    detail = "\n".join(lines[-20:])
+            msg = f"$externals subprocess {name!r} failed (exit {proc.returncode})"
+            if detail:
+                msg = f"{msg}:\n{detail}"
+            raise RuntimeError(msg) from None
     finally:
         with _active_procs_lock:
             try:

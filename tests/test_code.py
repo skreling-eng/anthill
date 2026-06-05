@@ -147,6 +147,33 @@ class CodeRequestTests(unittest.TestCase):
             saved = json.loads(request_path.read_text(encoding="utf-8"))
             self.assertEqual(saved["prompts"], ["Write tests"])
             self.assertEqual(saved["code_context"], "context")
+            model_path = ctx.op_dir / "model.json"
+            self.assertTrue(model_path.is_file())
+            model_info = json.loads(model_path.read_text(encoding="utf-8"))
+            self.assertEqual(model_info["external"], "code")
+            self.assertEqual(model_info["model"], "default")
+            self.assertTrue(model_info["emulate"])
+            self.assertEqual(model_info["emulate_reason"], "AH_EMULATE_CODE")
+            self.assertEqual(model_info["max_tokens"], 2048)
+            self.assertFalse(model_info["ah"])
+            text = ctx.read_link_text(out.texts[-1])
+            self.assertIn("expert coding assistant", text)
+            self.assertNotIn("Anthill", text)
+        finally:
+            os.environ.pop("AH_EMULATE_CODE", None)
+
+    def test_emulate_ah_mode_uses_anthill_system(self) -> None:
+        os.environ["AH_EMULATE_CODE"] = "1"
+        try:
+            ctx, inp = self._ctx_and_inp(prompts=["task"])
+            inp.args["ah"] = "1"
+            out = run(ctx, inp)
+            text = ctx.read_link_text(out.texts[-1])
+            self.assertIn("Anthill", text)
+            model_info = json.loads(
+                (ctx.op_dir / "model.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(model_info["ah"])
         finally:
             os.environ.pop("AH_EMULATE_CODE", None)
 

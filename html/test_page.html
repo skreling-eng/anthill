@@ -380,9 +380,10 @@
             setTemplateFragment("top-left", html);
           }
         } catch (err) {
-          /* ignore poll errors */
+          console.warn("refreshActionLog:", err);
         }
       }
+      window.refreshActionLog = refreshActionLog;
       window.setInterval(refreshActionLog, 400);
       window.addEventListener("load", refreshActionLog);
     })();

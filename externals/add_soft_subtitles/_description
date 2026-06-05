@@ -1,0 +1,48 @@
+$add_soft_subtitles — burn soft subtitles from texts[] onto videos[]
+
+SUMMARY
+  For each videos[] clip, burns subtitles from texts[].
+  .ass / .ssa / .srt files in texts[] (e.g. from $file(..., source_path=True)) use ffmpeg
+  subtitles=; inline ASS text or [Script Info] also uses subtitles=; plain text uses drawtext=.
+
+SYNTAX
+  $add_soft_subtitles
+  $add_soft_subtitles(font='ttf/MuseoSansCyrl-700.ttf', size=40, bottom=40)
+  $add_soft_subtitles(text='Fixed caption for all clips')
+
+INPUT
+  videos[] — required
+  texts[]  — subtitle strings (one per video, one for all, or pad with last entry)
+
+OUTPUT
+  videos[] — one MP4 per input video (only videos[] in the output bundle)
+
+PAIRING
+  Equal counts — zip video[i] with texts[i]
+  One texts[] entry — same subtitles on every video
+  Fewer texts than videos — pad with the last text entry
+  More texts than videos — use the first N texts
+
+ARGUMENTS
+  text=   — fixed subtitle for every video (overrides texts[])
+  font=   — .ttf path (default: ttf/MuseoSansCyrl-700.ttf under repo root)
+  size=   — font size in pixels (default: 40)
+  bottom= — margin from bottom edge in pixels (default: 40)
+
+TEXT RULES
+  If len(text) > 10, caret ^ in text is replaced with newline.
+
+DEPENDENCIES
+  ffmpeg + ffprobe: uv run python tools/download_ffmpeg.py  (→ tools/ffmpeg/)
+  or system install on PATH
+
+ENVIRONMENT
+  AH_EMULATE_ADD_SOFT_SUBTITLES=1 — stub .mp4 links without ffmpeg
+
+EXAMPLE
+  @clip: $file('clip.mp4')
+  @lines: $list('Hello^World')
+  @titled: (@clip, @lines) -> $add_soft_subtitles -> $save('clip_subs.mp4')
+
+PROMPT-CONSUMING
+  No — output is videos[] only (texts[] and other arrays cleared).

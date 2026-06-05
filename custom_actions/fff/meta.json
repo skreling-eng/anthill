@@ -1,0 +1,15 @@
+{
+  "name": "fff",
+  "prompt": "for sounds, make it louder",
+  "prompt_hash": "c87f7f75c2c9ccbca7e181357fd1c984c516153b1c4bea9066f9077e30e62491",
+  "model": "default",
+  "venv": ".venvs/custom_actions",
+  "imports": [
+    "numpy",
+    "scipy"
+  ],
+  "pypi_packages": [
+    "numpy",
+    "scipy"
+  ]
+}

@@ -82,6 +82,11 @@ image2video-fast = [
     "pillow>=10.0.0",
 ]
 draw_text = ["Pillow>=10.0.0"]
+# & custom actions: $code (llama-cpp in base deps) + handler deps; no torch (keeps venv light).
+custom_actions = [
+    "pillow>=10.0.0",
+    "numpy",
+]
 finetune = [
     "torch>=2.1",
     "transformers>=4.57.0",

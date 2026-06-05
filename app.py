@@ -5,12 +5,13 @@ import atexit
 import html
 import json
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
 import webview
 
-from ahlib.ah_parser import parse_ah_source
+from ahlib.ah_parser import ARRAY_TYPES, parse_ah_source
 from ahlib.ah_runtime import Runtime, RuntimeCancelled, Session, create_session_dir
 from ahlib.run_ah import _bootstrap_env
 from externals.invoke import release_gpu_resources, terminate_active_subprocesses
@@ -153,6 +154,13 @@ class LinkApi:
             self._schedule_autosave()
 
     def get_script_source(self) -> str:
+        ui = self.callback_obj
+        if (
+            ui is not None
+            and ui._run_thread is not None
+            and ui._run_thread.is_alive()
+        ):
+            return self._script_text
         if not webview.windows:
             return self._script_text
         try:
@@ -239,10 +247,9 @@ class LinkApi:
     def poll_log_refresh(self) -> str | None:
         """Return pending action-log HTML (called from the WebView GUI thread)."""
         ui = self.callback_obj
-        if ui is None or not ui._log_draw_pending:
+        if ui is None:
             return None
-        ui._log_draw_pending = False
-        return ui.html_page()
+        return ui.poll_action_log_html()
 
     def on_link_click(self, link_id: str, link_type: str) -> dict[str, str | int]:
         """Handle any link click callback from HTML and return updated state."""
@@ -255,8 +262,12 @@ class LinkApi:
 
 class Interface:
     _TEXT_PREVIEW_LIMIT = 200
+    _TEXT_INLINE_MAX_BYTES = 16 * 1024
     _MEDIA_PREVIEW_COUNT = 3
     _MEDIA_HEIGHT = 100
+    _MAX_LOG_ENTRIES = 60
+    _COMPACT_FINISH_LINKS = 8
+    _COMPACT_MEDIA_LIST = 6
 
     def __init__(self, api):
         self.linkapi = api
@@ -267,7 +278,12 @@ class Interface:
         self._shutting_down = False
         self._actions_save_timer: threading.Timer | None = None
         self._actions_save_lock = threading.Lock()
+        self._ui_lock = threading.Lock()
         self._log_draw_pending = False
+        self._log_generation = 0
+        self._log_painted_generation = -1
+        self._log_paint_min_interval_s = 0.2
+        self._log_last_paint_at = 0.0
 
     def begin_shutdown(self) -> None:
         """Stop UI updates and signal any in-flight run to exit."""
@@ -292,8 +308,10 @@ class Interface:
 
     def load_actions_from_disk(self) -> None:
         self.data = load_saved_actions(self.linkapi.base_dir)
+        with self._ui_lock:
+            self._log_generation += 1
         if not self._shutting_down:
-            self.draw("top-left", self.html_page())
+            self._queue_log_draw()
 
     def _schedule_actions_save(self) -> None:
         if self._shutting_down:
@@ -323,7 +341,9 @@ class Interface:
             else:
                 self.add_action_results("<b>No run in progress</b>")
         elif action == 'clear':
-            self.data = []
+            with self._ui_lock:
+                self.data = []
+                self._log_generation += 1
             self.add_action_results('<b>Clear</b>')
             try:
                 self.save_actions_now()
@@ -437,6 +457,15 @@ class Interface:
         self, links: list[str], *, session_root: Path | None = None
     ) -> str:
         count = len(links)
+        if count > self._COMPACT_MEDIA_LIST:
+            names = ", ".join(html.escape(Path(link).name) for link in links[:8])
+            extra = f" (+{count - 8} more)" if count > 8 else ""
+            return (
+                '<details class="result-fold result-videos">'
+                f'<summary><span class="result-title">Videos [{count}]:</span> '
+                f'<span class="result-preview-row">{names}{extra}</span>'
+                "</summary></details>"
+            )
         preview_links = links[: self._MEDIA_PREVIEW_COUNT]
 
         def _video_tag(link: str, css_class: str) -> str:
@@ -468,6 +497,15 @@ class Interface:
         self, links: list[str], *, session_root: Path | None = None
     ) -> str:
         count = len(links)
+        if count > self._COMPACT_MEDIA_LIST:
+            names = ", ".join(html.escape(Path(link).name) for link in links[:8])
+            extra = f" (+{count - 8} more)" if count > 8 else ""
+            return (
+                '<details class="result-fold result-sounds">'
+                f'<summary><span class="result-title">Sounds [{count}]:</span> '
+                f'<span class="result-preview-row">{names}{extra}</span>'
+                "</summary></details>"
+            )
         preview_links = links[: self._MEDIA_PREVIEW_COUNT]
 
         def _audio_tag(link: str, css_class: str) -> str:
@@ -495,15 +533,44 @@ class Interface:
             "</details>"
         )
 
+    def _text_preview_for_link(
+        self, link: str, *, session_root: Path | None = None
+    ) -> tuple[str, str | None]:
+        """Return (summary, full_text or None when omitted for size/type)."""
+        root = session_root if session_root is not None else self.session_dir
+        if root is None:
+            label = html.escape(Path(link).name)
+            return label, None
+        path = self._resolve_link_path(link, root)
+        if not path.is_file():
+            return html.escape(f"[missing: {Path(link).name}]"), None
+        if path.suffix.lower() == ".ass":
+            size_kb = path.stat().st_size // 1024
+            label = html.escape(f"{path.name} ({size_kb} KB)")
+            return label, None
+        try:
+            size = path.stat().st_size
+        except OSError:
+            return html.escape(path.name), None
+        if size > self._TEXT_INLINE_MAX_BYTES:
+            label = html.escape(f"{path.name} ({size // 1024} KB)")
+            return label, None
+        full_text = path.read_text(encoding="utf-8", errors="replace")
+        return self._compact_text(full_text, self._TEXT_PREVIEW_LIMIT), full_text
+
     def _format_text_item(
         self, title: str, link: str, *, session_root: Path | None = None
     ) -> str:
-        full_text = self._read_link_text(link, session_root)
-        compact = self._compact_text(full_text, self._TEXT_PREVIEW_LIMIT)
+        summary, full_text = self._text_preview_for_link(link, session_root=session_root)
+        body = (
+            f'<pre class="result-text-full">{html.escape(full_text)}</pre>'
+            if full_text is not None
+            else '<p class="result-text-omitted">(file not inlined — open via source path)</p>'
+        )
         return (
             '<details class="result-fold result-text-item">'
-            f'<summary><span class="result-title">{html.escape(title)}:</span> {compact}</summary>'
-            f'<pre class="result-text-full">{html.escape(full_text)}</pre>'
+            f'<summary><span class="result-title">{html.escape(title)}:</span> {summary}</summary>'
+            f"{body}"
             "</details>"
         )
 
@@ -579,6 +646,33 @@ class Interface:
             rel = path.resolve()
         return f"input_json('{rel.as_posix()}')"
 
+    @staticmethod
+    def _output_link_count(output_context: dict) -> int:
+        total = 0
+        for key in ARRAY_TYPES:
+            if key == "changes":
+                continue
+            total += len(output_context.get(key) or [])
+        return total
+
+    def _format_finish_compact_html(
+        self, action_name: str, output_context: dict
+    ) -> str:
+        lines = [f"<b>FINISH</b> {html.escape(action_name)}"]
+        for key in ARRAY_TYPES:
+            if key == "changes":
+                continue
+            links = output_context.get(key) or []
+            if not links:
+                continue
+            names = ", ".join(
+                html.escape(Path(str(link)).name) for link in links[:5]
+            )
+            if len(links) > 5:
+                names += f" (+{len(links) - 5} more)"
+            lines.append(f"{key} [{len(links)}]: {names}")
+        return "<br>".join(lines)
+
     def action_finish(
         self,
         action_name: str,
@@ -589,17 +683,21 @@ class Interface:
         session_root = self._resolve_preview_session(
             output_json_path, session_base_dir, self.session_dir
         )
-        self.add_action_results(
-            self._format_finish_html(action_name, output_context, session_root),
-            input_json_ref=output_json_path,
-            finish_preview={
-                "action_name": action_name,
-                "output_context": output_context,
-                "session_base_dir": (
-                    str(session_root) if session_root is not None else None
-                ),
-            },
-        )
+        if self._output_link_count(output_context) > self._COMPACT_FINISH_LINKS:
+            body = self._format_finish_compact_html(action_name, output_context)
+            self.add_action_results(body, input_json_ref=output_json_path)
+        else:
+            self.add_action_results(
+                self._format_finish_html(action_name, output_context, session_root),
+                input_json_ref=output_json_path,
+                finish_preview={
+                    "action_name": action_name,
+                    "output_context": output_context,
+                    "session_base_dir": (
+                        str(session_root) if session_root is not None else None
+                    ),
+                },
+            )
         if any(output_context.get(key) for key in ("sounds", "videos", "images")):
             self._queue_log_draw()
 
@@ -657,20 +755,30 @@ class Interface:
                 if runtime.last_output_json_path is not None
                 else None
             )
-            self.add_action_results(
-                (
-                    f"<b>Run finished</b><br>"
-                    f"<small>{html.escape(str(self.session_dir))}</small>"
-                    f"<br>{self._format_result_block(meta['output'], session_root=self.session_dir)}"
-                    f"<br>{self._format_json_block(meta)}"
-                ),
-                input_json_ref=output_json,
-                finish_preview={
-                    "action_name": "Run finished",
-                    "output_context": meta["output"],
-                    "session_base_dir": str(self.session_dir.resolve()),
-                },
+            output = meta["output"]
+            session_line = (
+                f"<small>{html.escape(str(self.session_dir))}</small><br>"
             )
+            if self._output_link_count(output) > self._COMPACT_FINISH_LINKS:
+                body = (
+                    f"<b>Run finished</b><br>{session_line}"
+                    f"{self._format_finish_compact_html('Run finished', output)}"
+                )
+                self.add_action_results(body, input_json_ref=output_json)
+            else:
+                self.add_action_results(
+                    (
+                        f"<b>Run finished</b><br>{session_line}"
+                        f"{self._format_result_block(output, session_root=self.session_dir)}"
+                        f"<br>{self._format_json_block(meta)}"
+                    ),
+                    input_json_ref=output_json,
+                    finish_preview={
+                        "action_name": "Run finished",
+                        "output_context": output,
+                        "session_base_dir": str(self.session_dir.resolve()),
+                    },
+                )
             self._queue_log_draw()
         except RuntimeCancelled:
             self.add_action_results("<b>Run cancelled</b>")
@@ -724,7 +832,12 @@ class Interface:
                 path = self._resolve_link_path(str(link), session_root)
                 if not path.is_file():
                     return False
-                size = path.stat().st_size
+                if path.is_absolute():
+                    continue
+                try:
+                    size = path.stat().st_size
+                except OSError:
+                    return False
                 if path.suffix.lower() == ".wav" and size < 44:
                     return False
                 if size < 1:
@@ -762,8 +875,17 @@ class Interface:
         return self._format_finish_html(action_name, output_context, session_root)
 
     def html_page(self):
+        entries = self.data[::-1]
+        hidden = 0
+        if len(entries) > self._MAX_LOG_ENTRIES:
+            hidden = len(entries) - self._MAX_LOG_ENTRIES
+            entries = entries[: self._MAX_LOG_ENTRIES]
         res = []
-        for e in self.data[::-1]:
+        if hidden:
+            res.append(
+                f"<small>({hidden} older log entries hidden — still in saves/default_actions.json)</small>"
+            )
+        for e in entries:
             res.append(f"{self._format_log_header(e)}<br>{self._entry_body_html(e)}")
         dlm = '<hr>'
         return dlm.join(res)
@@ -772,7 +894,34 @@ class Interface:
         """Request action-log repaint on the WebView GUI thread (see poll_log_refresh)."""
         if self._shutting_down:
             return
-        self._log_draw_pending = True
+        with self._ui_lock:
+            self._log_draw_pending = True
+
+    def poll_action_log_html(self) -> str | None:
+        """Build action-log HTML when the run thread has appended new entries."""
+        with self._ui_lock:
+            if self._log_generation == self._log_painted_generation:
+                return None
+            generation = self._log_generation
+        now = time.monotonic()
+        if now - self._log_last_paint_at < self._log_paint_min_interval_s:
+            with self._ui_lock:
+                self._log_draw_pending = True
+            return None
+        try:
+            page = self.html_page()
+        except Exception as exc:
+            page = (
+                "<b>Log render error</b>"
+                f"<br><pre>{html.escape(str(exc))}</pre>"
+            )
+        with self._ui_lock:
+            if generation <= self._log_painted_generation:
+                return None
+            self._log_painted_generation = generation
+            self._log_draw_pending = False
+        self._log_last_paint_at = now
+        return page
 
     def add_action_results(
         self,
@@ -792,7 +941,9 @@ class Interface:
             )
         if finish_preview is not None:
             entry["finish_preview"] = finish_preview
-        self.data.append(entry)
+        with self._ui_lock:
+            self.data.append(entry)
+            self._log_generation += 1
         if not self._shutting_down:
             self._queue_log_draw()
         self._schedule_actions_save()
@@ -809,8 +960,16 @@ class Interface:
         """Paint action log from the GUI thread (e.g. window loaded)."""
         if self._shutting_down or not webview.windows:
             return
-        self._log_draw_pending = False
-        html = self.html_page()
+        try:
+            html = self.html_page()
+        except Exception as exc:
+            html = (
+                "<b>Log render error</b>"
+                f"<br><pre>{html.escape(str(exc))}</pre>"
+            )
+        with self._ui_lock:
+            self._log_painted_generation = self._log_generation
+            self._log_draw_pending = False
         try:
             webview.windows[0].evaluate_js(
                 "setTemplateFragment('top-left', "

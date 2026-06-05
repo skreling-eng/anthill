@@ -92,5 +92,41 @@ run @replace_voice
         self.assertEqual(len(par.branches), 2)
 
 
+class TestCaretRunShorthand(unittest.TestCase):
+    def test_caret_runs_last_instruction(self) -> None:
+        program = parse_ah_source(
+            """@load: $file('x.png')
+@describe: @load -> $image2text
+>>>
+"""
+        )
+        self.assertEqual(program.run_target, "describe")
+
+    def test_caret_ignores_later_run_and_caret(self) -> None:
+        program = parse_ah_source(
+            """@a: $clear
+@b: $clear
+>>>
+run @a
+>>>
+"""
+        )
+        self.assertEqual(program.run_target, "b")
+
+    def test_run_before_caret_overridden_by_caret(self) -> None:
+        program = parse_ah_source(
+            """@a: $clear
+run @a
+@b: $clear
+>>>
+"""
+        )
+        self.assertEqual(program.run_target, "b")
+
+    def test_caret_without_prior_instruction_leaves_run_unset(self) -> None:
+        program = parse_ah_source(">>>\n")
+        self.assertIsNone(program.run_target)
+
+
 if __name__ == "__main__":
     unittest.main()

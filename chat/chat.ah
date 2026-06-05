@@ -12,7 +12,7 @@ Return only the final result without comments, clarifications, or explanations.
     -> $ah_code_examples(folder='test_data/examples', per_usecase=10)
     #-> $folder('examples', source_path=True)
     #-> $code -> ^show_code -> $ah
-    -> $code(model='1.5b') -> ^show_code -> $ah
+    -> $code(model='1.5b', ah=1) -> ^show_code -> $ah
 }
 """
 __ASK__

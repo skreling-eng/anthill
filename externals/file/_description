@@ -18,8 +18,10 @@ OUTPUT
     .mp3, .wav  → sounds[]
     .png, .jpg, .jpeg → images[]
     .mp4        → videos[]
-    .txt        → texts[]
+    .txt, .ass  → texts[]
     other       → files[]
+
+  Full mapping: externals/file_extensions.py (EXTENSION_TO_ARRAY).
 
 ARGUMENTS
   Positional string or path= / _path= — filesystem path to load.

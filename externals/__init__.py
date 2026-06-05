@@ -59,6 +59,7 @@ _KNOWN = frozenset(
         "audio_instruct",
         "detach_audio",
         "attach_audio",
+        "add_soft_subtitles",
         "video_thumbnailer",
     }
 )

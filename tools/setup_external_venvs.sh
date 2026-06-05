@@ -82,6 +82,13 @@ uv pip install -e "$Root" --python "$ve_py"
 sync_venv ".venvs/music" "music"
 
 echo ""
+echo "=== .venvs/custom_actions (& custom actions: \$code + Pillow) ==="
+sync_venv ".venvs/custom_actions" "custom_actions"
+ca_py="$(venv_python ".venvs/custom_actions")"
+echo "Default \$code GGUF for &action codegen"
+"$ca_py" -c "import os; os.environ.setdefault('AH_MODEL_UPSTREAM_FALLBACK','1'); from externals.code.model_paths import ensure_model, resolve_profile_key; p=ensure_model(key=resolve_profile_key('default')); print('  ok:', p)"
+
+echo ""
 echo "Add to .env (or export in shell):"
 echo "  AH_EXTERNAL_VENV_image2text=.venvs/media"
 echo "  AH_EXTERNAL_VENV_image=.venvs/media"

@@ -1,0 +1,10 @@
+
+
+@data: {
+   $folder("Season 1/", source_path=True)
+   ->$folder("Season 1/Subs", source_path=True)
+}
+
+@add_sof_subtitles: @data -> $add_soft_subtitles
+
+run @add_sof_subtitles

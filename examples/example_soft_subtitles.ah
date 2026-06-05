@@ -1,0 +1,7 @@
+
+
+@video: $file('episode.mkv', source_path=True)
+@subs: $file('episode.ass', source_path=True)
+@out: (@video, @subs) -> $add_soft_subtitles -> $save('episode_subs.mp4')
+
+run @out

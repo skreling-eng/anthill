@@ -14,11 +14,32 @@ from externals.llm.context_limit import prompt_char_budget, trim_code_request
 from ahlib.ah_runtime import ArrayBundle
 
 _DEFAULT_CODE_SYSTEM = (
+    "You are an expert coding assistant. Follow the JSON request."
+)
+
+_AH_CODE_SYSTEM = (
     "You are an expert Anthill (.ah) coding assistant. Follow the JSON request. "
     "Output only valid .ah source. Every script MUST end with exactly one line "
     "run @instruction_name (e.g. run @answer) for the main entry instruction; "
     "without it the runtime does nothing."
 )
+
+
+def _truthy_arg(args: dict[str, str], key: str) -> bool:
+    return args.get(key, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _ah_mode(inp: ExternalInput) -> bool:
+    return _truthy_arg(inp.args, "ah")
+
+
+def _code_system(inp: ExternalInput) -> str:
+    custom = inp.args.get("system", "").strip()
+    if custom:
+        return custom
+    if _ah_mode(inp):
+        return _AH_CODE_SYSTEM
+    return _DEFAULT_CODE_SYSTEM
 
 
 def _variant_count(inp: ExternalInput) -> int:
@@ -84,11 +105,80 @@ def build_request_json(ctx: ExternalContext, inp: ExternalInput) -> str:
     return json.dumps(build_request(ctx, inp), ensure_ascii=False, indent=2)
 
 
+def _model_record(
+    model_name: str,
+    *,
+    emulate: bool = False,
+    emulate_reason: str | None = None,
+    ah: bool | None = None,
+    llm: object | None = None,
+    n_ctx: int | None = None,
+    max_tokens: int | None = None,
+    temperature: float | None = None,
+    n_gpu_layers: int | None = None,
+    extended_ctx: bool | None = None,
+) -> dict:
+    """Metadata written to model.json under the session op dir."""
+    record: dict = {
+        "external": "code",
+        "model": model_name,
+        "emulate": emulate,
+    }
+    if emulate_reason:
+        record["emulate_reason"] = emulate_reason
+    if ah is not None:
+        record["ah"] = ah
+    if max_tokens is not None:
+        record["max_tokens"] = max_tokens
+    if temperature is not None:
+        record["temperature"] = temperature
+    if n_ctx is not None:
+        record["n_ctx"] = n_ctx
+    if n_gpu_layers is not None:
+        record["n_gpu_layers"] = n_gpu_layers
+    if extended_ctx is not None:
+        record["extended_ctx"] = extended_ctx
+    if not emulate:
+        try:
+            from externals.code.model_paths import get_code_profile, resolve_profile_key
+
+            key = resolve_profile_key(model_name)
+            profile = get_code_profile(model_name)
+            record["profile_key"] = key
+            record["profile_subdir"] = profile.subdir
+            record["gguf_name"] = profile.gguf_name
+            record["chat_format"] = profile.chat_format
+        except KeyError:
+            pass
+        if llm is not None:
+            record["gguf_path"] = llm.gguf_path
+            record["n_ctx"] = llm.n_ctx
+            if llm.n_gpu_layers is not None:
+                record["n_gpu_layers"] = llm.n_gpu_layers
+            if llm.chat_format:
+                record["chat_format"] = llm.chat_format
+            if llm.yarn_orig_ctx:
+                record["yarn_orig_ctx"] = llm.yarn_orig_ctx
+                record["rope_scaling"] = "yarn"
+    return record
+
+
+def _write_model_json(ctx: ExternalContext, record: dict) -> None:
+    (ctx.op_dir / "model.json").write_text(
+        json.dumps(record, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _emulate(
-    ctx: ExternalContext, inp: ExternalInput, out: ArrayBundle, model: str
+    ctx: ExternalContext,
+    inp: ExternalInput,
+    out: ArrayBundle,
+    model: str,
+    *,
+    system: str,
 ) -> ArrayBundle:
     request_json = build_request_json(ctx, inp)
-    system = inp.args.get("system", "")
     for i in range(_variant_count(inp)):
         content = (
             f"[emulated $code model={model} variant={i}]\n"
@@ -107,12 +197,29 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     max_tokens = int(inp.args.get("max_tokens", "2048"))
     temperature = float(inp.args.get("temperature", "0.2"))
     seed_base = int(inp.args.get("seed", "0"))
-    system = inp.args.get("system", _DEFAULT_CODE_SYSTEM)
+    system = _code_system(inp)
+    ah = _ah_mode(inp)
+    n_gpu_layers = _gpu_layers_from_args(inp)
+    gen_meta = {
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "n_gpu_layers": n_gpu_layers,
+        "ah": ah,
+    }
 
     if os.environ.get("AH_EMULATE_CODE", "").lower() in ("1", "true", "yes"):
         request_json = build_request_json(ctx, inp)
         (ctx.op_dir / "request.json").write_text(request_json + "\n", encoding="utf-8")
-        return _emulate(ctx, inp, out, model_name)
+        _write_model_json(
+            ctx,
+            _model_record(
+                model_name,
+                emulate=True,
+                emulate_reason="AH_EMULATE_CODE",
+                **gen_meta,
+            ),
+        )
+        return _emulate(ctx, inp, out, model_name, system=system)
 
     try:
         from externals.code.model_list import get_code_llm, resolve_code_n_ctx
@@ -165,8 +272,18 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
 
         llm = get_code_llm(
             model_name,
-            n_gpu_layers=_gpu_layers_from_args(inp),
+            n_gpu_layers=n_gpu_layers,
             n_ctx=n_ctx,
+        )
+        _write_model_json(
+            ctx,
+            _model_record(
+                model_name,
+                llm=llm,
+                n_ctx=n_ctx,
+                extended_ctx=extended_code_ctx_enabled(),
+                **gen_meta,
+            ),
         )
 
         count = _variant_count(inp)
@@ -181,9 +298,10 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
                 temperature=temperature,
                 seed=seed,
             )
-            text, fix_notes = fixup_generated_ah(text)
-            for note in fix_notes:
-                print(f"$code: {note}", file=sys.stderr, flush=True)
+            if ah:
+                text, fix_notes = fixup_generated_ah(text)
+                for note in fix_notes:
+                    print(f"$code: {note}", file=sys.stderr, flush=True)
             link = ctx.new_link("texts", ".txt", text + "\n")
             out.texts.append(link)
     except ImportError as exc:
@@ -191,7 +309,16 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
             f"$code fallback to emulate ({exc}). "
             "Install with: uv pip install llama-cpp-python"
         )
-        return _emulate(ctx, inp, out, model_name)
+        _write_model_json(
+            ctx,
+            _model_record(
+                model_name,
+                emulate=True,
+                emulate_reason="import_error",
+                **gen_meta,
+            ),
+        )
+        return _emulate(ctx, inp, out, model_name, system=system)
     except (KeyError, FileNotFoundError, OSError) as exc:
         print(f"$code error: {exc}")
         raise

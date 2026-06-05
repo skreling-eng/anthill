@@ -1,0 +1,10 @@
+
+
+
+@video_clip: {
+    $folder('test_data/videos', source_path=True)
+    -> $file('test_data/music/20260524_052158_st_music_0.wav', source_path=True)
+    -> $video_clip
+}
+
+run @video_clip

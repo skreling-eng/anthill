@@ -18,6 +18,7 @@ OUTPUT
   texts[] — one .txt link per completion variant (input texts[] are consumed,
             not passed through).
   request.json — the JSON request written under the op dir (inspectable).
+  model.json — resolved model profile, GGUF path, n_ctx, GPU layers, and gen args.
 
 REQUEST JSON
   {
@@ -31,7 +32,8 @@ ARGUMENTS
   max_tokens=   — generation limit (default 2048)
   temperature=  — sampling temperature (default 0.2)
   seed=         — RNG seed; offset per variant when repeat > 1
-  system=       — system prompt string
+  ah=1          — Anthill mode: .ah system prompt and post-fix (run @…) on output
+  system=       — override system prompt (replaces default and ah= defaults)
   gpu_layers= / n_gpu_layers= — layers on GPU (llama-cpp)
   n_ctx=        — fixed context size (default: auto-sized from request)
   count=        — variants if [n] suffix not used
