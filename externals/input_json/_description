@@ -21,10 +21,10 @@ ARGUMENTS
   strict=1 | true | yes — fail if any linked file on disk is missing.
 
 BEHAVIOR
-  Resolves the JSON path relative to the current session dir, cwd, or as
-  an absolute path. When the JSON lives under sessions/<id>/, each relative
-  link in the manifest is resolved to an absolute path under that session
-  folder so files remain valid across runs.
+  Resolves the JSON path relative to the launch folder, current session dir,
+  or cwd. Relative links in the manifest resolve under the launch folder;
+  $output exports (output/<session_id>/...) always map to
+  <launch-dir>/output/<session_id>/ regardless of session-relative prefixes.
 
 EXAMPLE
   @restore: $input_json('sessions/…/11__music/output.json')

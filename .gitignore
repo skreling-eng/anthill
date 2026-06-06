@@ -38,3 +38,6 @@ tools/ffmpeg/**/*
 Thumbs.db
 .idea/
 .vscode/
+
+# Legacy DeepFaceLab vendor clone (not used; PyTorch face stack)
+externals/face_lib/vendor/

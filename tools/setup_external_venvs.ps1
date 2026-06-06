@@ -63,6 +63,9 @@ uv pip install -e $Root --python $vePy
 Sync-Venv ".venvs/music" "music"
 
 Write-Host ""
+Write-Host "`$face and `$face_enhancer use PyTorch in .venvs/media (GPU when CUDA torch is installed)."
+
+Write-Host ""
 Write-Host "=== .venvs/custom_actions (& custom actions: `$code + Pillow) ==="
 Sync-Venv ".venvs/custom_actions" "custom_actions"
 $caPy = Join-Path $Root ".venvs\custom_actions\Scripts\python.exe"
@@ -81,6 +84,8 @@ Write-Host "  AH_EXTERNAL_VENV_music_separation=.venvs/media"
 Write-Host "  AH_EXTERNAL_VENV_change_voice=.venvs/change_voice"
 Write-Host "  AH_EXTERNAL_VENV_text2speech=.venvs/text2speech"
 Write-Host "  AH_EXTERNAL_VENV_voice_enhance=.venvs/voice_enhance"
+Write-Host "  AH_EXTERNAL_VENV_face=.venvs/media"
+Write-Host "  AH_EXTERNAL_VENV_face_enhancer=.venvs/media"
 Write-Host "  AH_CUSTOM_ACTIONS_VENV=.venvs/custom_actions   # &action codegen + handlers"
 Write-Host ""
 Write-Host "Media venv: optional sage wheels (from repo root):"

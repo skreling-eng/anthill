@@ -1,0 +1,32 @@
+$face_enhancer — neural x4 face detail enhancement
+
+SUMMARY
+  Runs the DeepFaceLab FaceEnhancer model on each aligned face image in
+  images[] and replaces them with enhanced PNG crops. PyTorch implementation
+  in .venvs/media (GPU when CUDA torch is available).
+
+SYNTAX
+  $face_enhancer
+  $face_enhancer(preserve_size=1, is_tanh=0)
+
+INPUT
+  images[] — face crops (typically from $face).
+
+OUTPUT
+  images[] — enhanced face PNGs.
+
+ARGUMENTS
+  preserve_size=1 — keep output the same size as input (default).
+  is_tanh=0 — set to 1 if pixels are already in [-1, 1].
+
+MODELS
+  models/face/FaceEnhancer.npy
+
+SETUP
+  .venvs/media. AH_FACE_GPU=0 forces CPU.
+
+EXAMPLE
+  @hq: @faces -> $face(size=512) -> $face_enhancer
+
+PROMPT-CONSUMING
+  No.

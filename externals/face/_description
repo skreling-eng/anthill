@@ -1,0 +1,32 @@
+$face — detect and crop aligned faces from images
+
+SUMMARY
+  Detects faces with S3FD, aligns them with 68-point FAN landmarks (PyTorch
+  face-alignment), and outputs square face crops into images[].
+
+SYNTAX
+  $face
+  $face(size=256, face_type='full_face', face_index=0)
+
+INPUT
+  images[] — source photos.
+
+OUTPUT
+  images[] — aligned face PNG crops (one per input image).
+
+ARGUMENTS
+  size=256 — square output size in pixels.
+  face_type=full_face — alignment preset (full_face, whole_face, head, …).
+  face_index=0 — pick Nth detected face (0 = largest).
+  landmarks_3d=0 — use 3D FAN model when set to 1.
+
+SETUP
+  models/face/ (s3fd + 2DFAN PyTorch weights). Download:
+    uv run python tools/download_models.py
+  .venvs/media. GPU when CUDA torch is available. AH_FACE_GPU=0 forces CPU.
+
+EXAMPLE
+  @faces: $folder('photos') -> $face(size=512)
+
+PROMPT-CONSUMING
+  No.

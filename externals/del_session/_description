@@ -1,0 +1,19 @@
+$del_session — delete session output after the run finishes
+
+SUMMARY
+  Marks the current run for cleanup when the .ah script finishes. The session
+  folder for this run is removed afterward. If this run created the sessions/
+  folder and it is empty after removing the session, sessions/ is removed too.
+
+SYNTAX
+  $del_session
+
+INPUT / OUTPUT
+  Passes the input bundle through unchanged.
+
+EXAMPLE
+  @work: @topic -> $llm
+  run @work -> $del_session
+
+PROMPT-CONSUMING
+  No.

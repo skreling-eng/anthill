@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import sys
 import threading
 import time
@@ -146,8 +147,17 @@ class ArrayBundle:
 
 
 class Session:
-    def __init__(self, base_dir: Path):
+    def __init__(
+        self,
+        base_dir: Path,
+        *,
+        sessions_root: Path | None = None,
+        sessions_root_created: bool = False,
+    ):
         self.base_dir = base_dir
+        self.sessions_root = (sessions_root or base_dir.parent).resolve()
+        self.sessions_root_created = sessions_root_created
+        self.delete_after_run = False
         self._op_counter = 0
         self._op_lock = threading.Lock()
 
@@ -186,10 +196,9 @@ class Session:
         path.write_text(placeholder.get(".txt", ""), encoding="utf-8")
 
     def resolve_link_path(self, link: str) -> Path:
-        path = Path(link)
-        if path.is_absolute():
-            return path.resolve()
-        return (self.base_dir / link).resolve()
+        from ahlib.link_paths import resolve_link_path
+
+        return resolve_link_path(self, link)
 
     def ensure_bundle_files_ready(
         self,
@@ -1317,21 +1326,45 @@ def create_session_dir(sessions_root: Path) -> Path:
     return session_dir
 
 
+def cleanup_session_after_run(session: Session) -> None:
+    """Remove session dir; drop empty sessions root if this run created it."""
+    if not session.delete_after_run:
+        return
+    session_dir = session.base_dir.resolve()
+    if session_dir.is_dir():
+        shutil.rmtree(session_dir)
+    sessions_root = session.sessions_root
+    if session.sessions_root_created and sessions_root.is_dir():
+        try:
+            next(sessions_root.iterdir())
+        except StopIteration:
+            sessions_root.rmdir()
+
+
 def run_program(
     source: str,
     sessions_root: Path | None = None,
     callback: ActionCallback | None = None,
     cancel_event: threading.Event | None = None,
+    repo_root: Path | None = None,
 ) -> tuple[dict, Path]:
     program = parse_ah_source(source)
-    root = sessions_root or Path("sessions")
+    root = (sessions_root or Path("sessions")).resolve()
+    created_root = not root.is_dir()
     session_dir = create_session_dir(root)
+    session = Session(
+        session_dir,
+        sessions_root=root,
+        sessions_root_created=created_root,
+    )
     runtime = Runtime(
         program,
-        Session(session_dir),
+        session,
         callback=callback,
         cancel_event=cancel_event,
+        repo_root=repo_root,
     )
+    cancelled = False
     try:
         result = runtime.run()
         meta = {
@@ -1343,7 +1376,12 @@ def run_program(
             json.dumps(meta, indent=2), encoding="utf-8"
         )
         return meta, session_dir
+    except RuntimeCancelled:
+        cancelled = True
+        raise
     finally:
         from externals.invoke import release_gpu_resources
 
         release_gpu_resources(reason="run finished")
+        if not cancelled:
+            cleanup_session_after_run(session)

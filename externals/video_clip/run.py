@@ -112,7 +112,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     require_ffmpeg()
     require_moviepy()
 
-    video_paths = [(ctx.base_dir / link).resolve() for link in videos]
+    video_paths = [ctx.resolve_link_path(link) for link in videos]
     for path in video_paths:
         if not path.is_file():
             raise FileNotFoundError(f"$video_clip: video not found: {path}")
@@ -122,7 +122,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
 
     out.videos = []
     for si, sound_link in enumerate(sounds):
-        audio_path = (ctx.base_dir / sound_link).resolve()
+        audio_path = ctx.resolve_link_path(sound_link)
         if not audio_path.is_file():
             raise FileNotFoundError(f"$video_clip: sound not found: {audio_path}")
 

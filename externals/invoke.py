@@ -90,6 +90,8 @@ _DEFAULT_UV_EXTRAS: dict[str, list[str]] = {
     "video_thumbnailer": ["video_thumbnailer"],
     "model_ah_train_lora": ["finetune"],
     "model_ah_merge_lora": ["finetune"],
+    "face": ["media"],
+    "face_enhancer": ["media"],
 }
 
 # Cheap I/O / bundle ops — avoid uv-run subprocess spawn per call (override with
@@ -100,6 +102,7 @@ _DEFAULT_INPROCESS = frozenset(
         "folder",
         "clear",
         "pass",
+        "del_session",
         "list",
         "first_image",
         "input_json",
@@ -136,6 +139,8 @@ _DEFAULT_VENVS: dict[str, str] = {
     "image2text": ".venvs/media",
     "translate": ".venvs/media",
     "audio_instruct": ".venvs/media",
+    "face": ".venvs/media",
+    "face_enhancer": ".venvs/media",
 }
 
 

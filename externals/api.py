@@ -27,18 +27,17 @@ class ExternalContext:
     def new_link(self, array_name: str, ext: str, content: str | bytes) -> str:
         return self.session.new_link(self.op_dir, array_name, ext, content)
 
+    def resolve_link_path(self, link: str) -> Path:
+        return self.session.resolve_link_path(link)
+
     def read_link_text(self, link: str) -> str:
-        path = Path(link)
-        if not path.is_absolute():
-            path = self.base_dir / link
+        path = self.resolve_link_path(link)
         if path.is_file():
             return path.read_text(encoding="utf-8", errors="replace").strip()
         return ""
 
     def read_link_bytes(self, link: str) -> bytes:
-        path = Path(link)
-        if not path.is_absolute():
-            path = self.base_dir / link
+        path = self.resolve_link_path(link)
         return path.read_bytes() if path.is_file() else b""
 
 

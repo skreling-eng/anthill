@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from ahlib.link_paths import launch_dir_for, normalize_link, resolve_link_path
 from externals.api import ExternalContext, ExternalInput
 from ahlib.ah_parser import ARRAY_TYPES
 from ahlib.ah_runtime import ArrayBundle
@@ -12,8 +13,8 @@ from ahlib.ah_runtime import ArrayBundle
 _HELP = """
 $input_json loads array links from a JSON file (same shape as output.json).
 
-When the JSON file lives inside a session folder, each link is resolved to an
-absolute path under that session (so assets work even from another run session).
+Relative links are resolved under the launch folder (AH_LAUNCH_DIR or parent of
+sessions/), including $output exports in output/<session_id>/.
 
 Example:
   @restore: $input_json('sessions/20260519_051548_2592/11__music/output.json')
@@ -24,12 +25,18 @@ Optional: strict=1 — fail if any resolved file is missing.
 
 def _resolve_json_path(ctx: ExternalContext, ref: str) -> Path:
     raw = Path(ref)
+    launch = launch_dir_for(ctx.session)
     candidates: list[Path] = []
     if raw.is_absolute():
         candidates.append(raw)
-    candidates.append(ctx.base_dir / raw)
-    candidates.append(Path.cwd() / raw)
-    candidates.append(raw.resolve())
+    candidates.extend(
+        [
+            ctx.base_dir / raw,
+            launch / raw,
+            Path.cwd() / raw,
+            raw.resolve(),
+        ]
+    )
 
     seen: set[Path] = set()
     for path in candidates:
@@ -39,16 +46,17 @@ def _resolve_json_path(ctx: ExternalContext, ref: str) -> Path:
         seen.add(key)
         if path.is_file():
             return path.resolve()
-    tried = ", ".join(str(p) for p in candidates[:3])
+    tried = ", ".join(str(p) for p in candidates[:4])
     raise FileNotFoundError(f"$input_json: JSON not found: {ref!r} (tried {tried})")
 
 
 def _source_session_root(json_path: Path, ctx: ExternalContext) -> Path | None:
-    """Session directory that owns the JSON manifest and its linked files."""
+    """Session directory that owns session-relative manifest links."""
     resolved = json_path.resolve()
     try:
-        resolved.relative_to(ctx.base_dir.resolve())
-        return ctx.base_dir.resolve()
+        rel = resolved.relative_to(ctx.base_dir.resolve())
+        if rel.parts and rel.parts[0] != "output":
+            return ctx.base_dir.resolve()
     except ValueError:
         pass
     parts = resolved.parts
@@ -57,19 +65,6 @@ def _source_session_root(json_path: Path, ctx: ExternalContext) -> Path | None:
         if i + 1 < len(parts):
             return Path(*parts[: i + 2])
     return None
-
-
-def _normalize_link(link: str) -> str:
-    return link.replace("\\", "/").lstrip("./")
-
-
-def _resolve_link(link: str, source_session: Path) -> str:
-    normalized = _normalize_link(link)
-    path = Path(normalized)
-    if path.is_absolute():
-        return str(path.resolve()).replace("\\", "/")
-    absolute = (source_session / normalized).resolve()
-    return str(absolute).replace("\\", "/")
 
 
 def _load_manifest(path: Path) -> dict:
@@ -82,7 +77,12 @@ def _load_manifest(path: Path) -> dict:
     return data
 
 
-def _bundle_from_manifest(data: dict, *, source_session: Path | None) -> ArrayBundle:
+def _bundle_from_manifest(
+    data: dict,
+    *,
+    source_session: Path | None,
+    ctx: ExternalContext,
+) -> ArrayBundle:
     payload: dict[str, list] = {}
     for key in ARRAY_TYPES:
         if key not in data:
@@ -93,10 +93,16 @@ def _bundle_from_manifest(data: dict, *, source_session: Path | None) -> ArrayBu
         if key == "changes":
             payload[key] = value
             continue
-        links = [_normalize_link(str(item)) for item in value]
-        if source_session is not None:
-            links = [_resolve_link(link, source_session) for link in links]
-        payload[key] = links
+        payload[key] = [
+            str(
+                resolve_link_path(
+                    ctx.session,
+                    normalize_link(str(item)),
+                    source_session=source_session,
+                )
+            ).replace("\\", "/")
+            for item in value
+        ]
     return ArrayBundle.from_dict(payload)
 
 
@@ -106,9 +112,7 @@ def _validate_links(ctx: ExternalContext, bundle: ArrayBundle) -> None:
         if key == "changes":
             continue
         for link in getattr(bundle, key):
-            path = Path(link)
-            if not path.is_absolute():
-                path = ctx.base_dir / link
+            path = ctx.resolve_link_path(link)
             if not path.is_file():
                 missing.append(link)
     if missing:
@@ -129,6 +133,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     bundle = _bundle_from_manifest(
         _load_manifest(json_path),
         source_session=source_session,
+        ctx=ctx,
     )
 
     strict = inp.args.get("strict", "").lower() in ("1", "true", "yes")

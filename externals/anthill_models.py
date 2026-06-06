@@ -83,6 +83,11 @@ CHECKS: dict[str, list[str]] = {
     "qwen2_audio_4bit": [
         "qwen-audio/Qwen2-Audio-7B-Instruct-4bit/config.json",
     ],
+    "face_s3fd": ["face/s3fd-619a316812.pth"],
+    "face_fan2d": ["face/2DFAN4-11f355bf06.pth.tar"],
+    "face_fan3d": ["face/3DFAN4-7835d9f11d.pth.tar"],
+    "face_fan_depth": ["face/depth-2a464da4ea.pth.tar"],
+    "face_enhancer_model": ["face/FaceEnhancer.npy"],
 }
 
 PROFILE_GROUPS: dict[str, frozenset[str]] = {

@@ -144,6 +144,7 @@ media = [
     "scipy",
     "einops",
     "tqdm",
+    "face-alignment>=1.4.1",
 ]
 # Vendored ComfyUI-WanVideoWrapper + VideoHelperSuite under comfy_lib/ (optional worker venv).
 # Sync with media:  uv sync --extra media --extra comfy-wan  (see .venvs/comfy-wan)
@@ -186,6 +187,9 @@ conflicts = [
 name = "pytorch-cu128"
 url = "https://download.pytorch.org/whl/cu128"
 explicit = true
+
+[project.scripts]
+ah = "ahlib.run_ah:main"
 
 [build-system]
 requires = ["hatchling"]
