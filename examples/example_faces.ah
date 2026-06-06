@@ -1,0 +1,7 @@
+
+
+@data: $file('test_data/images/20260524_051036_default_image_1.png')
+
+@face: @data -> $face -> $face_enhancer -> $output
+
+>>>
