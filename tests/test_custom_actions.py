@@ -61,6 +61,22 @@ class TestCodegenRetries(unittest.TestCase):
         self.assertIn("REJECTION REASON: copies only", prompt)
         self.assertIn("def run(b, d)", prompt)
 
+    def test_emulate_check_accepts_save_image_links(self) -> None:
+        os.environ["AH_EMULATE_CODE"] = "1"
+        try:
+            code = Path(__file__).resolve().parents[1].joinpath(
+                "custom_actions/double_image/run.py"
+            ).read_text(encoding="utf-8")
+            ok, reason, _ = check_generated_code(
+                code,
+                "for images, make these changes:\n"
+                "- return ab original image\n"
+                "- return a flipped horizontally image",
+            )
+            self.assertTrue(ok, reason)
+        finally:
+            os.environ.pop("AH_EMULATE_CODE", None)
+
     def test_emulate_check_rejects_subprocess(self) -> None:
         os.environ["AH_EMULATE_CODE"] = "1"
         try:
@@ -264,6 +280,46 @@ run @go
             self.assertTrue(out_path.is_file())
             with Image.open(out_path) as im:
                 self.assertEqual(im.size[1], 20)
+
+    def test_custom_action_propagates_labels_for_kept_links(self) -> None:
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed")
+
+        source = """
+@img: $file('test_double_label.png')
+
+@go: @img -> $add_label('original') -> &double_image
+
+&double_image:
+for images, return original and flipped horizontally image
+
+run @go
+"""
+        repo = Path(__file__).resolve().parents[1]
+        img_path = repo / "test_double_label.png"
+        buf = __import__("io").BytesIO()
+        Image.new("RGB", (20, 20), color=(0, 128, 255)).save(buf, format="PNG")
+        img_path.write_bytes(buf.getvalue())
+
+        os.environ["AH_EXTERNAL_INPROCESS"] = "file,add_label"
+        os.environ["AH_EXTERNAL_SUBPROCESS"] = "0"
+        try:
+            from tests.test_prompt_merge import _run
+
+            result, _session = _run(source, "go")
+            self.assertGreaterEqual(len(result.images), 2)
+            original_entries = [
+                entry for entry in result.labels if entry[0] == "original"
+            ]
+            self.assertTrue(original_entries, result.labels)
+            labeled_paths = {path for _k, path in original_entries[0][1]}
+            self.assertTrue(labeled_paths.intersection(result.images))
+        finally:
+            os.environ.pop("AH_EXTERNAL_INPROCESS", None)
+            os.environ.pop("AH_EXTERNAL_SUBPROCESS", None)
+            img_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

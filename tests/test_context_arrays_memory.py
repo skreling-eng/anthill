@@ -16,12 +16,15 @@ class TestContextArraysMemory(unittest.TestCase):
     def test_write_bundle_keeps_embeddings_labels_in_manifest_only(self) -> None:
         bundle = ArrayBundle(
             embeddings=[[0.1, 0.2], {"vec": [1, 2, 3]}],
-            labels=["cat", "style:anime"],
+            labels=[["cat", [("images", "x.png")]], ["style", [("texts", "y.txt")]]],
         )
         self.session.write_bundle(self.op_dir, bundle, "output")
 
         manifest = json.loads((self.op_dir / "output.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["labels"], ["cat", "style:anime"])
+        self.assertEqual(
+            manifest["labels"],
+            [["cat", [["images", "x.png"]]], ["style", [["texts", "y.txt"]]]],
+        )
         self.assertEqual(manifest["embeddings"], [[0.1, 0.2], {"vec": [1, 2, 3]}])
         self.assertFalse((self.op_dir / "labels").exists())
         self.assertFalse((self.op_dir / "embeddings").exists())

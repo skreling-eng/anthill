@@ -41,10 +41,11 @@ class ForAction:
 
 @dataclass
 class ZipAction:
-    """zip(images, texts){ body } — run body once per index across listed arrays."""
+    """zip(images, texts){ body } or zip(label='name'){ body }."""
 
     array_keys: list[str]
     body: ActionExpr
+    label_name: str | None = None
 
 
 @dataclass
@@ -121,9 +122,26 @@ def _parse_context_token(tok: str) -> ContextAction | None:
     return ContextAction(name=name, mode=mode, scope=scope)
 
 
+def _parse_zip_keys(keys_src: str) -> tuple[list[str], str | None]:
+    """Return (array_keys, label_name) for zip(...) spec."""
+    stripped = keys_src.strip()
+    args = _parse_args(stripped)
+    if "label" in args and "," not in stripped:
+        return [], args["label"]
+    array_keys = [k.strip() for k in stripped.split(",") if k.strip()]
+    return array_keys, None
+
+
 def _parse_args(arg_str: str) -> dict[str, str]:
     if not arg_str.strip():
         return {}
+    not_m = re.match(
+        r"^not\s+('([^']*)'|\"([^\"]*)\"|(\w+))\s*$",
+        arg_str.strip(),
+        re.IGNORECASE,
+    )
+    if not_m:
+        return {"not": not_m.group(2) or not_m.group(3) or not_m.group(4) or ""}
     args: dict[str, str] = {}
     for part in re.findall(
         r"(\w+)\s*=\s*('[^']*'|\"[^\"]*\"|\[[^\]]*\]|@\w+|\w+)", arg_str
@@ -341,13 +359,20 @@ def _parse_expr(tokens: list[str], pos: int = 0) -> tuple[ActionExpr, int]:
             m_zip = re.match(r"^zip\((.*)\)\{(.*)\}$", tok, re.DOTALL)
             if not m_zip:
                 raise ValueError(f"Invalid zip block: {tok}")
-            array_keys = [k.strip() for k in m_zip.group(1).split(",") if k.strip()]
-            if not array_keys:
-                raise ValueError("zip(...) requires at least one array name")
+            array_keys, label_name = _parse_zip_keys(m_zip.group(1))
+            if not array_keys and not label_name:
+                raise ValueError(
+                    "zip(...) requires array names or label='name', "
+                    "e.g. zip(images, texts) or zip(label='good')"
+                )
             body_expr = parse_actions(m_zip.group(2))
             if body_expr is None:
                 raise ValueError("zip(...) body must be non-empty")
-            node = ZipAction(array_keys=array_keys, body=body_expr)
+            node = ZipAction(
+                array_keys=array_keys,
+                body=body_expr,
+                label_name=label_name,
+            )
             pos += 1
             steps = [node]
             while pos < len(tokens) and tokens[pos] == "->":
@@ -410,6 +435,23 @@ def parse_actions(source: str | None) -> ActionExpr | None:
     if pos != len(tokens):
         raise ValueError(f"Unexpected tokens after position {pos}: {tokens[pos:]}")
     return expr
+
+
+def action_works_with_labels(expr: ActionExpr) -> bool:
+    """True when the action manages labels[] itself (skip auto-propagation)."""
+    if isinstance(expr, ExternalAction):
+        from externals import external_works_with_labels
+
+        return external_works_with_labels(expr.name)
+    if isinstance(expr, ZipAction):
+        return expr.label_name is not None
+    if isinstance(expr, SequenceAction):
+        return False
+    if isinstance(expr, ParallelAction):
+        return False
+    if isinstance(expr, ForAction):
+        return False
+    return False
 
 
 def action_starts_with_external(expr: ActionExpr | None) -> bool:

@@ -457,15 +457,6 @@ class Interface:
         self, links: list[str], *, session_root: Path | None = None
     ) -> str:
         count = len(links)
-        if count > self._COMPACT_MEDIA_LIST:
-            names = ", ".join(html.escape(Path(link).name) for link in links[:8])
-            extra = f" (+{count - 8} more)" if count > 8 else ""
-            return (
-                '<details class="result-fold result-videos">'
-                f'<summary><span class="result-title">Videos [{count}]:</span> '
-                f'<span class="result-preview-row">{names}{extra}</span>'
-                "</summary></details>"
-            )
         preview_links = links[: self._MEDIA_PREVIEW_COUNT]
 
         def _video_tag(link: str, css_class: str) -> str:
@@ -478,10 +469,14 @@ class Interface:
                 f'height="{self._MEDIA_HEIGHT}" controls preload="none"></video>'
             )
 
-        preview_labels = [
-            html.escape(Path(link).name) for link in preview_links
-        ]
-        preview_row = ", ".join(preview_labels) if preview_labels else ""
+        if count > self._COMPACT_MEDIA_LIST:
+            names = ", ".join(html.escape(Path(link).name) for link in links[:8])
+            preview_row = f"{names} (+{count - 8} more)" if count > 8 else names
+        else:
+            preview_labels = [
+                html.escape(Path(link).name) for link in preview_links
+            ]
+            preview_row = ", ".join(preview_labels) if preview_labels else ""
         all_videos = [_video_tag(link, "result-media") for link in links]
         suffix = " ..." if count > self._MEDIA_PREVIEW_COUNT else ""
         return (
@@ -497,15 +492,6 @@ class Interface:
         self, links: list[str], *, session_root: Path | None = None
     ) -> str:
         count = len(links)
-        if count > self._COMPACT_MEDIA_LIST:
-            names = ", ".join(html.escape(Path(link).name) for link in links[:8])
-            extra = f" (+{count - 8} more)" if count > 8 else ""
-            return (
-                '<details class="result-fold result-sounds">'
-                f'<summary><span class="result-title">Sounds [{count}]:</span> '
-                f'<span class="result-preview-row">{names}{extra}</span>'
-                "</summary></details>"
-            )
         preview_links = links[: self._MEDIA_PREVIEW_COUNT]
 
         def _audio_tag(link: str, css_class: str) -> str:
@@ -518,10 +504,14 @@ class Interface:
                 f'controls preload="none"></audio>'
             )
 
-        preview_labels = [
-            html.escape(Path(link).name) for link in preview_links
-        ]
-        preview_row = ", ".join(preview_labels) if preview_labels else ""
+        if count > self._COMPACT_MEDIA_LIST:
+            names = ", ".join(html.escape(Path(link).name) for link in links[:8])
+            preview_row = f"{names} (+{count - 8} more)" if count > 8 else names
+        else:
+            preview_labels = [
+                html.escape(Path(link).name) for link in preview_links
+            ]
+            preview_row = ", ".join(preview_labels) if preview_labels else ""
         all_sounds = [_audio_tag(link, "result-media") for link in links]
         suffix = " ..." if count > self._MEDIA_PREVIEW_COUNT else ""
         return (
@@ -685,7 +675,17 @@ class Interface:
         )
         if self._output_link_count(output_context) > self._COMPACT_FINISH_LINKS:
             body = self._format_finish_compact_html(action_name, output_context)
-            self.add_action_results(body, input_json_ref=output_json_path)
+            self.add_action_results(
+                body,
+                input_json_ref=output_json_path,
+                finish_preview={
+                    "action_name": action_name,
+                    "output_context": output_context,
+                    "session_base_dir": (
+                        str(session_root) if session_root is not None else None
+                    ),
+                },
+            )
         else:
             self.add_action_results(
                 self._format_finish_html(action_name, output_context, session_root),
@@ -764,13 +764,20 @@ class Interface:
                     f"<b>Run finished</b><br>{session_line}"
                     f"{self._format_finish_compact_html('Run finished', output)}"
                 )
-                self.add_action_results(body, input_json_ref=output_json)
+                self.add_action_results(
+                    body,
+                    input_json_ref=output_json,
+                    finish_preview={
+                        "action_name": "Run finished",
+                        "output_context": output,
+                        "session_base_dir": str(self.session_dir.resolve()),
+                    },
+                )
             else:
                 self.add_action_results(
-                    (
-                        f"<b>Run finished</b><br>{session_line}"
-                        f"{self._format_result_block(output, session_root=self.session_dir)}"
-                        f"<br>{self._format_json_block(meta)}"
+                    self._format_run_finished_html(
+                        output,
+                        self.session_dir,
                     ),
                     input_json_ref=output_json,
                     finish_preview={
@@ -805,6 +812,19 @@ class Interface:
             '">Copy the path to buffer</a>'
         )
         return f'<div class="log-head">{tm}{btn}</div>'
+
+    def _format_run_finished_html(
+        self,
+        output_context: dict,
+        session_root: Path | None,
+    ) -> str:
+        session_line = ""
+        if session_root is not None:
+            session_line = f"<small>{html.escape(str(session_root))}</small><br>"
+        return (
+            f"<b>Run finished</b><br>{session_line}"
+            f"{self._format_result_block(output_context, session_root=session_root)}"
+        )
 
     def _format_finish_html(
         self,
@@ -862,16 +882,7 @@ class Interface:
         ):
             return frozen
         if action_name == "Run finished":
-            session_line = ""
-            if session_root is not None:
-                session_line = (
-                    f"<small>{html.escape(str(session_root))}</small><br>"
-                )
-            return (
-                f"<b>Run finished</b><br>{session_line}"
-                f"{self._format_result_block(output_context, session_root=session_root)}"
-                f"<br>{self._format_json_block(output_context)}"
-            )
+            return self._format_run_finished_html(output_context, session_root)
         return self._format_finish_html(action_name, output_context, session_root)
 
     def html_page(self):

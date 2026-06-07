@@ -53,6 +53,8 @@ _KNOWN = frozenset(
         "face_enhancer",
         "only",
         "select",
+        "label",
+        "add_label",
         "join_stems",
         "text2speech",
         "voice_enhance",
@@ -66,6 +68,9 @@ _KNOWN = frozenset(
         "video_thumbnailer",
     }
 )
+
+# Externals that manage labels[] themselves — runtime skips auto-propagation.
+_LABEL_AWARE = frozenset({"label", "add_label"})
 
 # Externals that honor $name(...)[n] via inp.repeat inside the handler (not runtime fan-out).
 _REPEAT_NATIVE = frozenset({"image", "image2image", "llm", "math", "music", "code"})
@@ -133,6 +138,11 @@ def run_external(
     return handler(ctx, inp)
 
 
+def external_works_with_labels(name: str) -> bool:
+    """True if this $ external reads/writes labels[] directly."""
+    return name in _LABEL_AWARE
+
+
 def external_handles_repeat(name: str) -> bool:
     """True if $name(...)[n] is handled inside the external (not expanded by runtime)."""
     return name in _REPEAT_NATIVE
@@ -148,6 +158,7 @@ __all__ = [
     "ExternalInput",
     "external_consumes_prompts",
     "external_handles_repeat",
+    "external_works_with_labels",
     "run_external",
     "subprocess_enabled",
     "write_invoke",

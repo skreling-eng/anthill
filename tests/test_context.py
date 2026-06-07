@@ -562,7 +562,7 @@ class TestContextFullBundle(unittest.TestCase):
             videos=["v1.mp4"],
             files=["f1.dat"],
             embeddings=[[0.1, 0.2]],
-            labels=["demo"],
+            labels=[["demo", [("images", "i1.png")]]],
         )
         runtime._eval_context_action(
             ContextAction(name="all", mode="store", scope="session"),
@@ -586,7 +586,7 @@ class TestContextFullBundle(unittest.TestCase):
         self.assertEqual(loaded.videos, ["v1.mp4"])
         self.assertEqual(loaded.files, ["f1.dat"])
         self.assertEqual(loaded.embeddings, [[0.1, 0.2]])
-        self.assertEqual(loaded.labels, ["demo"])
+        self.assertEqual(loaded.labels, [["demo", [("images", "i1.png")]]])
 
     def test_store_load_preserves_distinct_arrays_in_pipeline(self) -> None:
         os.environ["AH_EMULATE_MUSIC"] = "1"

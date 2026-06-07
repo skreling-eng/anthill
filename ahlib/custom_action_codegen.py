@@ -40,7 +40,10 @@ INPUT — bundle dict (always present keys; lists may be empty):
   Each media key holds session-relative path strings (e.g. "3__image/images/0.png").
   changes: list of [content_type, operation, data] tuples (usually pass through unchanged).
 
-OUTPUT — return a new bundle dict with the same keys. Replace or append link strings as needed.
+OUTPUT — return a new bundle dict with the same keys. Values in media arrays are always
+session-relative path LINK STRINGS (never PIL images, bytes, or file objects).
+When the spec says "return an image" or "return texts", write the file and put the link
+returned by save_* into the array — that is the Anthill output format.
 
 OUTPUT FILES — use ahlib.custom_action_io helpers; they write under op_dir and RETURN the link
 to put in bundle[] (never invent a separate path string):
@@ -66,7 +69,7 @@ FORBIDDEN (validation will reject):
 EXAMPLES:
 
 1) Pass-through (no-op):
-    def run(bundle, base_dir):
+    def run(bundle, base_dir, op_dir):
         return {k: list(bundle.get(k, [])) for k in
                 ("prompts","texts","images","sounds","videos","files","changes")}
 
@@ -120,14 +123,31 @@ Reply with ONLY one JSON object (no markdown):
 or
   {"ok": false, "reason": "short explanation"}
 
+ANTHILL DATA MODEL — required; do NOT reject correct code for misunderstanding this:
+- bundle arrays (prompts, texts, images, sounds, videos, files) hold SESSION-RELATIVE PATH
+  STRINGS (links like "3__crop/images/0.png"), never raw bytes, PIL Image objects, numpy arrays,
+  or open file handles in the returned dict.
+- When the spec says "return an image", "return the original image", "output a flipped image",
+  "return texts", etc., the handler MUST write files under op_dir (via save_image, save_wav,
+  save_bytes, or new_link-style helpers) and put the RETURNED LINK STRING into the matching
+  bundle array. That is the correct implementation — not a mismatch with the spec.
+- save_image(base_dir, op_dir, filename, pil_image) writes the file AND returns the link;
+  appending that link to out["images"] correctly "returns" the image in Anthill's format.
+- Saving under op_dir and returning those links is REQUIRED and CORRECT. Never mark ok:false
+  because the code returns paths instead of embedding image/text data in the bundle.
+
 Mark ok:false if the code:
 - Uses forbidden APIs (subprocess, os.system, eval, exec, compile, __import__, network libs)
-- Reads/writes files outside base_dir
+- Reads/writes files outside base_dir (except under base_dir via Path(base_dir) / link)
 - Deletes or overwrites unrelated session data
 - Does something unrelated to the specification
-- Lacks def run(bundle, base_dir) -> dict
+- Lacks def run(bundle, base_dir, ...) -> dict (op_dir third parameter is allowed)
 - Has no reasonable connection to the spec
-- Writes a file but returns a different output path (e.g. uuid.uuid4() called twice)
+- Writes a file but returns a DIFFERENT path than was written (e.g. uuid.uuid4() called twice)
+
+Mark ok:true when outputs are saved with save_image / save_wav / save_bytes (or equivalent) and
+the same returned link strings are placed in bundle arrays, even if the spec describes results
+in plain language as "images" or "texts" rather than "paths".
 
 Minor style issues are fine if behavior matches the spec and paths stay under base_dir.
 """

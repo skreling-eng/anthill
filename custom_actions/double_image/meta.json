@@ -1,0 +1,13 @@
+{
+  "name": "double_image",
+  "prompt": "for images, make these changes:\n- return original image (keep paths)\n- return a flipped horizontally image",
+  "prompt_hash": "c41249c6c3d466b710c678901d3a221e99ba411861dcd52e7bd1dde5dc928ab2",
+  "model": "default",
+  "venv": ".venvs/custom_actions",
+  "imports": [
+    "PIL"
+  ],
+  "pypi_packages": [
+    "Pillow"
+  ]
+}

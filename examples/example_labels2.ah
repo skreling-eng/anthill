@@ -1,0 +1,14 @@
+
+
+
+&double_image:
+For images, make the following changes:
+- Return the original image (keeping the paths unchanged).
+- Return a horizontally flipped version of the image.
+
+
+@data: $folder('test_data\images\')->$add_label('original')->&double_image
+
+@test: @data -> $label('original')
+
+>>>

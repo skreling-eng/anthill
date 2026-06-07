@@ -26,6 +26,7 @@ from ahlib.ah_actions import (
     ParallelAction,
     RefAction,
     SequenceAction,
+    action_works_with_labels,
     expr_uses_external,
     parse_actions,
 )
@@ -669,9 +670,11 @@ class Runtime:
         if isinstance(expr, ContextAction):
             return self._eval_context_action(expr, bundle, ctx_store)
         if isinstance(expr, CallbackAction):
-            return self._eval_callback_action(expr, bundle, parent_op_dir)
+            result = self._eval_callback_action(expr, bundle, parent_op_dir)
+            return self._propagate_labels_if_needed(bundle, result, expr)
         if isinstance(expr, CustomActionExpr):
-            return self._eval_custom_action(expr, bundle, parent_op_dir)
+            result = self._eval_custom_action(expr, bundle, parent_op_dir)
+            return self._propagate_labels_if_needed(bundle, result, expr)
         if isinstance(expr, RefAction):
             use_cache = not externals_in_sequence
             if expr.repeat_infinite:
@@ -738,7 +741,8 @@ class Runtime:
                 use_cache=use_cache,
             )
         if isinstance(expr, ExternalAction):
-            return self._call_external(expr, bundle, parent_op_dir)
+            result = self._call_external(expr, bundle, parent_op_dir)
+            return self._propagate_labels_if_needed(bundle, result, expr)
         if isinstance(expr, ParallelAction):
             return self._eval_parallel(
                 expr,
@@ -772,6 +776,18 @@ class Runtime:
             )
         raise TypeError(f"Unknown action type: {type(expr)}")
 
+    def _propagate_labels_if_needed(
+        self,
+        before: ArrayBundle,
+        after: ArrayBundle,
+        action: ActionExpr,
+    ) -> ArrayBundle:
+        if action_works_with_labels(action):
+            return after
+        from ahlib.label_utils import propagate_labels
+
+        return propagate_labels(before, after)
+
     def _eval_parallel(
         self,
         step: ParallelAction,
@@ -794,7 +810,8 @@ class Runtime:
             )
             branch_out = self._apply_changes(branch_out, parent_op_dir)
             branch_results.append(branch_out)
-        return self._join_bundles(branch_results, dedupe_images=True)
+        joined = self._join_bundles(branch_results, dedupe_images=True)
+        return self._propagate_labels_if_needed(bundle, joined, step)
 
     def _eval_sequence(
         self,
@@ -876,6 +893,10 @@ class Runtime:
             instruction_contexts=instruction_contexts,
         )
         for_output = self._apply_changes(for_output, for_op)
+        if not action_works_with_labels(expr.filter):
+            from ahlib.label_utils import propagate_labels
+
+            for_output = propagate_labels(bundle, for_output)
 
         filtered = self._subtract_bundle_links(initial, for_output)
         body_output = self._eval_action(
@@ -886,6 +907,10 @@ class Runtime:
             instruction_contexts=instruction_contexts,
         )
         body_output = self._apply_changes(body_output, for_op)
+        if not action_works_with_labels(expr.body):
+            from ahlib.label_utils import propagate_labels
+
+            body_output = propagate_labels(for_output, body_output)
 
         result = self._join_bundles([filtered, body_output])
         result = self._apply_changes(result, for_op)
@@ -901,9 +926,37 @@ class Runtime:
         externals_in_sequence: bool,
         instruction_contexts: dict[str, ArrayBundle] | None = None,
     ) -> ArrayBundle:
-        """zip(arrays){body}: run body on each index slice; join outputs."""
+        """zip(arrays){body} or zip(label='name'){body}: run body per slice; join outputs."""
         zip_op = self.session.next_op_dir("zip")
         self.session.write_bundle(zip_op, bundle, "input")
+
+        if expr.label_name:
+            from ahlib.label_utils import bundle_from_elements, entries_for_name
+
+            label_entries = entries_for_name(bundle.labels, expr.label_name)
+            if not label_entries:
+                empty = ArrayBundle()
+                self.session.write_bundle(zip_op, empty, "output")
+                return empty
+
+            results: list[ArrayBundle] = []
+            for _name, elements in label_entries:
+                self._check_cancelled()
+                slice_bundle = bundle_from_elements(elements)
+                body_out = self._eval_action(
+                    expr.body,
+                    slice_bundle,
+                    zip_op,
+                    externals_in_sequence=True,
+                    instruction_contexts=instruction_contexts,
+                )
+                body_out = self._apply_changes(body_out, zip_op)
+                results.append(body_out)
+
+            joined = self._join_bundles(results)
+            joined = self._apply_changes(joined, zip_op)
+            self.session.write_bundle(zip_op, joined, "output")
+            return joined
 
         for key in expr.array_keys:
             if key not in ARRAY_TYPES or key == "changes":
@@ -930,6 +983,9 @@ class Runtime:
             slice_bundle = ArrayBundle()
             for key in expr.array_keys:
                 getattr(slice_bundle, key).append(getattr(bundle, key)[i])
+            from ahlib.label_utils import filter_labels_for_bundle
+
+            slice_bundle.labels = filter_labels_for_bundle(bundle.labels, slice_bundle)
             body_out = self._eval_action(
                 expr.body,
                 slice_bundle,
@@ -956,6 +1012,22 @@ class Runtime:
                     for item in items:
                         if item not in out.images:
                             out.images.append(item)
+                elif key == "labels":
+                    from ahlib.label_utils import label_entry_key
+
+                    existing = {
+                        k
+                        for raw in out.labels
+                        if (k := label_entry_key(raw)) is not None
+                    }
+                    for item in items:
+                        item_key = label_entry_key(item)
+                        if item_key is None:
+                            out.labels.append(item)
+                            continue
+                        if item_key not in existing:
+                            out.labels.append(item)
+                            existing.add(item_key)
                 else:
                     getattr(out, key).extend(items)
         return out
