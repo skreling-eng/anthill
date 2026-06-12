@@ -1,0 +1,39 @@
+$create_video_index — build one FAISS HNSW index from all .ahvemb sidecars
+
+SUMMARY
+  For each videos[] file, looks for `.ahvemb/<video>.ahvemb` beside the source.
+  Builds one shared FAISS HNSW index over all fragments from all videos, plus a
+  mapping JSON file that points at the real video and .ahvemb paths on disk.
+  Output bundle contains files[] only — one search index link.
+
+SYNTAX
+  $create_video_index
+
+INPUT
+  videos[] — source videos that already have `.ahvemb/<name>.ahvemb` sidecars
+
+OUTPUT
+  files[] only (all other arrays empty) — one link:
+    videos.faiss       — normal mode (combined search index)
+    videos.ahvmap.json — emulate mode only
+  Sibling videos.ahvmap.json is always written on disk next to videos.faiss.
+
+MAPPING FORMAT (.ahvmap.json)
+  fragments — [{id, video, ahvemb, fps, start, end}, …] aligned with FAISS ids
+
+BEHAVIOR
+  Skips videos without `.ahvemb/<name>.ahvemb` or with empty sidecars.
+
+DEPENDENCIES
+  uv sync --extra video_index   (faiss-cpu, opencv-python, numpy)
+
+ENVIRONMENT
+  AH_EMULATE_CREATE_VIDEO_INDEX=1 — mapping JSON only (vectors embedded), no faiss.
+
+EXAMPLE
+  @all_videos: $folder('test_data', '*.mp4', source_path=True)
+  @create_emb: @all_videos -> $add_video_embedding_files
+  @index: @all_videos -> $create_video_index
+
+PROMPT-CONSUMING
+  No.

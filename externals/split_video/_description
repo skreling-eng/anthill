@@ -1,0 +1,42 @@
+$split_video — scene split via frame average-hash diffs
+
+SUMMARY
+  Reads each videos[] file, compares consecutive frame average hashes
+  (imagehash.average_hash), splits where diff > threshold, merges fragments
+  shorter than min_frames using adjacent-small or boundary-hash rules, and
+  writes one MP4 per fragment to videos[] with labels[] metadata.
+
+SYNTAX
+  $split_video
+  $split_video(threshold=12, hash_size=8, min_frames=100)
+
+INPUT
+  videos[] — source video files
+
+OUTPUT
+  videos[] — one MP4 per fragment (input videos cleared)
+  labels[] — one "fragment" entry per output video:
+    [ "fragment", [("videos", "<link>")], {"src": "<source_link>", "frame": <start>} ]
+
+ARGUMENTS
+  threshold=  — split when abs(hash - prev_hash) > threshold (default 10)
+  hash_size=  — average_hash size (default 8)
+  min_frames= — merge fragments shorter than this (default 100)
+
+MERGE RULES (fragments with size < min_frames)
+  1. Join with the next fragment when both are shorter than min_frames.
+  2. Otherwise compare boundary hashes with previous/next neighbor and join
+     to the side with the smaller diff.
+
+DEPENDENCIES
+  opencv-python, Pillow, imagehash, ffmpeg.
+  uv sync --extra split_video   or   uv sync --extra media + imagehash
+
+ENVIRONMENT
+  AH_EMULATE_SPLIT_VIDEO=1 — placeholder MP4 + labels, no ffmpeg/imagehash work.
+
+EXAMPLE
+  @parts: $file('long_clip.mp4') -> $split_video(threshold=10) -> $save('frag_%04d.mp4')
+
+PROMPT-CONSUMING
+  No — replaces videos[] with fragments; manages labels[] directly.

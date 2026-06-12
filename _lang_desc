@@ -287,6 +287,11 @@ Registered handlers (see `externals/__init__.py`). Per-external detail: `externa
 | `$image2image` | Qwen-Rapid-AIO prompt-guided edit (`comfy_lib` in-process; warm GPU worker) |
 | `$image2video` | Wan MEGA image→video (`comfy_lib` in-process by default; warm GPU worker) |
 | `$image2text` | Qwen2-VL vision-language |
+| `$image2embedding` | SigLIP 2 image embeddings (256-d float16, base64 in embeddings[]) |
+| `$text2embedding` | SigLIP 2 text embeddings (same model/space as $image2embedding) |
+| `$video2embedding` | SigLIP 2 video embedding (sample frames, average; same output format) |
+| `$split_video` | Scene split via frame hash diffs; outputs labeled fragments |
+| `$split_video_fast` | Like `$split_video` but ffmpeg-scaled frames (320px) for faster hashing |
 | `$comfy` | ComfyUI **server** HTTP API (workflow JSON on a running Comfy instance) |
 | `$llm` | LLM text generation |
 | `$add_gguf_llm_model` | Download GGUF to `models/llm_user/<name>/` for `$llm(model=…)` (pass-through) |

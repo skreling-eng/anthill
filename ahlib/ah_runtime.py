@@ -940,7 +940,7 @@ class Runtime:
                 return empty
 
             results: list[ArrayBundle] = []
-            for _name, elements in label_entries:
+            for _name, elements, _meta in label_entries:
                 self._check_cancelled()
                 slice_bundle = bundle_from_elements(elements)
                 body_out = self._eval_action(

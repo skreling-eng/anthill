@@ -30,6 +30,9 @@ _KNOWN = frozenset(
         "sound2text",
         "llm",
         "add_gguf_llm_model",
+        "add_video_embedding_files",
+        "create_video_index",
+        "search_local_video",
         "math",
         "code",
         "ah",
@@ -60,17 +63,22 @@ _KNOWN = frozenset(
         "voice_enhance",
         "ocr",
         "image2text",
+        "image2embedding",
+        "text2embedding",
+        "video2embedding",
         "translate",
         "audio_instruct",
         "detach_audio",
         "attach_audio",
         "add_soft_subtitles",
         "video_thumbnailer",
+        "split_video",
+        "split_video_fast",
     }
 )
 
 # Externals that manage labels[] themselves — runtime skips auto-propagation.
-_LABEL_AWARE = frozenset({"label", "add_label"})
+_LABEL_AWARE = frozenset({"label", "add_label", "split_video", "split_video_fast", "search_local_video"})
 
 # Externals that honor $name(...)[n] via inp.repeat inside the handler (not runtime fan-out).
 _REPEAT_NATIVE = frozenset({"image", "image2image", "llm", "math", "music", "code"})
@@ -93,6 +101,7 @@ _PROMPT_CONSUMING = frozenset(
         "prompts_to_texts",
         "prompts2texts",
         "image2text",
+        "search_local_video",
         "audio_instruct",
     }
 )

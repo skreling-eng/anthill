@@ -68,6 +68,14 @@ CHECKS: dict[str, list[str]] = {
     "qwen3_vl": [
         "qwen-vl/Qwen3-VL-8B-Instruct/config.json",
     ],
+    "siglip2_base": [
+        "siglip2/google-siglip2-base-patch16-384/config.json",
+        "siglip2/google-siglip2-base-patch16-384/model.safetensors",
+    ],
+    "siglip2_base_224": [
+        "siglip2/google-siglip2-base-patch16-224/config.json",
+        "siglip2/google-siglip2-base-patch16-224/model.safetensors",
+    ],
     "qwen_rapid_base": [
         "qwen-rapid/Qwen-Image-Edit-2509/model_index.json",
     ],

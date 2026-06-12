@@ -37,8 +37,45 @@ class TestLabelUtils(unittest.TestCase):
         parsed = normalize_label_entry(entry)
         self.assertEqual(
             parsed,
-            ("good", [("images", "sessions/x/1.png"), ("texts", "sessions/x/t.txt")]),
+            ("good", [("images", "sessions/x/1.png"), ("texts", "sessions/x/t.txt")], {}),
         )
+
+    def test_normalize_label_entry_with_meta(self) -> None:
+        entry = [
+            "good",
+            [("images", "a.png")],
+            {"score": 0.9, "source": "model"},
+        ]
+        parsed = normalize_label_entry(entry)
+        self.assertEqual(parsed[0], "good")
+        self.assertEqual(parsed[1], [("images", "a.png")])
+        self.assertEqual(parsed[2], {"score": 0.9, "source": "model"})
+
+    def test_propagate_labels_preserves_meta(self) -> None:
+        input_bundle = ArrayBundle(
+            images=["keep.png"],
+            labels=[
+                ["original", [("images", "keep.png")], {"frame": 12}],
+            ],
+        )
+        output = ArrayBundle(images=["keep.png"])
+        out = propagate_labels(input_bundle, output)
+        self.assertEqual(out.labels[0][2], {"frame": 12})
+
+    def test_filter_by_label_name_preserves_meta(self) -> None:
+        bundle = ArrayBundle(
+            images=["keep.png"],
+            labels=[["good", [("images", "keep.png")], {"tagged": True}]],
+        )
+        out = filter_by_label_name(bundle, "good")
+        self.assertEqual(out.labels[0][2], {"tagged": True})
+
+    def test_merge_label_meta(self) -> None:
+        from ahlib.label_utils import make_label_entry, merge_label_meta
+
+        entry = make_label_entry("good", [("images", "a.png")], {"a": 1})
+        merged = merge_label_meta(entry, {"b": 2})
+        self.assertEqual(merged[2], {"a": 1, "b": 2})
 
     def test_add_label_for_elements(self) -> None:
         bundle = ArrayBundle(

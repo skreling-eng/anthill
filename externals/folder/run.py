@@ -20,10 +20,11 @@ Example:
   @assets: $folder('test_data/mixed')
   @py_files: $folder('src', '*.py')
   @sources: $folder('ahlib', source_path=True)
+  @all_videos: $folder('test_data', '*.mp4', subfolders=True)
 
-Loads every file in the directory (non-recursive, sorted by name) into the
-array matching its extension — same rules as $file. Set AH_EMULATE_FOLDER=1
-for stub links without reading disk.
+Loads every file in the directory (sorted by name; subfolders=True walks
+subdirectories) into the array matching its extension — same rules as $file.
+Set AH_EMULATE_FOLDER=1 for stub links without reading disk.
 """
 
 
@@ -65,6 +66,10 @@ def _source_path_from_args(args: dict[str, str]) -> bool:
     return _truthy(args.get("source_path", ""))
 
 
+def _subfolders_from_args(args: dict[str, str]) -> bool:
+    return _truthy(args.get("subfolders", ""))
+
+
 def _pattern_from_args(args: dict[str, str]) -> str:
     return (
         args.get("pattern", "")
@@ -79,7 +84,19 @@ def _matches_pattern(name: str, pattern: str) -> bool:
     return fnmatch.fnmatch(name, pattern)
 
 
-def _list_files(dir_path: Path, pattern: str = "") -> list[Path]:
+def _list_files(
+    dir_path: Path, pattern: str = "", *, subfolders: bool = False
+) -> list[Path]:
+    if subfolders:
+        files = [
+            p
+            for p in dir_path.rglob("*")
+            if p.is_file() and _matches_pattern(p.name, pattern)
+        ]
+        return sorted(
+            files,
+            key=lambda p: str(p.relative_to(dir_path)).replace("\\", "/"),
+        )
     return sorted(
         p
         for p in dir_path.iterdir()
@@ -92,6 +109,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     path = inp.args.get("_path", inp.args.get("path", "")).strip()
     pattern = _pattern_from_args(inp.args)
     source_path = _source_path_from_args(inp.args)
+    subfolders = _subfolders_from_args(inp.args)
     if not path:
         raise RuntimeError(_HELP.strip())
 
@@ -114,7 +132,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
         return out
 
     dir_path = _resolve_dir_path(ctx, path)
-    for src in _list_files(dir_path, pattern):
+    for src in _list_files(dir_path, pattern, subfolders=subfolders):
         ext = src.suffix.lower()
         arr_key = array_for_extension(ext)
         if source_path:

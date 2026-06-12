@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from externals.video_audio.ffmpeg_paths import get_ffmpeg_exe, require_ffmpeg
+from externals.video_audio.ffmpeg_paths import get_ffmpeg_exe, get_ffprobe_exe, require_ffmpeg
 
 __all__ = ["require_ffmpeg", "get_ffmpeg_exe"]
 
@@ -81,6 +81,11 @@ def pair_videos_and_sounds(
 def _ffmpeg_cmd(argv: list[str]) -> list[str]:
     """Build argv with vendored or PATH ffmpeg as argv[0]."""
     return [get_ffmpeg_exe(), *argv]
+
+
+def _ffprobe_cmd(argv: list[str]) -> list[str]:
+    """Build argv with vendored or PATH ffprobe as argv[0]."""
+    return [get_ffprobe_exe(), *argv]
 
 
 def _run_ffmpeg(cmd: list[str], *, label: str, cwd: Path | None = None) -> None:

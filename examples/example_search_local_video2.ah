@@ -1,0 +1,17 @@
+
+
+
+@all_videos: $folder('test_data\videos\', '*.mp4', subfolders=True, source_path=True) -> %files
+@create_emb: @all_videos -> $add_video_embedding_files
+
+@index: files% -> $create_video_index
+
+@vrs: $list -> $texts2prompts
+face tattoo
+witch
+
+@search: @vrs -> $search_local_video
+
+@search_results: @create_emb -> @index -> @search
+
+>>>

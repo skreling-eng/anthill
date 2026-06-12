@@ -46,6 +46,12 @@ class TestFolderParse(unittest.TestCase):
         self.assertEqual(expr.args.get("_path"), "ahlib")
         self.assertEqual(expr.args.get("source_path"), "True")
 
+    def test_parse_folder_subfolders(self) -> None:
+        expr = parse_actions("$folder('test_data', '*.mp4', subfolders=True)")
+        self.assertEqual(expr.args.get("_path"), "test_data")
+        self.assertEqual(expr.args.get("_path2"), "*.mp4")
+        self.assertEqual(expr.args.get("subfolders"), "True")
+
 
 class TestFolderExternal(unittest.TestCase):
     def test_loads_files_by_extension(self) -> None:
@@ -109,6 +115,47 @@ class TestFolderExternal(unittest.TestCase):
             self.assertEqual(Path(links[1]).read_text(encoding="utf-8"), "beta")
             self.assertFalse((op_dir / "files").exists())
             self.assertEqual(ctx.read_link_text(links[0]), "alpha")
+        finally:
+            for p in sorted(data_dir.rglob("*"), reverse=True):
+                if p.is_file():
+                    p.unlink()
+                elif p.is_dir():
+                    p.rmdir()
+            data_dir.rmdir()
+
+    def test_loads_files_in_subfolders(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        data_dir = repo / "test_data_folder_recursive_tmp"
+        data_dir.mkdir(exist_ok=True)
+        (data_dir / "a.mp4").write_bytes(b"root")
+        nested = data_dir / "nested"
+        nested.mkdir(exist_ok=True)
+        (nested / "b.mp4").write_bytes(b"nested")
+        try:
+            session_dir = create_session_dir(repo / "sessions")
+            session = Session(session_dir)
+            op_dir = session.next_op_dir("folder")
+            ctx = ExternalContext(session=session, op_dir=op_dir)
+            rel = str(data_dir.relative_to(repo))
+            inp = ExternalInput(
+                bundle=ArrayBundle(),
+                args={"_path": rel, "subfolders": "True"},
+                prompt_text="",
+            )
+            out = run(ctx, inp)
+            self.assertEqual(len(out.videos), 2)
+            contents = sorted(
+                (session_dir / link).read_bytes() for link in out.videos
+            )
+            self.assertEqual(contents, [b"nested", b"root"])
+
+            inp_flat = ExternalInput(
+                bundle=ArrayBundle(),
+                args={"_path": rel},
+                prompt_text="",
+            )
+            out_flat = run(ctx, inp_flat)
+            self.assertEqual(len(out_flat.videos), 1)
         finally:
             for p in sorted(data_dir.rglob("*"), reverse=True):
                 if p.is_file():

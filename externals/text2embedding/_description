@@ -1,0 +1,45 @@
+$text2embedding — SigLIP 2 text embeddings (base64 float16)
+
+SUMMARY
+  Runs Google SigLIP 2 on each texts[] item (or prompts[]) and writes one
+  embedding per string into embeddings[] as base64 text. Each vector is the
+  768-d SigLIP output projected to 256 dimensions, L2-normalized, stored as
+  little-endian float16 (512 bytes -> base64, typically 684 characters).
+  Uses the same model and embedding space as $image2embedding.
+
+SYNTAX
+  $text2embedding
+  $text2embedding(model='224', gpu=True)
+  $text2embedding(gpu=False)
+
+INPUT
+  texts[]   — source strings (preferred)
+  prompts[] — used when texts[] is empty
+
+OUTPUT
+  embeddings[] — one base64 string per input text (in-memory; stored in session JSON)
+
+ARGUMENTS
+  model= — default (siglip2-base-patch16-384) | 224 | base-224
+  gpu=   — use CUDA (default: on when torch sees a GPU; gpu=False for CPU)
+
+MODELS
+  Same as $image2embedding:
+  Default: models/siglip2/google-siglip2-base-patch16-384/
+  model=224: models/siglip2/google-siglip2-base-patch16-224/
+
+DEPENDENCIES
+  Uses .venvs/media (torch + transformers + Pillow). Run tools\setup_external_venvs.ps1 once.
+  Or: uv sync --extra media  or  uv sync --extra image2embedding
+
+ENVIRONMENT
+  AH_EMULATE_TEXT2EMBEDDING=1 — deterministic placeholder embedding, no model load.
+  AH_TEXT2EMBEDDING_GPU=0       — force CPU even when CUDA is available.
+
+EXAMPLE
+  @caption: $file('labels.txt') -> $text2embedding -> %text_vec%
+  @photo: $file('garden.jpg') -> $image2embedding -> %img_vec%
+  Compare img_vec and text_vec base64 strings for similarity.
+
+PROMPT-CONSUMING
+  No — texts[] and prompts[] pass through unchanged.

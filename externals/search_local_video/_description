@@ -1,0 +1,55 @@
+$search_local_video — search FAISS indexes and return video fragments
+
+SUMMARY
+  Encodes each text prompt or videos[] query clip as a SigLIP embedding (same
+  frame sampling as $video2embedding for video queries), searches files[] (.faiss
+  indexes with .ahvmap.json mappings from $create_video_index), cuts the top
+  matching fragments from source videos, and tags each result with label
+  search_results. Multiple prompts[] or videos[] entries run separate searches;
+  results are combined.
+
+SYNTAX
+  @hits: @index -> $search_local_video
+  walking on the beach
+  @hits: @index -> $search_local_video(n=5)
+
+INPUT
+  files[]  — videos.faiss (or videos.ahvmap.json in emulate) from $create_video_index
+  prompts  — optional text search queries (instruction body or prompts[])
+  videos[] — optional query clip(s); each is embedded like $video2embedding
+
+OUTPUT
+  videos[] — one MP4 fragment per hit (all queries combined)
+  labels[] — search_results entries with query, start, end, closeness metadata
+
+ARGUMENTS
+  n=     — number of fragments to return per query (default 10)
+  every= — sample every Nth frame for videos[] queries (default ~5 frames)
+  model= — default | 224 | base-224 (same as $image2embedding)
+  gpu=   — use CUDA when available
+
+LABEL METADATA
+  search_results third element:
+    query     — prompt text or query video path that produced this hit
+    src       — source video path
+    ahvemb    — source .ahvemb path from index mapping
+    start     — 0-based inclusive frame
+    end       — 0-based exclusive frame
+    closeness — inner-product similarity (higher = closer match)
+
+DEPENDENCIES
+  uv sync --extra media --extra video_index
+  ffmpeg for fragment export (tools/download_ffmpeg.py)
+
+ENVIRONMENT
+  AH_EMULATE_SEARCH_LOCAL_VIDEO=1 — placeholder fragments, no model/ffmpeg.
+  AH_SEARCH_LOCAL_VIDEO_GPU=0     — force CPU.
+
+EXAMPLE
+  @index: @all_videos -> $create_video_index
+  @hits: @index -> $search_local_video
+  sunset over water
+  @similar: @index -> $file('query.mp4') -> $search_local_video(n=5)
+
+PROMPT-CONSUMING
+  Yes — clears prompts[] on output.

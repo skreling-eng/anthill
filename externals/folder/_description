@@ -8,6 +8,7 @@ SYNTAX
   $folder('path/to/dir')
   $folder('path/to/dir', '*.py')
   $folder('path/to/dir', source_path=True)
+  $folder('test_data', '*.mp4', subfolders=True)
   $folder(path='test_data/videos', pattern='*.wav')
 
 INPUT
@@ -27,10 +28,12 @@ ARGUMENTS
   Positional string or path= / _path= — directory to load.
   Optional second positional or pattern= — glob filter (e.g. '*.py', '*.wav').
   source_path=True — link to original files (absolute paths); no session copy.
+  subfolders=True — include files in subdirectories (recursive).
 
 BEHAVIOR
   Resolves the directory relative to cwd, repo root, or session directory.
-  Skips subdirectories. File order is sorted by filename.
+  By default skips subdirectories; set subfolders=True to walk them.
+  File order is sorted by relative path (recursive) or filename (flat).
   With source_path=True, arrays hold absolute paths to source files on disk.
 
   AH_EMULATE_FOLDER=1 — write placeholder links without reading disk (tests).

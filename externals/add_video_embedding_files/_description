@@ -1,0 +1,54 @@
+$add_video_embedding_files — write per-fragment .ahvemb sidecars next to source videos
+
+SUMMARY
+  For each videos[] file: detect scene fragments in memory (same as $split_video_fast,
+  ffmpeg-scaled frame hashes at width=320, without writing MP4s), sample every Nth
+  frame per fragment, average SigLIP 2 embeddings, and write `.ahvemb/<video>.ahvemb`
+  in the same folder as the source file.
+
+SYNTAX
+  $add_video_embedding_files
+  $add_video_embedding_files(every=500)
+  $add_video_embedding_files(threshold=10, min_frames=100, gpu=True)
+  $add_video_embedding_files(overwrite=True)
+
+INPUT
+  videos[] — source video files (typically source_path=True from $folder)
+
+OUTPUT
+  Pass-through — input bundle unchanged. Sidecar files on disk only.
+
+SIDEcar FORMAT (.ahvemb)
+  One line per fragment, space-separated:
+    start_frame end_frame base64_embedding
+
+  start_frame — 0-based inclusive (same as $split_video labels)
+  end_frame   — 0-based exclusive
+  base64_embedding — 256-d float16 SigLIP vector (same as $video2embedding)
+
+ARGUMENTS
+  samples=   — random frame images kept per fragment during scan (default 5)
+               merged fragments shuffle combined pools and keep samples=
+  every=     — optional override: sample every Nth frame instead of random
+  threshold=   — scene-change hash diff (default 10, from $split_video_fast)
+  hash_size=   — per-frame hash size (default 8)
+  min_frames=  — merge short fragments (default 100)
+  width=       — ffmpeg scale width for hash frames (default 320)
+  model=       — default | 224 | base-224 (same as $image2embedding)
+  gpu=         — use CUDA when available
+  overwrite=   — rewrite .ahvemb even if it already exists (default: skip)
+
+DEPENDENCIES
+  Uses .venvs/media (ffmpeg, imagehash, torch, transformers).
+  Run tools\setup_external_venvs.ps1 once, or: uv sync --extra media --extra split_video_fast
+
+ENVIRONMENT
+  AH_EMULATE_ADD_VIDEO_EMBEDDING_FILES=1 — real fragment detection, placeholder embeddings.
+  AH_ADD_VIDEO_EMBEDDING_FILES_GPU=0     — force CPU.
+
+EXAMPLE
+  @all_videos: $folder('test_data', '*.mp4', subfolders=True, source_path=True)
+  @create_emb: @all_videos -> $add_video_embedding_files
+
+PROMPT-CONSUMING
+  No — videos[] pass through unchanged.

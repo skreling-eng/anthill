@@ -1,0 +1,12 @@
+
+
+
+@data: $file('test_data\clip\20260524_182350_video_clip_0.mp4')
+
+&video_frames:
+- take videos and return their frames as images
+- use a counter of frames and return only if counter % 25 == 0
+
+@emb:  @frame_desc: @data -> &video_frames -> $image2embedding
+
+>>>

@@ -1,0 +1,37 @@
+$split_video_fast — scene split via ffmpeg-scaled frame hashes
+
+SUMMARY
+  Like $split_video, but reads frames through ffmpeg scaled to width=320 (default)
+  before average-hash comparison. Skips OpenCV for decoding — faster on large
+  videos. Fragment export still uses ffmpeg (same as $split_video).
+
+SYNTAX
+  $split_video_fast
+  $split_video_fast(threshold=12, hash_size=8, min_frames=100, width=320)
+
+INPUT
+  videos[] — source video files
+
+OUTPUT
+  videos[] — one MP4 per fragment (input videos cleared)
+  labels[] — one "fragment" entry per output video:
+    [ "fragment", [("videos", "<link>")], {"src": "<source_link>", "frame": <start>} ]
+
+ARGUMENTS
+  threshold=  — split when abs(hash - prev_hash) > threshold (default 10)
+  hash_size=  — average_hash size (default 8)
+  min_frames= — merge fragments shorter than this (default 100)
+  width=      — ffmpeg scale width for hash frames (default 320)
+
+DEPENDENCIES
+  Pillow, imagehash, ffmpeg (no OpenCV).
+  uv sync --extra split_video_fast   or   uv sync --extra media + imagehash
+
+ENVIRONMENT
+  AH_EMULATE_SPLIT_VIDEO_FAST=1 — placeholder MP4 + labels, no ffmpeg work.
+
+EXAMPLE
+  @parts: $file('long_clip.mp4') -> $split_video_fast(threshold=10) -> $save('frag_%04d.mp4')
+
+PROMPT-CONSUMING
+  No — replaces videos[] with fragments; manages labels[] directly.

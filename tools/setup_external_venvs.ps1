@@ -22,7 +22,7 @@ function Sync-Venv($RelPath, $Extras) {
 }
 
 Write-Host "Anthill external venvs under .venvs/"
-Sync-Venv ".venvs/media" "media,clip,music_separation,video_thumbnailer"
+Sync-Venv ".venvs/media" "media,clip,music_separation,video_thumbnailer,split_video,split_video_fast,video_index"
 
 # WanVideoWrapper + VHS under comfy_lib/ (heavier sklearn stack; do not merge with music)
 Sync-Venv ".venvs/comfy-wan" "media,comfy-wan,clip"
@@ -74,7 +74,14 @@ Write-Host "Default `$code GGUF for &action codegen"
 
 Write-Host ""
 Write-Host "Add to .env (or set in shell):"
-Write-Host "  AH_EXTERNAL_VENV_image2text=.venvs/media"
+Write-Host "  AH_EXTERNAL_VENV_image2text=.venvs/media
+  AH_EXTERNAL_VENV_image2embedding=.venvs/media
+  AH_EXTERNAL_VENV_text2embedding=.venvs/media
+  AH_EXTERNAL_VENV_video2embedding=.venvs/media
+  AH_EXTERNAL_VENV_split_video=.venvs/media
+  AH_EXTERNAL_VENV_split_video_fast=.venvs/media
+  AH_EXTERNAL_VENV_create_video_index=.venvs/media
+  AH_EXTERNAL_VENV_search_local_video=.venvs/media"
 Write-Host "  AH_EXTERNAL_VENV_image=.venvs/media"
 Write-Host "  AH_EXTERNAL_VENV_image2image=.venvs/media"
 Write-Host "  AH_EXTERNAL_VENV_image2video=.venvs/comfy-wan"

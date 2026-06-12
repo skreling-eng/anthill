@@ -1,0 +1,15 @@
+{
+  "name": "video_frames",
+  "prompt": "- take videos and return their frames as images\n- use a counter of frames and return only if counter % 25 == 0",
+  "prompt_hash": "067132f9bce4d8619e572d7c8ffffeb900e5ea245501bae4dbf6491fa18b5f48",
+  "model": "default",
+  "venv": ".venvs/custom_actions",
+  "imports": [
+    "PIL",
+    "cv2"
+  ],
+  "pypi_packages": [
+    "Pillow",
+    "opencv-python-headless"
+  ]
+}

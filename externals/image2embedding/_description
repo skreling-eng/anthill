@@ -1,0 +1,44 @@
+$image2embedding — SigLIP 2 image embeddings (base64 float16)
+
+SUMMARY
+  Runs Google SigLIP 2 on each images[] file and writes one embedding per image
+  into embeddings[] as base64 text. Each vector is the 768-d SigLIP output
+  projected to 256 dimensions, L2-normalized, stored as little-endian float16
+  (512 bytes -> base64, typically 684 characters).
+
+SYNTAX
+  $image2embedding
+  $image2embedding(model='224', gpu=True)
+  $image2embedding(gpu=False)
+
+INPUT
+  images[] — source images (PNG, JPG, …)
+
+OUTPUT
+  embeddings[] — one base64 string per image (in-memory; stored in session JSON)
+
+ARGUMENTS
+  model= — default (siglip2-base-patch16-384) | 224 | base-224
+  gpu=   — use CUDA (default: on when torch sees a GPU; gpu=False for CPU)
+
+MODELS
+  Default: models/siglip2/google-siglip2-base-patch16-384/
+  model=224: models/siglip2/google-siglip2-base-patch16-224/
+  First run downloads automatically from Hugging Face when AH_MODEL_UPSTREAM_FALLBACK=1
+  or via tools/download_models.py --upstream-fallback.
+
+DEPENDENCIES
+  Uses .venvs/media (torch + transformers + Pillow). Run tools\setup_external_venvs.ps1 once.
+  Or: uv sync --extra media  or  uv sync --extra image2embedding
+
+ENVIRONMENT
+  AH_EMULATE_IMAGE2EMBEDDING=1 — deterministic placeholder embedding, no model load.
+  AH_IMAGE2EMBEDDING_GPU=0       — force CPU even when CUDA is available.
+
+EXAMPLE
+  @photo: $file('garden.jpg') -> $image2embedding -> %vec%
+  @search: vec% -> $llm
+  Compare two embedding base64 strings for similarity (decode to 256-d float16).
+
+PROMPT-CONSUMING
+  No — images[] pass through; prompts[] unchanged.

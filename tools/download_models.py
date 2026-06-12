@@ -253,6 +253,14 @@ def _run_upstream_fallback(*, dry_run: bool, profile: str) -> None:
         from externals.image2text.model_paths import ensure_model
 
         ensure_model("qwen3")
+    if "siglip2_base" in missing:
+        from externals.image2embedding.model_paths import ensure_model
+
+        ensure_model("default")
+    if "siglip2_base_224" in missing:
+        from externals.image2embedding.model_paths import ensure_model
+
+        ensure_model("224")
     if "qwen_rapid_base" in missing:
         from externals.image2image.qwen_pipeline import ensure_base_assets
 

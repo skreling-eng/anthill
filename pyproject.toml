@@ -118,6 +118,53 @@ image2text = [
     "pillow",
     "safetensors>=0.4.0",
 ]
+image2embedding = [
+    "torch==2.7.1",
+    "torchvision",
+    "transformers>=4.57.0",
+    "accelerate>=1.0.0",
+    "huggingface-hub>=0.34.0,<1.0",
+    "pillow>=10.0.0",
+    "numpy",
+    "safetensors>=0.4.0",
+]
+text2embedding = [
+    "torch==2.7.1",
+    "torchvision",
+    "transformers>=4.57.0",
+    "accelerate>=1.0.0",
+    "huggingface-hub>=0.34.0,<1.0",
+    "pillow>=10.0.0",
+    "numpy",
+    "safetensors>=0.4.0",
+]
+video2embedding = [
+    "torch==2.7.1",
+    "torchvision",
+    "transformers>=4.57.0",
+    "accelerate>=1.0.0",
+    "huggingface-hub>=0.34.0,<1.0",
+    "pillow>=10.0.0",
+    "numpy",
+    "safetensors>=0.4.0",
+    "opencv-python>=4.8.0",
+]
+split_video = [
+    "opencv-python>=4.8.0",
+    "Pillow>=10.0.0",
+    "imagehash>=4.3.0",
+    "numpy",
+]
+split_video_fast = [
+    "Pillow>=10.0.0",
+    "imagehash>=4.3.0",
+    "numpy",
+]
+video_index = [
+    "faiss-cpu>=1.7.4",
+    "numpy",
+    "opencv-python>=4.8.0",
+]
 # Image + video in one session (example.ah @create_video):
 media = [
     "torch==2.7.1",
@@ -145,6 +192,8 @@ media = [
     "einops",
     "tqdm",
     "face-alignment>=1.4.1",
+    "imagehash>=4.3.0",
+    "faiss-cpu>=1.7.4",
 ]
 # Vendored ComfyUI-WanVideoWrapper + VideoHelperSuite under comfy_lib/ (optional worker venv).
 # Sync with media:  uv sync --extra media --extra comfy-wan  (see .venvs/comfy-wan)
@@ -180,6 +229,11 @@ conflicts = [
     [{ extra = "music" }, { extra = "image2video" }],
     [{ extra = "music" }, { extra = "image2video-fast" }],
     [{ extra = "music" }, { extra = "image2text" }],
+    [{ extra = "music" }, { extra = "image2embedding" }],
+    [{ extra = "music" }, { extra = "text2embedding" }],
+    [{ extra = "music" }, { extra = "video2embedding" }],
+    [{ extra = "music" }, { extra = "split_video" }],
+    [{ extra = "music" }, { extra = "video_index" }],
     [{ extra = "music" }, { extra = "comfy-wan" }],
 ]
 

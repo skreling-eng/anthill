@@ -85,6 +85,14 @@ _DEFAULT_UV_EXTRAS: dict[str, list[str]] = {
     "sound2text": ["sound2text"],
     "ocr": ["ocr"],
     "image2text": ["media"],
+    "image2embedding": ["image2embedding"],
+    "text2embedding": ["image2embedding"],
+    "video2embedding": ["video2embedding"],
+    "add_video_embedding_files": ["media", "split_video_fast"],
+    "create_video_index": ["media", "video_index"],
+    "search_local_video": ["media", "video_index", "split_video", "video2embedding"],
+    "split_video": ["split_video"],
+    "split_video_fast": ["split_video_fast"],
     "translate": ["media"],
     "audio_instruct": ["media"],
     "video_thumbnailer": ["video_thumbnailer"],
@@ -137,6 +145,14 @@ _DEFAULT_VENVS: dict[str, str] = {
     "text2speech": ".venvs/text2speech",
     "voice_enhance": ".venvs/voice_enhance",
     "image2text": ".venvs/media",
+    "image2embedding": ".venvs/media",
+    "text2embedding": ".venvs/media",
+    "video2embedding": ".venvs/media",
+    "add_video_embedding_files": ".venvs/media",
+    "create_video_index": ".venvs/media",
+    "search_local_video": ".venvs/media",
+    "split_video": ".venvs/media",
+    "split_video_fast": ".venvs/media",
     "translate": ".venvs/media",
     "audio_instruct": ".venvs/media",
     "face": ".venvs/media",
@@ -244,6 +260,23 @@ def venv_python(name: str, op_dir: Path | None = None) -> str | None:
     return None
 
 
+def require_external_venv(name: str) -> None:
+    """Raise when a configured isolated venv is missing (avoids broken .venv fallback)."""
+    rel = _DEFAULT_VENVS.get(name, "").strip()
+    if not rel:
+        return
+    path = Path(rel)
+    if not path.is_absolute():
+        path = _REPO_ROOT / rel
+    if path.is_dir() and venv_python(name) is not None:
+        return
+    raise RuntimeError(
+        f"$externals {name!r} needs isolated venv {rel} with torch/transformers/faiss.\n"
+        f"  Run once: tools\\setup_external_venvs.ps1\n"
+        f"  Or: UV_PROJECT_ENVIRONMENT={rel} uv sync --extra media --extra video_index"
+    )
+
+
 def build_runner_cmd(name: str, op_dir: Path) -> list[str]:
     """Command argv for externals.runner (isolated venv > uv run --extra > sys.executable)."""
     op = str(op_dir.resolve())
@@ -251,6 +284,7 @@ def build_runner_cmd(name: str, op_dir: Path) -> list[str]:
     if custom:
         return [custom, "-m", "externals.runner", name, op]
 
+    require_external_venv(name)
     isolated = venv_python(name, op_dir)
     if isolated:
         return [isolated, "-m", "externals.runner", name, op]
@@ -292,7 +326,15 @@ def runner_cmd_display(cmd: list[str]) -> str:
     return " ".join(parts) if parts else " ".join(cmd[:4])
 
 
-def _subprocess_env(ctx: ExternalContext) -> dict[str, str]:
+def _isolated_subprocess(name: str, op_dir: Path | None) -> bool:
+    return (
+        name in _DEFAULT_VENVS
+        and venv_python(name, op_dir) is not None
+        and not external_python(name)
+    )
+
+
+def _subprocess_env(ctx: ExternalContext, name: str | None = None) -> dict[str, str]:
     from externals.bootstrap import load_dotenv
 
     load_dotenv()
@@ -303,8 +345,16 @@ def _subprocess_env(ctx: ExternalContext) -> dict[str, str]:
     if os.name != "nt" and "PYTORCH_CUDA_ALLOC_CONF" not in env:
         env["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     root = str(_REPO_ROOT)
-    prev = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = root if not prev else f"{root}{os.pathsep}{prev}"
+    isolated = bool(name and _isolated_subprocess(name, ctx.op_dir))
+    if isolated:
+        # Parent uv/.venv PYTHONPATH must not shadow the isolated venv site-packages.
+        env.pop("VIRTUAL_ENV", None)
+        env.pop("UV_PROJECT_ENVIRONMENT", None)
+        env.pop("PYTHONHOME", None)
+        env["PYTHONPATH"] = root
+    else:
+        prev = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = root if not prev else f"{root}{os.pathsep}{prev}"
     return env
 
 
@@ -326,7 +376,7 @@ def run_external_subprocess(
     proc = subprocess.Popen(
         cmd,
         cwd=_REPO_ROOT,
-        env=_subprocess_env(ctx),
+        env=_subprocess_env(ctx, name),
     )
     with _active_procs_lock:
         _active_procs.append(proc)

@@ -1,0 +1,42 @@
+$video2embedding — SigLIP 2 video embedding (averaged frames, base64 float16)
+
+SUMMARY
+  Samples frames from each videos[] file (default: ~5 frames per video), runs the
+  same SigLIP 2 model as $image2embedding on each sampled frame, averages the
+  768-d vectors, L2-normalizes, and writes one base64 float16 x256 embedding per
+  video into embeddings[].
+
+SYNTAX
+  $video2embedding
+  $video2embedding(every=10, gpu=True)
+  $video2embedding(model='224', every=30)
+
+INPUT
+  videos[] — source video files (MP4, …)
+
+OUTPUT
+  embeddings[] — one base64 string per video (256-d float16, same format as $image2embedding)
+
+ARGUMENTS
+  every= — sample every Nth frame, 1-based (default: auto ~5 frames per video)
+           if the video is shorter, uses the first frame
+  model= — default (siglip2-base-patch16-384) | 224 | base-224
+  gpu=   — use CUDA (default: on when torch sees a GPU; gpu=False for CPU)
+
+MODELS
+  Same as $image2embedding:
+  Default: models/siglip2/google-siglip2-base-patch16-384/
+
+DEPENDENCIES
+  Uses .venvs/media (torch, transformers, Pillow, opencv-python).
+  Run tools\setup_external_venvs.ps1 once, or: uv sync --extra video2embedding
+
+ENVIRONMENT
+  AH_EMULATE_VIDEO2EMBEDDING=1 — deterministic placeholder embedding, no model load.
+  AH_VIDEO2EMBEDDING_GPU=0       — force CPU even when CUDA is available.
+
+EXAMPLE
+  @clip: $file('walk.mp4') -> $video2embedding(every=20) -> %vec%
+
+PROMPT-CONSUMING
+  No — videos[] pass through unchanged.
