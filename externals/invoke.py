@@ -100,6 +100,7 @@ _DEFAULT_UV_EXTRAS: dict[str, list[str]] = {
     "model_ah_merge_lora": ["finetune"],
     "face": ["media"],
     "face_enhancer": ["media"],
+    "openpose": ["media"],
 }
 
 # Cheap I/O / bundle ops — avoid uv-run subprocess spawn per call (override with
@@ -157,6 +158,7 @@ _DEFAULT_VENVS: dict[str, str] = {
     "audio_instruct": ".venvs/media",
     "face": ".venvs/media",
     "face_enhancer": ".venvs/media",
+    "openpose": ".venvs/media",
 }
 
 

@@ -54,6 +54,7 @@ _KNOWN = frozenset(
         "draw_text",
         "face",
         "face_enhancer",
+        "openpose",
         "only",
         "select",
         "label",

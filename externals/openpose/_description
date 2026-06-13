@@ -1,0 +1,34 @@
+$openpose — OpenPose skeleton maps from images
+
+SUMMARY
+  Detects human pose keypoints and renders a classic OpenPose stick-figure map
+  (colored limbs on a black background) for each input image.
+
+SYNTAX
+  $openpose
+  $openpose(detect_resolution=512, hand=0, face=0)
+
+INPUT
+  images[] — source photos or frames.
+
+OUTPUT
+  images[] — skeleton map PNGs (same count as input).
+
+ARGUMENTS
+  detect_resolution=512 — resize long side for detection (higher = finer detail).
+  hand=0 — set to 1 to include hand keypoints (needs hand_pose_model.pth).
+  face=0 — set to 1 to include face landmarks (needs facenet.pth).
+
+SETUP
+  models/openpose/ (body_pose_model.pth; optional hand/face weights).
+  Download:
+    uv run python tools/download_models.py --upstream-fallback
+  .venvs/media with controlnet-aux + torch. GPU when CUDA is available.
+  AH_OPENPOSE_GPU=0 forces CPU inference.
+
+EXAMPLE
+  @pose_maps: $folder('refs') -> $openpose(detect_resolution=768)
+  @control: $file('model.png') -> $openpose(hand=1, face=1) -> $image2image(...)
+
+PROMPT-CONSUMING
+  No.

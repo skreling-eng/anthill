@@ -63,7 +63,10 @@ def _truthy(val: str) -> bool:
 
 
 def _source_path_from_args(args: dict[str, str]) -> bool:
-    return _truthy(args.get("source_path", ""))
+    raw = args.get("source_path")
+    if raw is None or not raw.strip():
+        return True
+    return _truthy(raw)
 
 
 def _subfolders_from_args(args: dict[str, str]) -> bool:

@@ -1,0 +1,15 @@
+{
+  "name": "first_frame",
+  "prompt": "for videos, take the first frame and return as an image",
+  "prompt_hash": "7e006ffe85c07eba4e198ec3fe7213b5b47deafc03e4a53b87e399d445dbd71b",
+  "model": "default",
+  "venv": ".venvs/custom_actions",
+  "imports": [
+    "PIL",
+    "cv2"
+  ],
+  "pypi_packages": [
+    "Pillow",
+    "opencv-python-headless"
+  ]
+}

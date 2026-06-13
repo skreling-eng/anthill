@@ -1,0 +1,12 @@
+
+
+@all_videos: $folder('test_data\videos\', '*.mp4', subfolders=True)
+
+@video_index: @videos -> $add_video_embedding_files -> $create_video_index
+
+@query: 
+a girl with a tattoo on her face
+
+@search: @video_index -> @query -> $search_local_video
+
+>>>

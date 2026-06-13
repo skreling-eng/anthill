@@ -273,6 +273,10 @@ def _run_upstream_fallback(*, dry_run: bool, profile: str) -> None:
         from externals.audio_instruct.model_paths import ensure_model
 
         ensure_model()
+    if "openpose" in missing:
+        from externals.openpose.model_paths import ensure_model
+
+        ensure_model(include_hand=True, include_face=True)
 
     _log(
         "\nOther missing groups may need manual HF pulls — see models/*/README.md\n"

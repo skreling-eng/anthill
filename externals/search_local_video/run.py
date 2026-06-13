@@ -260,7 +260,7 @@ def _encode_search_query(
 
 
 _MAX_FILENAME_LEN = 260
-_MAX_SOURCE_STEM_LEN = 150
+_MAX_SOURCE_STEM_LEN = 100
 _INVALID_FILENAME_CHARS = frozenset('<>:"/\\|?*')
 
 

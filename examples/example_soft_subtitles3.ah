@@ -1,0 +1,6 @@
+
+
+@data: $folder("Season 1/") ->$folder("Season 1/Subs")
+@add_sof_subtitles: @data -> $add_soft_subtitles
+
+>>>

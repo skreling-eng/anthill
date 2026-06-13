@@ -192,6 +192,7 @@ media = [
     "einops",
     "tqdm",
     "face-alignment>=1.4.1",
+    "controlnet-aux>=0.0.9",
     "imagehash>=4.3.0",
     "faiss-cpu>=1.7.4",
 ]

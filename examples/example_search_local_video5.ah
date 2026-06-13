@@ -1,0 +1,30 @@
+
+
+@clear_answer:
+Use no more than 55 words.
+Return only the final result without comments, clarifications, or explanations.
+
+@create_images: @clear_answer -> $llm -> $texts2prompts -> $image[3]
+create a dancing girl prompt for the image gen model
+
+@create_images2: @clear_answer -> $llm -> $texts2prompts -> $image[3]
+create a dancing girl prompt for the image model, she has a tattoo on her face
+
+@create_videos: @clear_answer -> $llm -> $texts2prompts -> $image2video
+create a dancing girl prompt for the video gen model
+
+@videos: (@create_images, @create_images2) -> @create_videos
+
+@video_index: @videos -> $add_video_embedding_files -> $create_video_index
+
+@query: 
+a girl with a tattoo on her face
+
+@search: @video_index -> @query -> $search_local_video
+
+&first_frame:
+for videos, take the first frame and return as an image
+
+@test: @search -> &first_frame -> $openpose
+
+>>>

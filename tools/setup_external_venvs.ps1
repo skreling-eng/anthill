@@ -23,6 +23,9 @@ function Sync-Venv($RelPath, $Extras) {
 
 Write-Host "Anthill external venvs under .venvs/"
 Sync-Venv ".venvs/media" "media,clip,music_separation,video_thumbnailer,split_video,split_video_fast,video_index"
+$mediaPy = Join-Path $Root ".venvs\media\Scripts\python.exe"
+Write-Host "`$openpose (controlnet-aux in .venvs/media)"
+& $mediaPy -c "import controlnet_aux; print('  ok: controlnet-aux')"
 
 # WanVideoWrapper + VHS under comfy_lib/ (heavier sklearn stack; do not merge with music)
 Sync-Venv ".venvs/comfy-wan" "media,comfy-wan,clip"
@@ -93,6 +96,7 @@ Write-Host "  AH_EXTERNAL_VENV_text2speech=.venvs/text2speech"
 Write-Host "  AH_EXTERNAL_VENV_voice_enhance=.venvs/voice_enhance"
 Write-Host "  AH_EXTERNAL_VENV_face=.venvs/media"
 Write-Host "  AH_EXTERNAL_VENV_face_enhancer=.venvs/media"
+Write-Host "  AH_EXTERNAL_VENV_openpose=.venvs/media"
 Write-Host "  AH_CUSTOM_ACTIONS_VENV=.venvs/custom_actions   # &action codegen + handlers"
 Write-Host ""
 Write-Host "Media venv: optional sage wheels (from repo root):"

@@ -76,7 +76,8 @@ class TestFolderExternal(unittest.TestCase):
             out = run(ctx, inp)
             self.assertEqual(len(out.videos), 2)
             self.assertEqual(len(out.images), 1)
-            v0 = (session_dir / out.videos[0]).read_bytes()
+            v0 = Path(out.videos[0]).read_bytes()
+            self.assertTrue(Path(out.videos[0]).is_absolute())
             self.assertEqual(v0, b"fake-mp4-a")
         finally:
             for p in sorted(data_dir.rglob("*"), reverse=True):
@@ -101,10 +102,7 @@ class TestFolderExternal(unittest.TestCase):
             ctx = ExternalContext(session=session, op_dir=op_dir)
             inp = ExternalInput(
                 bundle=ArrayBundle(),
-                args={
-                    "_path": str(data_dir.relative_to(repo)),
-                    "source_path": "True",
-                },
+                args={"_path": str(data_dir.relative_to(repo))},
                 prompt_text="",
             )
             out = run(ctx, inp)
@@ -144,9 +142,7 @@ class TestFolderExternal(unittest.TestCase):
             )
             out = run(ctx, inp)
             self.assertEqual(len(out.videos), 2)
-            contents = sorted(
-                (session_dir / link).read_bytes() for link in out.videos
-            )
+            contents = sorted(Path(link).read_bytes() for link in out.videos)
             self.assertEqual(contents, [b"nested", b"root"])
 
             inp_flat = ExternalInput(
@@ -187,7 +183,7 @@ class TestFolderExternal(unittest.TestCase):
             out = run(ctx, inp)
             self.assertEqual(len(out.files), 2)
             names = sorted(Path(link).name for link in out.files)
-            self.assertEqual(names, ["0.py", "1.py"])
+            self.assertEqual(names, ["a.py", "b.py"])
         finally:
             for p in sorted(data_dir.rglob("*"), reverse=True):
                 if p.is_file():
@@ -225,7 +221,7 @@ class TestFolderExternal(unittest.TestCase):
             ctx = ExternalContext(session=session, op_dir=op_dir)
             inp = ExternalInput(
                 bundle=ArrayBundle(),
-                args={"_path": "test_data/videos"},
+                args={"_path": "test_data/videos", "source_path": "False"},
                 prompt_text="",
             )
             out = run(ctx, inp)

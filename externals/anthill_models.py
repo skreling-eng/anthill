@@ -96,6 +96,11 @@ CHECKS: dict[str, list[str]] = {
     "face_fan3d": ["face/3DFAN4-7835d9f11d.pth.tar"],
     "face_fan_depth": ["face/depth-2a464da4ea.pth.tar"],
     "face_enhancer_model": ["face/FaceEnhancer.npy"],
+    "openpose": [
+        "openpose/body_pose_model.pth",
+        "openpose/hand_pose_model.pth",
+        "openpose/facenet.pth",
+    ],
 }
 
 PROFILE_GROUPS: dict[str, frozenset[str]] = {
