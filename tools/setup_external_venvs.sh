@@ -43,8 +43,8 @@ sync_venv() {
 echo "Anthill external venvs under .venvs/"
 sync_venv ".venvs/media" "media,clip,music_separation,video_thumbnailer"
 media_py="$(venv_python ".venvs/media")"
-echo "\$openpose (controlnet-aux in .venvs/media)"
-"$media_py" -c "import controlnet_aux; print('  ok: controlnet-aux')"
+echo "\$openpose / \$canny / \$depth / \$controlnet (.venvs/media)"
+"$media_py" -c "import controlnet_aux; import matplotlib; import comfy_kitchen; from controlnet_aux import CannyDetector, MidasDetector; print('  ok: controlnet-aux + matplotlib + comfy-kitchen')"
 
 sync_venv ".venvs/comfy-wan" "media,comfy-wan,clip"
 

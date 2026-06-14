@@ -24,6 +24,49 @@ def fast_empty_negative_conditioning(clip) -> object:
     return cached
 
 
+def text_encode_qwen_image_edit(
+    clip,
+    prompt: str,
+    vae=None,
+    *,
+    image=None,
+):
+    """Comfy TextEncodeQwenImageEdit — single source image + reference_latents."""
+    import comfy.utils
+    import node_helpers
+
+    ref_latent = None
+    images: list = []
+    if image is not None:
+        samples = image.movedim(-1, 1)
+        total = int(1024 * 1024)
+        scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
+        width = round(samples.shape[3] * scale_by)
+        height = round(samples.shape[2] * scale_by)
+        s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
+        image = s.movedim(1, -1)
+        images = [image[:, :, :, :3]]
+        if vae is not None:
+            pixels = image[:, :, :, :3]
+            from externals.comfy_inprocess.comfy_memory import load_vae_for_encode
+
+            load_vae_for_encode(
+                vae,
+                length=int(pixels.shape[0]),
+                height=int(pixels.shape[1]),
+                width=int(pixels.shape[2]),
+            )
+            ref_latent = vae.encode(pixels)
+
+    tokens = clip.tokenize(prompt, images=images)
+    conditioning = clip.encode_from_tokens_scheduled(tokens)
+    if ref_latent is not None:
+        conditioning = node_helpers.conditioning_set_values(
+            conditioning, {"reference_latents": [ref_latent]}, append=True
+        )
+    return conditioning
+
+
 def text_encode_qwen_image_edit_plus(
     clip,
     prompt: str,

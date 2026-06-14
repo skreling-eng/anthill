@@ -193,6 +193,8 @@ media = [
     "tqdm",
     "face-alignment>=1.4.1",
     "controlnet-aux>=0.0.9",
+    "matplotlib>=3.8.0",
+    "comfy-kitchen>=0.2.8",
     "imagehash>=4.3.0",
     "faiss-cpu>=1.7.4",
 ]

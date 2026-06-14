@@ -51,9 +51,10 @@ def default_comfy_worker_cmd(config: WarmWorkerConfig) -> list[str]:
     isolated = venv_python(config.name, None)
     if isolated:
         return [isolated, "-m", config.worker_module]
-    comfy_py = resolve_comfy_python()
-    if comfy_py is not None:
-        return [str(comfy_py), "-m", config.worker_module]
+    if config.name != "image2image":
+        comfy_py = resolve_comfy_python()
+        if comfy_py is not None:
+            return [str(comfy_py), "-m", config.worker_module]
     if not _use_uv():
         return [sys.executable, "-m", config.worker_module]
     uv_bin = shutil.which(os.environ.get("UV", "uv")) or "uv"

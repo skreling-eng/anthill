@@ -2,25 +2,11 @@
 
 from __future__ import annotations
 
-import os
 import sys
 
 
 def build_image2image_worker_cmd() -> list[str]:
-    """Prefer ComfyUI venv (comfy_kitchen + comfy_aimdo) over .venvs/media for sampling speed."""
-    force_media = os.environ.get("AH_IMAGE2IMAGE_USE_MEDIA_VENV", "").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
-    if not force_media:
-        from externals.comfy_inprocess.bootstrap import resolve_comfy_python
-
-        comfy_py = resolve_comfy_python()
-        if comfy_py is not None:
-            return [str(comfy_py), "-m", "externals.image2image.worker"]
-
+    """Launch warm worker in Anthill .venvs/media (comfy-kitchen for FP8)."""
     from externals.comfy_inprocess.warm_worker import WarmWorkerConfig, default_comfy_worker_cmd
 
     return default_comfy_worker_cmd(
@@ -41,8 +27,7 @@ def log_worker_backend() -> None:
         )
     except ImportError:
         print(
-            "$image2image: WARNING comfy_kitchen not installed — UNet steps can be "
-            "10–50× slower than ComfyUI. Set AH_COMFY_PYTHON to your ComfyUI "
-            ".venv\\Scripts\\python.exe (or unset AH_EXTERNAL_VENV_image2image).",
+            "$image2image: WARNING comfy_kitchen not installed — FP8 UNet will be slow. "
+            "Run: UV_PROJECT_ENVIRONMENT=.venvs/media uv sync --extra media",
             flush=True,
         )

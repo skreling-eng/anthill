@@ -101,6 +101,15 @@ CHECKS: dict[str, list[str]] = {
         "openpose/hand_pose_model.pth",
         "openpose/facenet.pth",
     ],
+    "depth": [
+        "depth/dpt_hybrid-midas-501f0c75.pt",
+    ],
+    "qwen_image_controlnet": [
+        "qwen-image/diffusion_models/qwen_image_fp8_e4m3fn.safetensors",
+        "qwen-image/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors",
+        "qwen-image/vae/qwen_image_vae.safetensors",
+        "qwen-image/controlnet/Qwen-Image-InstantX-ControlNet-Union.safetensors",
+    ],
 }
 
 PROFILE_GROUPS: dict[str, frozenset[str]] = {

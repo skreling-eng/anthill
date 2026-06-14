@@ -1,0 +1,33 @@
+$depth — MiDaS depth maps from images
+
+SUMMARY
+  Estimates per-pixel depth with MiDaS and outputs a classic ControlNet-style
+  depth map (grayscale: bright = near, dark = far) for each input image.
+
+SYNTAX
+  $depth
+  $depth(detect_resolution=512)
+
+INPUT
+  images[] — source photos or frames.
+
+OUTPUT
+  images[] — depth map PNGs (same count as input).
+
+ARGUMENTS
+  detect_resolution=512 — resize long side for detection (higher = finer detail).
+
+SETUP
+  models/depth/dpt_hybrid-midas-501f0c75.pt
+  Download:
+    uv run python tools/download_models.py --upstream-fallback
+  .venvs/media with controlnet-aux + torch. GPU when CUDA is available.
+  AH_DEPTH_GPU=0 forces CPU inference.
+  AH_EMULATE_DEPTH=1 for stub PNG output without models.
+
+EXAMPLE
+  @depth_maps: $folder('refs') -> $depth(detect_resolution=768)
+  @control: $file('photo.png') -> $depth() -> $save('depth')
+
+PROMPT-CONSUMING
+  No.

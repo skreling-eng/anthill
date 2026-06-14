@@ -374,7 +374,7 @@ Subprocess vs in-process externals: `AH_EXTERNAL_SUBPROCESS`, `AH_EXTERNAL_INPRO
 ## Configuration
 
 - **`.env`** — loaded by `run_ah.py` (venv paths, Wan dirs, ACE-Step backend, …). Never commit secrets.
-- **ComfyUI server** — run Comfy separately for `$comfy(port=…, json='…')`; workflows live in `comfy_workflows/`. **`$image2image` does not need a running server** — it uses `comfy_lib/` in-process; point `AH_COMFY_PYTHON` at a ComfyUI venv for `comfy_aimdo`.
+- **ComfyUI server** — run Comfy separately for `$comfy(port=…, json='…')`; workflows live in `comfy_workflows/`. **`$image2image` does not need a running server** — it uses `comfy_lib/` in-process via `.venvs/media`.
 - **GPU lifecycle** — `AH_RELEASE_GPU_ON_RUN_END=1` (default) stops warm workers (including `$image2image`) when a run ends; set `0` to keep Qwen loaded for back-to-back edits.
 - **LLM** — place GGUF under `models/llm/` for `$llm`.
 

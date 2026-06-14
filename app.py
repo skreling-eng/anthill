@@ -629,12 +629,12 @@ class Interface:
     def _input_json_ref(self, json_path: str | Path) -> str:
         path = Path(json_path)
         if not path.is_absolute():
-            return f"input_json('{path.as_posix()}')"
+            return f"$input_json('{path.as_posix()}')"
         try:
             rel = path.resolve().relative_to(self.linkapi.base_dir.resolve())
         except ValueError:
             rel = path.resolve()
-        return f"input_json('{rel.as_posix()}')"
+        return f"$input_json('{rel.as_posix()}')"
 
     @staticmethod
     def _output_link_count(output_context: dict) -> int:

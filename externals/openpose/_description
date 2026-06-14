@@ -16,7 +16,7 @@ OUTPUT
 
 ARGUMENTS
   detect_resolution=512 — resize long side for detection (higher = finer detail).
-  hand=0 — set to 1 to include hand keypoints (needs hand_pose_model.pth).
+  hand=0 — set to 1 to include hand keypoints (needs hand_pose_model.pth; matplotlib).
   face=0 — set to 1 to include face landmarks (needs facenet.pth).
 
 SETUP

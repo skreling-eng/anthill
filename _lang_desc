@@ -320,7 +320,7 @@ Each `$` call gets an op folder with `input.json`, `invoke.json`, and `output.js
 `$image2image` and `$image2video` share `externals/comfy_inprocess/`:
 
 - Run Comfy **workflow JSON** from `comfy_workflows/` via embedded `comfy_lib` (no Comfy server).
-- Use **ComfyUI-compatible Python** with `comfy_aimdo` when available (`AH_COMFY_PYTHON`, default tries `G:\ComfyUI_V\.venv\Scripts\python.exe`).
+- **`$image2image`** uses `.venvs/media` (comfy-kitchen for FP8). **`$image2video`** uses `.venvs/comfy-wan`.
 - **Warm worker** (default): one long-lived subprocess keeps the model on GPU between jobs in the same run (`AH_*_WORKER=1`). Avoids reloading ~20–28 GB per op.
 - At run end, `release_gpu_resources()` stops warm workers and empties CUDA cache (`AH_RELEASE_GPU_ON_RUN_END=1`, default).
 

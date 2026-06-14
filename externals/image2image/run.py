@@ -116,9 +116,8 @@ def _jobs_share_encode(jobs: list[tuple[list[Path], str]]) -> bool:
 
 def _help() -> str:
     return (
-        "$image2image uses comfy_lib (in-process ComfyUI) with Qwen-Rapid-AIO_4.json.\n"
-        "  Set AH_COMFY_PYTHON to ComfyUI venv python (needs comfy_aimdo).\n"
-        "  Default tries G:\\ComfyUI_V\\.venv\\Scripts\\python.exe\n"
+        "$image2image uses comfy_lib (in-process) with Qwen-Rapid-AIO_4.json.\n"
+        "  Worker venv: AH_EXTERNAL_VENV_image2image=.venvs/media (comfy-kitchen for FP8).\n"
         "  Checkpoint: models/qwen-rapid/ "
         f"({available_models()})\n"
         "Test without GPU/model: AH_EMULATE_IMAGE2IMAGE=1"

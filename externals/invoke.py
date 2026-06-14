@@ -101,6 +101,9 @@ _DEFAULT_UV_EXTRAS: dict[str, list[str]] = {
     "face": ["media"],
     "face_enhancer": ["media"],
     "openpose": ["media"],
+    "canny": ["media"],
+    "depth": ["media"],
+    "controlnet": ["media"],
 }
 
 # Cheap I/O / bundle ops — avoid uv-run subprocess spawn per call (override with
@@ -159,6 +162,9 @@ _DEFAULT_VENVS: dict[str, str] = {
     "face": ".venvs/media",
     "face_enhancer": ".venvs/media",
     "openpose": ".venvs/media",
+    "canny": ".venvs/media",
+    "depth": ".venvs/media",
+    "controlnet": ".venvs/media",
 }
 
 

@@ -1,0 +1,7 @@
+
+
+@ddd: $folder('test_data\images2\dancing_girl\')
+
+@test: @ddd -> $openpose(face=1, hand=1)
+
+>>>

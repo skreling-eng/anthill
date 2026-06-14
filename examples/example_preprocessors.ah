@@ -1,0 +1,15 @@
+
+@photo: $file('test_data/images2/dancing_girl/001.png')
+
+@pose: @photo -> $openpose(face=1, hand=1)
+@depth_map: @photo -> $depth(detect_resolution=768)
+@edges: @photo -> $canny(low=80, high=160)
+
+# Preprocessor outputs are normal images[] — save or inspect them:
+@test_pose: @pose -> $save('out_openpose')
+@test_depth: @depth_map -> $save('out_depth')
+@test_canny: @edges -> $save('out_canny')
+
+# To generate a new image from the original photo (not the control map):
+# @result: @photo -> $image2image
+# same pose and outfit, studio lighting

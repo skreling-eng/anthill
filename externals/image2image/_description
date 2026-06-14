@@ -37,15 +37,11 @@ MODELS
   Workflow: comfy_workflows/Qwen-Rapid-AIO_4.json
 
 DEPENDENCIES
-  ComfyUI-compatible Python with comfy_aimdo (e.g. G:\ComfyUI_V\.venv).
-  Set AH_COMFY_PYTHON to that python.exe if auto-detect fails.
+  .venvs/media (comfy-kitchen for FP8; tools/setup_external_venvs.ps1)
 
 ENVIRONMENT
-  Warm worker defaults to ComfyUI python (comfy_kitchen) when found under AH_COMFY_PYTHON.
-  Log must show ``comfy_kitchen cuda backend enabled`` (cu129 wheels report cuda 12.9, not 13.x).
-  or G:\\ComfyUI_V\\.venv. .venvs/media alone is much slower for KSampler (no kitchen).
-  AH_IMAGE2IMAGE_USE_MEDIA_VENV=1 — force .venvs/media worker
-  AH_COMFY_PYTHON — ComfyUI venv python (recommended)
+  AH_EXTERNAL_VENV_image2image=.venvs/media
+  Warm worker log should show ``comfy_kitchen cuda backend enabled``.
   AH_IMAGE2IMAGE_SAMPLER=euler — optional faster sampler (workflow default: sa_solver)
   AH_IMAGE2IMAGE_GPU=0 — force CPU
   AH_IMAGE2IMAGE_VRAM — default normal on <32GB GPU, high on 32GB+ (ignores WAN_I2V_VRAM)

@@ -1,0 +1,15 @@
+
+
+@photo: $file('test_data/images2/dancing_girl/20260614_003712_default_image_0.png')
+
+@gen: @photo -> (
+    $openpose(face=1) -> $add_label('pose'),
+    $depth -> $add_label('depth'),
+    $canny -> $add_label('canny'),
+) -> $controlnet
+studio portrait, same outfit and pose, cyberpunk girl
+
+@test: @gen -> $save('out_controlnet')
+
+
+>>>

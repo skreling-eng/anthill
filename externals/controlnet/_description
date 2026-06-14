@@ -1,0 +1,72 @@
+$controlnet — Qwen-Image + InstantX Union ControlNet
+
+SUMMARY
+  Generates images guided by labeled control maps (pose / depth / canny) and a
+  text prompt. Optional images labeled source/img2img pass appearance via vision
+  encoding; unlabeled @photo in the pipeline is only used to build control maps.
+
+REFERENCE IMAGE
+  $add_label('source') on the image you want for style/appearance (denoise=1.0).
+  For true VAE latent img2img use denoise=0.55 (and optionally strength=0.75).
+
+QUALITY TIPS
+  Prefer one control (pose OR depth OR canny). Stacking all three often looks muddy.
+  Official Comfy template uses a single control at strength ~1.0.
+  Dark/blurry output: try AH_CONTROLNET_SHIFT=3.5 or steps=30.
+  More detail: width=832 if VRAM allows (raise AH_CONTROLNET_MAX_AREA).
+
+SYNTAX
+  $controlnet
+  $controlnet(steps=20, cfg=2.5, denoise=1.0, strength=0.75)
+  $controlnet(width=768, height=768, seed=42)
+
+INPUT BUNDLE
+  images[] labeled pose, depth, and/or canny — preprocessed control maps (required).
+  images[] labeled source or img2img — optional reference for style/appearance.
+  Unlabeled images (e.g. @photo in the pipeline) are NOT used as img2img sources.
+  prompts[] — generation prompt (required).
+
+CONTROL COMBOS
+  Maps are zipped by order within each label:
+    pose[0] + depth[0] + canny[0] → combo 0
+    pose[1] + depth[1] + canny[1] → combo 1
+  Missing types are OK (e.g. pose + canny only).
+
+OUTPUT
+  images[] — one PNG per source × combo, or one per combo when prompt-only.
+
+ARGUMENTS
+  prompt= — override prompts[]
+  steps=20 — sampler steps (fp8 without Lightning LoRA)
+  cfg=2.5 — classifier-free guidance
+  denoise=1.0 — default; denoise<1 with labeled source enables VAE img2img (try 0.55)
+  strength=0.75 — per-control strength (auto-reduced when multiple maps stacked)
+  controls= — subset: pose, depth, canny (comma-separated)
+  seed= — fixed seed; offset per job when set
+  width= / height= — output size (default: control map size or 768×768)
+  gpu=1 — use CUDA when available
+
+MODELS (FP8, ~16GB with low VRAM)
+  models/qwen-image/diffusion_models/qwen_image_fp8_e4m3fn.safetensors
+  models/qwen-image/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors
+  models/qwen-image/vae/qwen_image_vae.safetensors
+  models/qwen-image/controlnet/Qwen-Image-InstantX-ControlNet-Union.safetensors
+  Download: uv run python tools/download_models.py --upstream-fallback
+
+ENVIRONMENT
+  AH_EXTERNAL_VENV_controlnet=.venvs/media (includes comfy-kitchen for FP8 Qwen-Image)
+  AH_CONTROLNET_VRAM=low — default on ≤19GB GPUs
+  AH_CONTROLNET_MAX_AREA=589824 — cap output pixels (~768×768)
+  AH_CONTROLNET_GPU=0 — force CPU
+  AH_CONTROLNET_LEGACY_SOURCE=1 — treat unlabeled images[] as img2img sources (old behavior)
+  AH_EMULATE_CONTROLNET=1 — stub output without GPU
+
+EXAMPLE
+  @photo: $file('dancer.png')
+  @gen: @photo -> (
+      $clear -> @photo -> $openpose -> $add_label('pose'),
+  ) -> $controlnet(strength=0.85)
+  studio portrait, dancer pose
+
+PROMPT-CONSUMING
+  Yes — prompts[] cleared; images[] replaced with outputs.

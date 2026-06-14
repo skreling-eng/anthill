@@ -55,6 +55,9 @@ _KNOWN = frozenset(
         "face",
         "face_enhancer",
         "openpose",
+        "canny",
+        "depth",
+        "controlnet",
         "only",
         "select",
         "label",
@@ -89,6 +92,7 @@ _PROMPT_CONSUMING = frozenset(
     {
         "image",
         "image2image",
+        "controlnet",
         "check_image",
         "image2video",
         "comfy",

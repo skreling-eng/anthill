@@ -1,0 +1,31 @@
+$canny — Canny edge maps from images
+
+SUMMARY
+  Detects edges with the Canny algorithm and outputs a classic ControlNet-style
+  edge map (white lines on a black background) for each input image.
+
+SYNTAX
+  $canny
+  $canny(low=100, high=200, detect_resolution=512)
+
+INPUT
+  images[] — source photos or frames.
+
+OUTPUT
+  images[] — edge map PNGs (same count as input).
+
+ARGUMENTS
+  low=100 — Canny low threshold (0–255).
+  high=200 — Canny high threshold (0–255).
+  detect_resolution=512 — resize long side for detection (higher = finer detail).
+
+SETUP
+  .venvs/media with controlnet-aux + opencv. No model weights required.
+  AH_EMULATE_CANNY=1 for stub PNG output without deps.
+
+EXAMPLE
+  @edges: $folder('refs') -> $canny(detect_resolution=768)
+  @control: $file('photo.png') -> $canny() -> $save('edges')
+
+PROMPT-CONSUMING
+  No.

@@ -93,6 +93,27 @@ def apply_image2image_vram_settings() -> None:
     _apply_vram_mode(raw)
 
 
+def _default_controlnet_vram() -> str:
+    raw = os.environ.get("AH_CONTROLNET_VRAM", "").strip().lower()
+    if raw:
+        return raw
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+            if gb <= 19:
+                return "low"
+    except Exception:
+        pass
+    return "low"
+
+
+def apply_controlnet_vram_settings() -> None:
+    """Qwen-Image + Union ControlNet — low VRAM by default on ≤19GB GPUs."""
+    _apply_vram_mode(_default_controlnet_vram())
+
+
 def configure_comfy_vram_for_job(args: dict) -> None:
     """Map ``$image2video(..., vram='low')`` to env for this worker job."""
     if "vram" not in args and "lowvram" not in args:

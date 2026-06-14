@@ -277,6 +277,14 @@ def _run_upstream_fallback(*, dry_run: bool, profile: str) -> None:
         from externals.openpose.model_paths import ensure_model
 
         ensure_model(include_hand=True, include_face=True)
+    if "depth" in missing:
+        from externals.depth.model_paths import ensure_model
+
+        ensure_model()
+    if "qwen_image_controlnet" in missing:
+        from externals.controlnet.model_paths import ensure_models
+
+        ensure_models()
 
     _log(
         "\nOther missing groups may need manual HF pulls — see models/*/README.md\n"
