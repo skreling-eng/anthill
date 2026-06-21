@@ -95,6 +95,37 @@ class TestLegacyExecutorKwargs(unittest.TestCase):
         self.assertIn("only_classes", params)
         self.assertIn("initial_outputs", params)
 
+    def test_inject_unique_id_hidden_input(self) -> None:
+        from externals.comfy_inprocess.executor import (
+            _filter_node_inputs,
+            _inject_hidden_inputs,
+        )
+
+        class FakeScheduler:
+            @classmethod
+            def INPUT_TYPES(cls):
+                return {
+                    "required": {
+                        "scheduler": ("STRING",),
+                        "steps": ("INT",),
+                    },
+                    "hidden": {"unique_id": "UNIQUE_ID"},
+                }
+
+            FUNCTION = "process"
+
+            def process(self, scheduler, steps, unique_id):
+                return (unique_id,)
+
+        cls = FakeScheduler
+        inputs = {"scheduler": "unipc", "steps": 4}
+        filtered = _filter_node_inputs("FakeScheduler", cls, inputs)
+        enriched = _inject_hidden_inputs(
+            "node-7", cls, filtered, prompt={"node-7": {}}
+        )
+        self.assertEqual(enriched["unique_id"], "node-7")
+        self.assertEqual(cls().process(**enriched), ("node-7",))
+
 
 class TestQwenWorkflowDetect(unittest.TestCase):
     def test_prompt_uses_qwen_image_edit(self) -> None:

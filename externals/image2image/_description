@@ -22,19 +22,21 @@ OUTPUT
 
 ARGUMENTS
   use_all=  — when true, send up to 3 reference images into one edit job (Comfy encode limit)
-  model=    — model name (sfw-v23, nsfw-v23), checkpoint filename, or path under models/qwen-rapid/
+  model=    — model name (sfw-v23, nsfw-v23, klein-fp8), checkpoint filename, or path
   gpu=      — use CUDA when true (default true; or AH_IMAGE2IMAGE_GPU=0 for CPU)
   prompt=   — same prompt for every job (overrides prompts[])
   width=    — output width (default: input image width, snapped to 8px)
   height=   — output height (default: input image height, snapped to 8px)
-  steps=    — inference steps (default 4)
+  steps=    — inference steps (default 4 for klein-fp8 distilled; 20 for klein base)
   seed=     — fixed seed; omit for random per job; with repeat, seed+0..n-1 per variant
   [n]       — repeat variants per image (encode once, n samples; same prompt+image)
 
 MODELS
   sfw-v23  — Qwen-Rapid-AIO-SFW-v23.safetensors (default)
   nsfw-v23 — Qwen-Rapid-AIO-NSFW-v23.safetensors
-  Workflow: comfy_workflows/Qwen-Rapid-AIO_4.json
+  klein-fp8 — Flux.2 Klein 9B FP8 (models/flux2klein/flux2Klein9bFp8_fp8.safetensors)
+  Qwen workflow: comfy_workflows/Qwen-Rapid-AIO_4.json
+  Klein: UNET + qwen_3_8b_fp8mixed + flux2-vae (Comfy in-process)
 
 DEPENDENCIES
   .venvs/media (comfy-kitchen for FP8; tools/setup_external_venvs.ps1)

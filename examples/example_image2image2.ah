@@ -1,0 +1,10 @@
+
+
+@data: $folder('test_data\images3\old\')
+
+@tr: $image2image(model='flux2_klein_fp8', width=720, height=1280, steps=4)
+Make a woman 25 years old
+
+@images: @data -> @tr
+
+>>>

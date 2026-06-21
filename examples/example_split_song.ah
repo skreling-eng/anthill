@@ -1,0 +1,6 @@
+# Split a test song into vocal-activity segments (max period= seconds, min period/2).
+# Vocal stem via BS-RoFormer-Viperx-1297 (same 2-stem model as $music_separation).
+
+@parts: $file('test_data/music/20260524_185140_st_music_0.wav') -> $split_song(period=30)
+
+run @parts

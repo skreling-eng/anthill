@@ -1,4 +1,4 @@
-"""$image2text — vision-language captioning via Qwen2-VL / Qwen3-VL."""
+"""$image2text — vision-language captioning (Qwen2-VL / Qwen3-VL / BLIP-2)."""
 
 from __future__ import annotations
 
@@ -109,6 +109,7 @@ def _help() -> str:
         "  tools\\setup_external_venvs.ps1   (or uv sync --extra media)\n"
         "  uv run python tools/download_models.py --upstream-fallback\n"
         "  model=qwen2 (default, ~4 GB) | model=qwen3 (Qwen3-VL-8B, ~16 GB+)\n"
+        "  model=blip2 (BLIP-2 OPT 2.7B, ~5 GB)\n"
         "Test without models: AH_EMULATE_IMAGE2TEXT=1"
     )
 
@@ -142,9 +143,13 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
 
     try:
         from externals.image2text.model_paths import ensure_model
-        from externals.image2text.qwen_vl import describe_image, load_model
     except ImportError as exc:
         raise RuntimeError(_help()) from exc
+
+    if profile.family == "blip2":
+        from externals.image2text.blip2 import describe_image, load_model
+    else:
+        from externals.image2text.qwen_vl import describe_image, load_model
 
     model_dir = ensure_model(profile)
     model, processor = load_model(

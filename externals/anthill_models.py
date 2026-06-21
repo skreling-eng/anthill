@@ -68,6 +68,9 @@ CHECKS: dict[str, list[str]] = {
     "qwen3_vl": [
         "qwen-vl/Qwen3-VL-8B-Instruct/config.json",
     ],
+    "blip2": [
+        "blip2/blip2-opt-2.7b/config.json",
+    ],
     "siglip2_base": [
         "siglip2/google-siglip2-base-patch16-384/config.json",
         "siglip2/google-siglip2-base-patch16-384/model.safetensors",
@@ -82,6 +85,11 @@ CHECKS: dict[str, list[str]] = {
     "qwen_rapid_ckpt": [
         "qwen-rapid/Qwen-Rapid-AIO-SFW-v23.safetensors",
         "qwen-rapid/Qwen-Rapid-AIO-NSFW-v23.safetensors",
+    ],
+    "flux2_klein_fp8": [
+        "flux2klein/flux2Klein9bFp8_fp8.safetensors",
+        "text_encoders/qwen_3_8b_fp8mixed.safetensors",
+        "vae/flux2-vae.safetensors",
     ],
     "m2m100": [
         "m2m100_1.2B/config.json",

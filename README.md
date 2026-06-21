@@ -304,6 +304,7 @@ Per-external docs: `externals/<name>/_description`. Subprocess and GPU lifecycle
 | [`examples/example_video_clip.ah`](examples/example_video_clip.ah) | Mux video folder + WAV with `$video_clip` |
 | [`examples/example_combine_data.ah`](examples/example_combine_data.ah) | `$video_clip` → `$output` from test_data |
 | [`examples/example_animated_clip_with_comfy.ah`](examples/example_animated_clip_with_comfy.ah) | ComfyUI animation pipeline |
+| [`examples/example_avatar.ah`](examples/example_avatar.ah) | Portrait + `$text2speech` → `$avatar` (SkyReels V3 talking head) |
 | **Audio & voice** | |
 | [`examples/example_text2speech.ah`](examples/example_text2speech.ah) | Kokoro TTS |
 | [`examples/example_music_to_stems.ah`](examples/example_music_to_stems.ah) | Stem separation |

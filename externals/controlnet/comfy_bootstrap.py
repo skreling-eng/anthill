@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from externals.comfy_inprocess.bootstrap import bootstrap_comfy, comfy_lib_root, get_nodes_module
@@ -27,15 +26,6 @@ def _register_qwen_model_paths() -> None:
         path = root / sub
         if path.is_dir():
             folder_paths.add_model_folder_path(key, str(path.resolve()))
-
-    comfy_models = os.environ.get("AH_COMFYUI_ROOT", "").strip()
-    if comfy_models:
-        base = Path(comfy_models) / "models"
-        if base.is_dir():
-            for sub in ("diffusion_models", "text_encoders", "vae", "controlnet"):
-                path = base / sub
-                if path.is_dir():
-                    folder_paths.add_model_folder_path(sub, str(path.resolve()))
 
     for models_root in models_roots():
         qwen = models_root / "qwen-image"

@@ -3,9 +3,7 @@
 from externals.comfy_inprocess.bootstrap import (
     bootstrap_comfy,
     comfy_lib_root,
-    comfyui_models_root,
     get_nodes_module,
-    resolve_comfy_python,
 )
 from externals.comfy_inprocess.executor import (
     ComfyWorkflowError,
@@ -20,11 +18,9 @@ __all__ = [
     "WarmWorkerPool",
     "bootstrap_comfy",
     "comfy_lib_root",
-    "comfyui_models_root",
     "execute_prompt",
     "find_node_id",
     "get_nodes_module",
     "register_node_handler",
-    "resolve_comfy_python",
     "worker_enabled",
 ]

@@ -46,8 +46,50 @@ imgens_list = [
     ImageGen(
         "crazy_desire",
         gentype="flux",
-        lora="lora/DonM__Crazy_Librarian_Character_Flux-000001.safetensors",
-        desc="alias for crazy_librarian-style generation",
+        lora="lora/Pleasure.safetensors",
+        desc="Crazy Desire",
+        poshelp="Big smile, crazy pleasure",
+    ),
+    ImageGen("crazy_desire_realistic", gentype="flux", 
+        loras=[
+           'lora/Pleasure.safetensors',
+           'lora/realistic effect.safetensors',
+        ], desc="", poshelp="Big smile, crazy pleasure, realistic effect, oil, high-quality detail"),
+    ImageGen(
+        "crazy_desire_realistic2",
+        gentype="flux_ext",
+        model="flux/fluxFusionV24StepsGGUFNF4_V2NF4AIO.safetensors",
+        lora="lora/Pleasure.safetensors",
+        loras=[
+           'lora/Pleasure.safetensors',
+           'lora/realistic effect.safetensors',
+        ],
+        desc="Crazy Desire",
+        poshelp="Big smile, crazy pleasure",
+    ),
+    ImageGen(
+        "flux_fusion_v2",
+        gentype="flux_ext",
+        model="flux/fluxFusionV24StepsGGUFNF4_V2NF4AIO.safetensors",
+        steps=4,
+        guidance_scale=3.5,
+        desc="Flux Fusion V2 NF4 AIO (Comfy checkpoint under models/flux/)",
+    ),
+    ImageGen(
+        "flux_fusion_v2_fp16",
+        gentype="flux_ext",
+        model="flux/fluxFusionV24StepsGGUFNF4_v1Fp16AIO.safetensors",
+        steps=4,
+        guidance_scale=3.5,
+        desc="Flux Fusion V2 (needs NF4/GGUF file on ≤16 GiB GPUs; Fp16AIO is ~27 GiB)",
+    ),
+    ImageGen(
+        "flux2_klein_fp8",
+        gentype="flux2_klein",
+        model="flux2klein/flux2Klein9bFp8_fp8.safetensors",
+        steps=4,
+        guidance_scale=1.0,
+        desc="Flux.2 Klein 9B FP8 distilled (4 steps, cfg=1; use base checkpoint for 20 steps)",
     ),
 ]
 

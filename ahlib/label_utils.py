@@ -7,7 +7,15 @@ from __future__ import annotations
 
 from ahlib.ah_runtime import ArrayBundle
 
-LABEL_ELEMENT_TYPES = ("prompts", "texts", "images", "sounds", "videos", "files")
+LABEL_ELEMENT_TYPES = (
+    "prompts",
+    "negprompts",
+    "texts",
+    "images",
+    "sounds",
+    "videos",
+    "files",
+)
 
 
 def label_meta(entry: object) -> dict:

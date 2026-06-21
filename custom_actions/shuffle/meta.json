@@ -1,0 +1,9 @@
+{
+  "name": "shuffle",
+  "prompt": "for all context arrays randomly shuffle elements",
+  "prompt_hash": "80319f0d786d258b1b006675dd0132670e899edde7b171ba9ed9906442f3b502",
+  "model": "default",
+  "venv": ".venvs/custom_actions",
+  "imports": [],
+  "pypi_packages": []
+}

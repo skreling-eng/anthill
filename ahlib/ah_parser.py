@@ -10,6 +10,7 @@ from typing import Any
 
 ARRAY_TYPES = (
     "prompts",
+    "negprompts",
     "texts",
     "images",
     "sounds",

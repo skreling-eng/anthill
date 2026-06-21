@@ -29,6 +29,9 @@ Write-Host "`$openpose / `$canny / `$depth / `$controlnet (.venvs/media)"
 
 # WanVideoWrapper + VHS under comfy_lib/ (heavier sklearn stack; do not merge with music)
 Sync-Venv ".venvs/comfy-wan" "media,comfy-wan,clip"
+$wanPy = Join-Path $Root ".venvs\comfy-wan\Scripts\python.exe"
+Write-Host "`$avatar / `$image2video SkyReels colormatch (.venvs/comfy-wan)"
+& $wanPy -c "import kornia; import av; print('  ok: kornia + av')"
 
 Write-Host ""
 Write-Host "=== .venvs/change_voice (Python 3.10 + rvc-python; do NOT uv sync here) ==="

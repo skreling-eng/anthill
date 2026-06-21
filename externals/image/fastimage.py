@@ -32,6 +32,42 @@ from externals.image.model_paths import (
 
 HF_TOKEN = os.environ.get("HF_TOKEN", "")
 
+
+def _truthy_env(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes")
+
+
+def _falsy_env(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in ("0", "false", "no", "off")
+
+
+def _gpu_vram_gib() -> float:
+    if not torch.cuda.is_available():
+        return 0.0
+    return torch.cuda.get_device_properties(0).total_memory / (1024**3)
+
+
+def _file_gib(path: str) -> float:
+    p = Path(path)
+    if not p.is_file():
+        return 0.0
+    return p.stat().st_size / (1024**3)
+
+
+def _flux_ext_needs_cpu_offload(model_ref: str) -> bool:
+    if _truthy_env("AH_IMAGE_CPU_OFFLOAD"):
+        return True
+    if _falsy_env("AH_IMAGE_CPU_OFFLOAD"):
+        return False
+    path = resolve_model_path(model_ref)
+    ckpt_gib = _file_gib(path)
+    vram_gib = _gpu_vram_gib()
+    if ckpt_gib <= 0 or vram_gib <= 0:
+        return True
+    # Checkpoint size is mostly transformer weights; leave headroom for VAE + activations.
+    return ckpt_gib + 2.5 > vram_gib
+
+
 DEFAULT_NEG_PROMPT = (
     "watermark, text, censored, deformed, bad anatomy, disfigured, poorly drawn face, "
     "mutated, extra limb, ugly, poorly drawn hands, missing limb, floating limbs, "
@@ -42,7 +78,7 @@ DEFAULT_NEG_PROMPT = (
     "abnormal eye proportion, abnormal hands, abnormal legs, abnormal feet, abnormal fingers"
 )
 
-GEN_DISPATCH = ("flux", "flux_ext", "pony", "sd1", "sd3", "sd3cp")
+GEN_DISPATCH = ("flux", "flux_ext", "flux2_klein", "pony", "sd1", "sd3", "sd3cp")
 
 
 def _compel_classes():
@@ -73,6 +109,7 @@ class ImageGen:
         control: str = "",
         lora_weights: list | None = None,
         use_compel: bool = False,
+        guidance_scale: float = 5.5,
     ):
         self.name = name
         self.gentype = gentype
@@ -91,6 +128,7 @@ class ImageGen:
         self.control = control
         self.control_texts: list[str] = []
         self.use_compel = use_compel
+        self.guidance_scale = guidance_scale
         self.device: torch.device | None = None
         self.current_loras: list[str] = []
 
@@ -186,6 +224,18 @@ class ImageGen:
 
     # --- FLUX (two-phase: encode prompt, then generate) --------------------------
 
+    def _flux_clip_prompt(self, tokenizer, prompt: str, *, max_length: int = 77) -> str:
+        """CLIP pooled embeds are capped at 77 tokens; keep the start of the prompt."""
+        if tokenizer is None:
+            return prompt
+        tokens = tokenizer(
+            prompt,
+            truncation=True,
+            max_length=max_length,
+            return_tensors="pt",
+        )
+        return tokenizer.decode(tokens.input_ids[0], skip_special_tokens=True)
+
     def _flux_encode_prompt(self, ckpt_id: str, ckpt_4bit_id: str, prompt: str):
         """Phase 1: load text encoders only and encode the prompt."""
         ckpt_id = resolve_pretrained_dir(ckpt_id)
@@ -202,9 +252,14 @@ class ImageGen:
             **({"token": HF_TOKEN} if HF_TOKEN else {}),
         ).to(self.device)
 
+        clip_prompt = self._flux_clip_prompt(encode_pipe.tokenizer, prompt)
+        t5_max_length = 512
+
         with torch.no_grad():
             embeds = encode_pipe.encode_prompt(
-                prompt=prompt, prompt_2=None, max_sequence_length=256
+                prompt=clip_prompt,
+                prompt_2=prompt,
+                max_sequence_length=t5_max_length,
             )
         del encode_pipe
         self.flush()
@@ -212,14 +267,55 @@ class ImageGen:
 
     def _flux_load_transformer(self, ckpt_4bit_id: str, *, custom_checkpoint: bool):
         if custom_checkpoint and self.model:
-            return FluxTransformer2DModel.from_single_file(
-                self._resolve_file(self.model),
-                torch_dtype=torch.bfloat16,
+            path = self._resolve_file(self.model)
+            from externals.image.flux_aio_loader import is_comfy_flux_aio, load_flux_aio_transformer
+
+            if is_comfy_flux_aio(path):
+                return load_flux_aio_transformer(path)
+
+            transformer_config = subfolder_path(FLUX_CKPT_4BIT_ID, "transformer")
+            use_offload = _flux_ext_needs_cpu_offload(self.model)
+            if use_offload:
+                ckpt_gib = _file_gib(path)
+                vram_gib = _gpu_vram_gib()
+                print(
+                    f"$image: flux_ext checkpoint {ckpt_gib:.1f} GiB exceeds "
+                    f"GPU {vram_gib:.1f} GiB — CPU offload (~minutes/image). "
+                    "Use an NF4/GGUF checkpoint in models/flux/ for ~10–30 s/image.",
+                    flush=True,
+                )
+            transformer = FluxTransformer2DModel.from_single_file(
+                path,
+                config=transformer_config,
+                torch_dtype=torch.float16,
+                low_cpu_mem_usage=use_offload,
                 token=HF_TOKEN or None,
-            ).to("cuda")
+            )
+            if not use_offload:
+                transformer = transformer.to("cuda")
+            return transformer
         return load_pretrained_sub(
             FluxTransformer2DModel, ckpt_4bit_id, "transformer"
         )
+
+    def _flux_deploy_pipeline(self, pipe, *, custom_transformer: bool) -> str:
+        """Keep flux_ext on GPU when the checkpoint fits; otherwise use CPU offload."""
+        if self.device is None or self.device.type != "cuda":
+            pipe.enable_model_cpu_offload()
+            return "cpu"
+        if custom_transformer and _flux_ext_needs_cpu_offload(self.model):
+            pipe.enable_model_cpu_offload()
+            if hasattr(pipe, "vae") and pipe.vae is not None:
+                pipe.vae.enable_slicing()
+            return "cuda"
+        if _truthy_env("AH_IMAGE_CPU_OFFLOAD"):
+            pipe.enable_model_cpu_offload()
+            return "cuda"
+        if _falsy_env("AH_IMAGE_CPU_OFFLOAD") or custom_transformer:
+            pipe.to("cuda")
+            return "cuda"
+        pipe.enable_model_cpu_offload()
+        return "cuda"
 
     def _flux_gen_images(
         self,
@@ -232,7 +328,11 @@ class ImageGen:
         start_index: int = 0,
     ) -> list[str]:
         """Phase 2: load transformer + CLIP, attach LoRAs, generate frames."""
-        ckpt_id = self._checkpoint_id(FLUX_CKPT_ID)
+        # flux_ext: self.model is a single-file transformer, not the FLUX.1-dev repo.
+        if custom_transformer:
+            ckpt_id = resolve_pretrained_dir(FLUX_CKPT_ID)
+        else:
+            ckpt_id = self._checkpoint_id(FLUX_CKPT_ID)
         ckpt_4bit_id = resolve_pretrained_dir(FLUX_CKPT_4BIT_ID)
         seed = self._random_seed(seed)
 
@@ -240,9 +340,11 @@ class ImageGen:
             ckpt_id, ckpt_4bit_id, prompt
         )
 
-        text_encoder_1 = CLIPTextModel.from_pretrained(
-            subfolder_path(FLUX_CKPT_ID, "text_encoder")
-        )
+        text_encoder_1 = None
+        if not custom_transformer:
+            text_encoder_1 = CLIPTextModel.from_pretrained(
+                subfolder_path(FLUX_CKPT_ID, "text_encoder")
+            )
         transformer = self._flux_load_transformer(
             ckpt_4bit_id, custom_checkpoint=custom_transformer
         )
@@ -256,12 +358,13 @@ class ImageGen:
             transformer=transformer,
             torch_dtype=torch.float16,
             **({"token": HF_TOKEN} if HF_TOKEN else {}),
-        ).to(self.device)
+        )
 
         self._load_loras(pipe)
-        pipe.enable_model_cpu_offload()
+        gen_device = self._flux_deploy_pipeline(
+            pipe, custom_transformer=custom_transformer
+        )
 
-        gen_device = "cuda" if self.device and self.device.type == "cuda" else "cpu"
         variant = [0]
 
         def _generate():
@@ -272,7 +375,7 @@ class ImageGen:
                 prompt_embeds=prompt_embeds,
                 pooled_prompt_embeds=pooled_prompt_embeds,
                 num_inference_steps=self.steps,
-                guidance_scale=5.5,
+                guidance_scale=self.guidance_scale,
                 height=self.height,
                 width=self.width,
                 output_type="pil",
@@ -311,6 +414,60 @@ class ImageGen:
             prompt, filename_pref, count, seed,
             custom_transformer=True, start_index=start_index,
         )
+
+    def flux2_klein_gen_images(
+        self,
+        prompt: str,
+        filename_pref: str,
+        count: int = 1,
+        seed: int = 0,
+        *,
+        start_index: int = 0,
+    ) -> list[str]:
+        from externals.flux2_klein.comfy_runner import (
+            run_klein_txt2img,
+            run_klein_txt2img_variants,
+        )
+
+        work_dir = Path(filename_pref).parent.parent / "comfy_klein"
+        if count > 1:
+            seeds = [seed + i if seed else None for i in range(count)]
+            paths: list[str] = []
+
+            def _on_sample(pil, i: int) -> None:
+                path = self._save_frame(pil, filename_pref, start_index + i)
+                paths.append(path)
+                print(f"$image: wrote {path}", flush=True)
+
+            run_klein_txt2img_variants(
+                work_dir=work_dir,
+                prompt=prompt,
+                model_arg=self.model or "klein-fp8",
+                steps=self.steps,
+                cfg=self.guidance_scale,
+                seeds=seeds,
+                width=self.width,
+                height=self.height,
+                use_gpu=torch.cuda.is_available(),
+                on_sample=_on_sample,
+            )
+            return paths
+
+        run_seed = seed if seed else None
+        pil = run_klein_txt2img(
+            work_dir=work_dir,
+            prompt=prompt,
+            model_arg=self.model or "klein-fp8",
+            steps=self.steps,
+            cfg=self.guidance_scale,
+            seed=run_seed,
+            width=self.width,
+            height=self.height,
+            use_gpu=torch.cuda.is_available(),
+        )
+        path = self._save_frame(pil, filename_pref, start_index)
+        print(f"$image: wrote {path}", flush=True)
+        return [path]
 
     # --- SDXL (pony) -------------------------------------------------------------
 
@@ -539,6 +696,10 @@ class ImageGen:
                 )
             if self.gentype == "flux_ext":
                 return self.flux_ext_gen_images(
+                    final_prompt, filename_pref, count=count, seed=seed, start_index=start_index,
+                )
+            if self.gentype == "flux2_klein":
+                return self.flux2_klein_gen_images(
                     final_prompt, filename_pref, count=count, seed=seed, start_index=start_index,
                 )
             if self.gentype == "pony":

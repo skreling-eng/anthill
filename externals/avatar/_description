@@ -1,0 +1,56 @@
+$avatar — talking avatar video (SkyReels V3 A2V)
+
+SUMMARY
+  Generates a lip-synced talking-head MP4 from a portrait image and speech audio
+  using the SkyReels V3 audio-to-video Comfy workflow (WanVideoWrapper, in-process
+  via comfy_lib). Prototype: comfy_workflows/SkyReels-V3-Talking-Avatars.json.
+
+SYNTAX
+  $avatar
+  $avatar(width=480, height=832, steps=4, fps=24)
+
+INPUT
+  images[]  — portrait / start frame (one per output, or one for all).
+  sounds[]  — speech audio (.wav, .mp3, …); paired with images[].
+  prompts[] — scene / motion prompt (what the avatar should do while speaking).
+  negprompts[] — optional negative prompt links (else built-in default).
+
+OUTPUT
+  videos[] — MP4 with muxed input audio.
+  images[] / sounds[] — cleared after run.
+
+ARGUMENTS
+  prompt= / neg= / negative_prompt= — override prompt text.
+  width= / height= — output size (default: from input image, snapped to /16).
+  steps= — diffusion steps (default 4, flowmatch_distill).
+  seed= — base seed; offset per job when set.
+  frames= / max_frames= — audio frame budget for MultiTalk (default 400).
+  frame_window= — SkyReels window size (default 81).
+  motion_frame= / drop_frames= — long-video overlap tuning (5 / 12).
+  cfg= — classifier-free guidance (default 1).
+  fps= — output frame rate (default 24).
+  workflow= / json= — alternate API workflow JSON path.
+
+DEPENDENCIES
+  Same venv as $image2video: uv sync --extra media,comfy-wan,clip
+  Models under models/ (diffusion_models, text_encoders, vae, transformers):
+    Wan21-SkyReelsV3-A2V_fp8_scaled_mixed.safetensors
+    Wan2_1_VAE_bf16.safetensors
+    umt5-xxl-enc-bf16.safetensors
+
+ENVIRONMENT
+  AH_EMULATE_AVATAR=1 — write stub MP4 placeholders without loading models.
+  AVATAR_WAN_MODEL / AVATAR_VAE / AVATAR_TEXT_ENCODER / AVATAR_WAV2VEC — overrides.
+  AVATAR_ATTENTION_MODE — default sdpa; set sageattn if sageattention+triton installed.
+
+EXAMPLE
+  @face: $file('face.png')
+  @voice: @text -> $text2speech(voice=af_bella)
+  @clip: $avatar(width=480, height=832)
+  A close-up portrait speaking naturally to camera
+  @talk: @face -> @voice -> @clip
+
+  Or pass prompt= on $avatar when the motion text must live on the wrapper @instruction.
+
+PROMPT-CONSUMING
+  Yes — prompts[] cleared on output.

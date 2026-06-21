@@ -915,7 +915,7 @@ class CLIPLoader:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": { "clip_name": (folder_paths.get_filename_list("text_encoders"), ),
-                              "type": (["stable_diffusion", "stable_cascade", "sd3", "stable_audio", "mochi", "ltxv", "pixart", "cosmos", "lumina2", "wan"], ),
+                              "type": (["stable_diffusion", "stable_cascade", "sd3", "stable_audio", "mochi", "ltxv", "pixart", "cosmos", "lumina2", "wan", "flux", "flux2"], ),
                               },
                 "optional": {
                               "device": (["default", "cpu"], {"advanced": True}),
@@ -946,6 +946,10 @@ class CLIPLoader:
             clip_type = comfy.sd.CLIPType.LUMINA2
         elif type == "wan":
             clip_type = comfy.sd.CLIPType.WAN
+        elif type == "flux":
+            clip_type = comfy.sd.CLIPType.FLUX
+        elif type == "flux2":
+            clip_type = comfy.sd.CLIPType.FLUX2
         else:
             clip_type = comfy.sd.CLIPType.STABLE_DIFFUSION
 

@@ -253,6 +253,10 @@ def _run_upstream_fallback(*, dry_run: bool, profile: str) -> None:
         from externals.image2text.model_paths import ensure_model
 
         ensure_model("qwen3")
+    if "blip2" in missing:
+        from externals.image2text.model_paths import ensure_model
+
+        ensure_model("blip2")
     if "siglip2_base" in missing:
         from externals.image2embedding.model_paths import ensure_model
 
@@ -265,6 +269,10 @@ def _run_upstream_fallback(*, dry_run: bool, profile: str) -> None:
         from externals.image2image.qwen_pipeline import ensure_base_assets
 
         ensure_base_assets()
+    if "flux2_klein_fp8" in missing:
+        from externals.flux2_klein.model_paths import ensure_companion_assets
+
+        ensure_companion_assets()
     if "m2m100" in missing:
         from externals.translate.model_paths import ensure_model
 

@@ -1,0 +1,38 @@
+$split_song — split audio at low vocal activity
+
+SUMMARY
+  Takes sounds[] (full mix), separates the vocal stem, measures voice activity on
+  that stem, and splits the original audio into WAV segments. Each segment is at
+  most period= seconds long and at least period/2 seconds (internal cuts are placed
+  at the quietest vocal point in each allowed window).
+
+SYNTAX
+  $split_song(period=30)
+  $split_song(period=45, model=bs_roformer_viperx_1297)
+
+INPUT
+  sounds[] — one or more audio files (wav, mp3, …).
+
+OUTPUT
+  sounds[] — replaced with segment WAV links (original mix slices, not vocal-only).
+
+ARGUMENTS
+  period=     — max segment length in seconds (required semantics; default 30).
+                Min segment length = period / 2.
+  model=      — vocal separation model (default bs_roformer_viperx_1297 / 2stem).
+  model_path= — optional local RoFormer checkpoint (same as $music_separation).
+  frame=      — vocal activity frame size in seconds (default 0.05).
+
+DEPENDENCIES
+  Same as $music_separation: .venvs/media, audio-separator, ffmpeg for non-WAV.
+
+ENVIRONMENT
+  AH_EMULATE_SPLIT_SONG=1 — stub segment files without loading models.
+
+EXAMPLE
+  @parts: $file('test_data/music/20260524_185140_st_music_0.wav') -> $split_song(period=30)
+
+  See examples/example_split_song.ah
+
+PROMPT-CONSUMING
+  No.

@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brain — AH Code Analyzer</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      background: #f0f2f6;
+    }
+    .root {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+    }
+    .left-panel {
+      flex: 0 0 58%;
+      width: 58%;
+      min-width: 280px;
+      max-width: 85%;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      min-height: 0;
+    }
+    .right-panel {
+      flex: 1 1 0;
+      min-width: 260px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .column-splitter {
+      flex: 0 0 6px;
+      cursor: col-resize;
+      background: #e8ecf2;
+      border-left: 1px solid #cfd6e0;
+      border-right: 1px solid #cfd6e0;
+      position: relative;
+      z-index: 2;
+    }
+    .column-splitter:hover,
+    .column-splitter.dragging {
+      background: #b8cce8;
+    }
+    body.column-resizing,
+    body.column-resizing * {
+      cursor: col-resize !important;
+      user-select: none !important;
+    }
+    .panel-header {
+      padding: 8px 10px;
+      font-weight: bold;
+      background: #e8ecf2;
+      border-bottom: 1px solid #cfd6e0;
+      flex-shrink: 0;
+    }
+    .files-body {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+    .tree-column {
+      display: flex;
+      flex-direction: column;
+      flex: 0 0 38%;
+      width: 38%;
+      min-width: 120px;
+      max-width: 75%;
+      min-height: 0;
+    }
+    #tree-filter {
+      flex-shrink: 0;
+      width: 100%;
+      margin: 0;
+      padding: 5px 6px;
+      border: none;
+      border-bottom: 1px solid #e2e6ee;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      background: #f8fafc;
+      outline: none;
+    }
+    #tree-filter:focus {
+      background: #fff;
+      border-bottom-color: #007bff;
+    }
+    #file-tree {
+      flex: 1 1 0;
+      min-height: 0;
+      overflow: auto;
+      padding: 4px 2px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      user-select: none;
+    }
+    .tree-folder {
+      margin: 0;
+    }
+    .tree-folder-label {
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-weight: bold;
+      color: #444;
+      list-style: none;
+    }
+    .tree-folder-label:hover {
+      background: #eef3fa;
+    }
+    .tree-folder-children {
+      margin-left: 4px;
+      border-left: 1px solid #e8ecf2;
+      padding-left: 6px;
+    }
+    .tree-item {
+      padding: 2px 4px 2px 8px;
+      cursor: pointer;
+      border-radius: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tree-item:hover { background: #eef3fa; }
+    .tree-item.active {
+      background: #d6e4f7;
+      font-weight: bold;
+    }
+    .tree-kind-ah { color: #0b6; }
+    .tree-kind-py { color: #06c; }
+    .tree-status {
+      color: #666;
+      font-style: italic;
+      padding: 4px;
+    }
+    .tree-error {
+      color: #a94442;
+      padding: 4px;
+      white-space: pre-wrap;
+    }
+    #file-content {
+      flex: 1 1 0;
+      min-width: 160px;
+      overflow: auto;
+      padding: 8px;
+      margin: 0;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #fafbfc;
+    }
+    .output-panel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border-bottom: 1px solid #cfd6e0;
+    }
+    .output-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      padding: 4px 8px;
+      border-bottom: 1px solid #e2e6ee;
+      background: #f8fafc;
+      flex-shrink: 0;
+    }
+    .btn-small {
+      padding: 3px 10px;
+      font-size: 12px;
+      background: #6c757d;
+    }
+    .btn-small:hover { background: #5a6268; }
+    #model-output {
+      flex: 1;
+      overflow: auto;
+      padding: 10px;
+      user-select: text;
+    }
+    .chat-thread { display: flex; flex-direction: column; gap: 12px; }
+    .chat-empty {
+      color: #666;
+      font-style: italic;
+      margin: 0;
+    }
+    .chat-msg {
+      max-width: 96%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      line-height: 1.45;
+    }
+    .chat-msg.user {
+      align-self: flex-end;
+      background: #e8f0fe;
+      border: 1px solid #c5d9f7;
+    }
+    .chat-msg.assistant {
+      align-self: flex-start;
+      background: #f3f5f8;
+      border: 1px solid #e2e6ee;
+    }
+    .chat-msg.working { opacity: 0.85; }
+    .chat-label {
+      font-size: 11px;
+      font-weight: bold;
+      color: #666;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .chat-meta {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    #model-output pre {
+      background: #f3f5f8;
+      border: 1px solid #e2e6ee;
+      border-radius: 4px;
+      padding: 8px;
+      overflow: auto;
+      font-size: 12px;
+    }
+    #model-output .status-line {
+      color: #666;
+      font-style: italic;
+      margin-bottom: 8px;
+    }
+    #model-output .error { color: #a94442; }
+    .request-panel {
+      height: 34%;
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }
+    #request-form {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      padding: 8px;
+    }
+    #change-request {
+      flex: 1;
+      width: 100%;
+      resize: none;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      padding: 6px;
+      border: 1px solid #cfd6e0;
+      border-radius: 4px;
+    }
+    .btn-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 6px 14px;
+      background: #007bff;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+      border: none;
+    }
+    .btn:hover { background: #0069d9; }
+    .btn-stop { background: #c9302c; }
+    .btn-stop:hover { background: #a94442; }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+  </style>
+</head>
+<body>
+  <div class="root">
+    <section class="left-panel" id="left-panel">
+      <div class="panel-header">Codebase files</div>
+      <div class="files-body" id="files-body">
+        <div class="tree-column" id="tree-column">
+          <input type="text" id="tree-filter" placeholder="Filter files…" autocomplete="off" spellcheck="false">
+          <div id="file-tree"></div>
+        </div>
+        <div class="column-splitter" id="tree-splitter" title="Drag to resize tree"></div>
+        <pre id="file-content">Select a file to view its contents.</pre>
+      </div>
+    </section>
+    <div class="column-splitter" id="main-splitter" title="Drag to resize columns"></div>
+    <section class="right-panel" id="right-panel">
+      <section class="output-panel">
+        <div class="panel-header">Conversation</div>
+        <div class="output-toolbar">
+          <a class="btn btn-small" id="btn-new-chat" href="#" title="Clear conversation">New chat</a>
+        </div>
+        <div id="model-output"></div>
+      </section>
+      <section class="request-panel">
+        <div class="panel-header">Message</div>
+        <form id="request-form" onsubmit="return false;">
+          <textarea id="change-request" placeholder="Ask a question or request a change. Follow-ups use prior messages as context (Ctrl+Enter to send)…"></textarea>
+          <div class="btn-row">
+            <a class="btn btn-stop" id="btn-stop" href="#">Stop</a>
+            <a class="btn" id="btn-analyze" href="#">Send</a>
+          </div>
+        </form>
+      </section>
+    </section>
+  </div>
+
+  <script>
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function renderMarkdownish(text) {
+      if (!text) return "";
+      let html = escapeHtml(text);
+      html = html.replace(/```diff\n([\s\S]*?)```/g, (_, body) =>
+        `<pre class="diff-block">${body}</pre>`
+      );
+      html = html.replace(/```([\s\S]*?)```/g, (_, body) =>
+        `<pre>${body}</pre>`
+      );
+      html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      html = html.replace(/^## (.+)$/gm, "<h3>$1</h3>");
+      html = html.replace(/^> (.+)$/gm, "<p class='status-line'>$1</p>");
+      html = html.replace(/\n/g, "<br>");
+      return html;
+    }
+
+    function setOutput(html) {
+      setChatOutput(html, true);
+    }
+
+    function setChatOutput(html, scrollBottom) {
+      const el = document.getElementById("model-output");
+      el.innerHTML = html;
+      if (scrollBottom) {
+        el.scrollTop = el.scrollHeight;
+      }
+    }
+
+    function setFileContent(text) {
+      document.getElementById("file-content").textContent = text || "";
+    }
+
+    function buildFileTree(entries) {
+      const root = { folders: {}, files: [] };
+      for (const entry of entries) {
+        const parts = entry.rel_path.split("/").filter(Boolean);
+        if (parts.length === 0) continue;
+        let node = root;
+        for (let i = 0; i < parts.length - 1; i++) {
+          const part = parts[i];
+          if (!node.folders[part]) {
+            node.folders[part] = { folders: {}, files: [] };
+          }
+          node = node.folders[part];
+        }
+        node.files.push({
+          name: parts[parts.length - 1],
+          rel_path: entry.rel_path,
+          size: entry.size,
+          kind: entry.kind || "other",
+        });
+      }
+      return root;
+    }
+
+    async function openFile(relPath, el) {
+      const root = document.getElementById("file-tree");
+      root.querySelectorAll(".tree-item.active").forEach((n) => n.classList.remove("active"));
+      if (el) el.classList.add("active");
+      if (!window.pywebview || !window.pywebview.api) return;
+      const text = await window.pywebview.api.read_code_file(relPath);
+      setFileContent(text);
+    }
+
+    function renderTreeNode(node, container, depth, expandAll) {
+      const folderNames = Object.keys(node.folders).sort((a, b) => a.localeCompare(b));
+      for (const name of folderNames) {
+        const child = node.folders[name];
+        const hasContent =
+          child.files.length > 0 || Object.keys(child.folders).length > 0;
+        if (!hasContent) continue;
+        const details = document.createElement("details");
+        details.className = "tree-folder";
+        if (expandAll || depth < 1) details.open = true;
+        const summary = document.createElement("summary");
+        summary.className = "tree-folder-label";
+        summary.textContent = name + "/";
+        details.appendChild(summary);
+        const inner = document.createElement("div");
+        inner.className = "tree-folder-children";
+        renderTreeNode(child, inner, depth + 1, expandAll);
+        details.appendChild(inner);
+        container.appendChild(details);
+      }
+      const files = node.files.slice().sort((a, b) => a.name.localeCompare(b.name));
+      for (const file of files) {
+        const el = document.createElement("div");
+        el.className = "tree-item tree-kind-" + file.kind;
+        el.textContent = file.name;
+        el.title = file.rel_path + " (" + file.size + " bytes)";
+        el.dataset.path = file.rel_path;
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openFile(file.rel_path, el);
+        });
+        container.appendChild(el);
+      }
+    }
+
+    function filterEntries(entries, query) {
+      const q = query.trim().toLowerCase();
+      if (!q) return entries;
+      const terms = q.split(/\s+/).filter(Boolean);
+      return entries.filter((entry) => {
+        const path = entry.rel_path.toLowerCase();
+        return terms.every((term) => path.includes(term));
+      });
+    }
+
+    let _allTreeEntries = [];
+
+    function applyTreeFilter() {
+      const input = document.getElementById("tree-filter");
+      const query = input ? input.value : "";
+      const filtered = filterEntries(_allTreeEntries, query);
+      const rootEl = document.getElementById("file-tree");
+      rootEl.innerHTML = "";
+      if (!filtered.length) {
+        const el = document.createElement("div");
+        el.className = "tree-status";
+        el.textContent = query.trim()
+          ? "No files match filter"
+          : "No files indexed";
+        rootEl.appendChild(el);
+        return;
+      }
+      const expandAll = query.trim().length > 0;
+      renderTreeNode(buildFileTree(filtered), rootEl, 0, expandAll);
+    }
+
+    function renderTree(entries) {
+      _allTreeEntries = entries.slice();
+      applyTreeFilter();
+    }
+
+    function entriesKey(entries) {
+      if (!entries || !entries.length) return "0";
+      return entries.length + ":" + entries[0].rel_path + ":" + entries[entries.length - 1].rel_path;
+    }
+
+    function setTreeStatus(message, cssClass) {
+      const root = document.getElementById("file-tree");
+      root.innerHTML = "";
+      const el = document.createElement("div");
+      el.className = cssClass || "tree-status";
+      el.textContent = message || "";
+      root.appendChild(el);
+    }
+
+    let _treeReady = false;
+    let _treeEntriesKey = "";
+
+    async function pollFileTree() {
+      if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.poll_file_tree) {
+        return;
+      }
+      try {
+        const data = await window.pywebview.api.poll_file_tree();
+        if (!data) return;
+        if (data.status === "loading") {
+          if (!_treeReady) {
+            setTreeStatus(data.message || "Indexing codebase…", "tree-status");
+          }
+          return;
+        }
+        if (data.status === "error") {
+          setTreeStatus(data.message || "Index failed", "tree-error");
+          _treeReady = false;
+          _treeEntriesKey = "";
+          return;
+        }
+        if (data.status === "ready" && Array.isArray(data.entries)) {
+          const key = entriesKey(data.entries);
+          if (key !== _treeEntriesKey) {
+            _treeEntriesKey = key;
+            _treeReady = true;
+            renderTree(data.entries);
+          }
+        }
+      } catch (err) {
+        console.warn("pollFileTree:", err);
+      }
+    }
+
+    async function refreshTree() {
+      if (!window.pywebview || !window.pywebview.api) return;
+      if (window.pywebview.api.start_index_build) {
+        await window.pywebview.api.start_index_build();
+      }
+      await pollFileTree();
+    }
+
+    let _wasBusy = false;
+
+    async function pollOutput() {
+      if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.poll_output) return;
+      try {
+        const data = await window.pywebview.api.poll_output();
+        if (data && data.html) {
+          setChatOutput(data.html, !!data.scroll_bottom);
+        }
+        if (data && typeof data.busy === "boolean") {
+          document.getElementById("btn-analyze").style.opacity = data.busy ? "0.6" : "1";
+          document.getElementById("btn-new-chat").style.opacity = data.busy ? "0.5" : "1";
+          _wasBusy = data.busy;
+        }
+      } catch (err) {
+        console.warn("pollOutput:", err);
+      }
+    }
+
+    async function sendMessage() {
+      if (!window.pywebview || !window.pywebview.api) return;
+      const textarea = document.getElementById("change-request");
+      const text = textarea.value;
+      if (!text.trim()) return;
+      await window.pywebview.api.submit_request(text);
+      textarea.value = "";
+    }
+
+    document.getElementById("btn-analyze").addEventListener("click", async (e) => {
+      e.preventDefault();
+      await sendMessage();
+    });
+
+    document.getElementById("btn-new-chat").addEventListener("click", async (e) => {
+      e.preventDefault();
+      if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.clear_conversation) return;
+      await window.pywebview.api.clear_conversation();
+      await pollOutput();
+    });
+
+    document.getElementById("change-request").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    document.getElementById("btn-stop").addEventListener("click", async (e) => {
+      e.preventDefault();
+      if (!window.pywebview || !window.pywebview.api) return;
+      await window.pywebview.api.stop_agent();
+    });
+
+    window.addEventListener("load", () => {
+      setTreeStatus("Waiting for backend…", "tree-status");
+      initColumnSplitter({
+        container: document.querySelector(".root"),
+        left: document.getElementById("left-panel"),
+        splitter: document.getElementById("main-splitter"),
+        storageKey: "brain.mainSplitRatio",
+        defaultRatio: 0.58,
+        minLeft: 280,
+        minRight: 260,
+      });
+      initColumnSplitter({
+        container: document.getElementById("files-body"),
+        left: document.getElementById("tree-column"),
+        splitter: document.getElementById("tree-splitter"),
+        storageKey: "brain.treeSplitRatio",
+        defaultRatio: 0.38,
+        minLeft: 120,
+        minRight: 160,
+      });
+      const treeFilter = document.getElementById("tree-filter");
+      if (treeFilter) {
+        treeFilter.addEventListener("input", applyTreeFilter);
+      }
+      setInterval(pollFileTree, 400);
+      setInterval(pollOutput, 350);
+    });
+
+    const SPLITTER_W = 6;
+
+    function initColumnSplitter(opts) {
+      const container = opts.container;
+      const left = opts.left;
+      const splitter = opts.splitter;
+      if (!container || !left || !splitter) return;
+
+      let ratio = parseFloat(localStorage.getItem(opts.storageKey));
+      if (!Number.isFinite(ratio)) ratio = opts.defaultRatio;
+
+      function clampRatio(r) {
+        const width = container.clientWidth || window.innerWidth;
+        const minR = opts.minLeft / width;
+        const maxR = (width - opts.minRight - SPLITTER_W) / width;
+        return Math.max(minR, Math.min(maxR, r));
+      }
+
+      function applyRatio(r) {
+        ratio = clampRatio(r);
+        left.style.flex = "0 0 " + (ratio * 100) + "%";
+        left.style.width = (ratio * 100) + "%";
+        localStorage.setItem(opts.storageKey, String(ratio));
+      }
+
+      applyRatio(ratio);
+      window.addEventListener("resize", () => applyRatio(ratio));
+
+      splitter.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        splitter.classList.add("dragging");
+        document.body.classList.add("column-resizing");
+        const startX = e.clientX;
+        const startRatio = ratio;
+
+        function onMove(ev) {
+          const width = container.clientWidth;
+          if (width <= 0) return;
+          const delta = ev.clientX - startX;
+          applyRatio(startRatio + delta / width);
+        }
+
+        function onUp() {
+          splitter.classList.remove("dragging");
+          document.body.classList.remove("column-resizing");
+          window.removeEventListener("mousemove", onMove);
+          window.removeEventListener("mouseup", onUp);
+        }
+
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+      });
+    }
+
+    window.pollFileTree = pollFileTree;
+  </script>
+</body>
+</html>

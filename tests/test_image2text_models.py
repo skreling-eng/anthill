@@ -20,10 +20,19 @@ class TestImage2TextModels(unittest.TestCase):
         self.assertEqual(m.hf_repo, "Qwen/Qwen3-VL-8B-Instruct")
         self.assertIn("Qwen3-VL-8B", m.dir_name())
 
+    def test_blip2_profile(self) -> None:
+        m = get_image2text_model("blip2")
+        self.assertEqual(m.family, "blip2")
+        self.assertEqual(m.hf_repo, "Salesforce/blip2-opt-2.7b")
+        self.assertIn("blip2-opt-2.7b", m.dir_name())
+
     def test_model_dirs_differ(self) -> None:
         d2 = model_dir("qwen2")
         d3 = model_dir("qwen3")
+        d_blip = model_dir("blip2")
         self.assertNotEqual(d2, d3)
+        self.assertNotEqual(d2, d_blip)
+        self.assertNotEqual(d3, d_blip)
 
     def test_unknown_raises(self) -> None:
         with self.assertRaises(KeyError):

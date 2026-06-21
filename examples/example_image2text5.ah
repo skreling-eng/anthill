@@ -1,0 +1,9 @@
+
+
+
+@photo: $file('test_data/images2/dancing_girl/20260614_003712_default_image_0.png')
+
+@describe: @photo -> $image2text(model='blip2')
+What do you see in this image?
+
+>>>

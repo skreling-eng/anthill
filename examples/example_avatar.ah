@@ -1,0 +1,21 @@
+# Talking avatar: portrait + Kokoro TTS -> SkyReels V3 lip-sync MP4 ($avatar).
+# Setup: tools\setup_external_venvs.ps1  (.venvs/comfy-wan + models/ weights)
+# Dry run without GPU/models: AH_EMULATE_AVATAR=1
+#
+# Put the motion/scene prompt on the $avatar instruction (not on the wrapper @talk).
+# Upstream $llm in the chain consumes prompts[]; see examples/example_image2video.ah.
+
+@portrait: $file('test_data/images/20260524_051036_default_image_1.png')
+
+@line: $llm
+Write one short greeting sentence (about 12 words) for a person speaking to camera.
+Return only the spoken line, no quotes or stage directions.
+
+@speech: @line -> $text2speech(voice=af_bella)
+
+@avatar_video: $avatar(width=480, height=832, steps=4, fps=24)
+Close-up portrait speaking naturally to camera, subtle head movement, friendly expression
+
+@talk: @portrait -> @speech -> @avatar_video
+
+run @talk

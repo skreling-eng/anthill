@@ -43,19 +43,23 @@ def model_ready(profile: Image2TextModel | str | None = None) -> bool:
 
 
 def ensure_model(profile: Image2TextModel | str | None = None, *, force: bool = False) -> Path:
-    """Resolve VL weights under models/qwen-vl/ (anthill bundle, optional upstream)."""
+    """Resolve VL weights under models/ (anthill bundle, optional upstream)."""
     m = _resolve_profile(profile)
     path = model_dir(m)
     path.mkdir(parents=True, exist_ok=True)
     if model_ready(m) and not force:
         return path
 
-    ensure_anthill_tree(
-        m.subdir.as_posix(),
-        ready=lambda: model_ready(m),
-        label="$image2text",
-        force=force,
-    )
+    try:
+        ensure_anthill_tree(
+            m.subdir.as_posix(),
+            ready=lambda: model_ready(m),
+            label="$image2text",
+            force=force,
+        )
+    except FileNotFoundError:
+        if not upstream_fallback_enabled():
+            raise
     if model_ready(m):
         return model_dir(m)
 

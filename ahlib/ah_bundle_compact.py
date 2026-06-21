@@ -9,7 +9,7 @@ from typing import Any
 from ahlib.ah_parser import ARRAY_TYPES
 from ahlib.ah_runtime import ArrayBundle
 
-_TEXT_ARRAYS = frozenset({"prompts", "texts"})
+_TEXT_ARRAYS = frozenset({"prompts", "negprompts", "texts"})
 
 
 def _resolve_link_path(base_dir: Path, link: str) -> Path:

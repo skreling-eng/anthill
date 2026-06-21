@@ -1,0 +1,26 @@
+$negprompts_to_prompts / $negprompts2prompts — move negprompts into prompts
+
+SUMMARY
+  Copies content from each negprompts[] link into prompts[] (one file per entry,
+  or one joined file). Clears negprompts[] afterward. Bridges stored negative
+  prompts back into the positive prompts array.
+
+SYNTAX
+  $negprompts_to_prompts
+  $negprompts_to_prompts(join=1)
+
+INPUT
+  negprompts[] — source strings.
+
+OUTPUT
+  prompts[] — new links with the same text content.
+  negprompts[] — cleared.
+
+ARGUMENTS
+  join=1 | true | yes — merge all negprompts into one prompts[] entry.
+
+EXAMPLE
+  @restore: neg_store% -> $negprompts_to_prompts -> $image(model='default')
+
+PROMPT-CONSUMING
+  No (clears negprompts, not prompts).

@@ -202,7 +202,7 @@
       "seed": 390072274123203,
       "index": 0,
       "label": "Batch 001",
-      "path": "G:\\Comfy\\test2\\",
+      "path": "comfy_lib/input/",
       "pattern": "*",
       "allow_RGBA_output": "false",
       "filename_text_extension": "true"

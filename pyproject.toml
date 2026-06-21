@@ -205,6 +205,7 @@ comfy-wan = [
     "gguf>=0.17.1",
     "imageio-ffmpeg>=0.5.0",
     "av>=12.0.0",
+    "kornia>=0.7.0",
     # Keep sklearn/pandas wheels aligned with torch's numpy 2.x (avoids import mismatch).
     "numpy>=2.0,<2.3",
     "scikit-learn>=1.5.0",

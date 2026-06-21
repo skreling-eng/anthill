@@ -1,0 +1,26 @@
+$prompts_to_negprompts / $prompts2negprompts — move prompts into negprompts
+
+SUMMARY
+  Copies content from each prompts[] link into negprompts[] (one file per prompt,
+  or a single joined file). Clears prompts[] afterward. Used to route strings
+  into negative prompts for generation models ($image, $image2image, etc.).
+
+SYNTAX
+  $prompts_to_negprompts
+  $prompts_to_negprompts(join=1)
+
+INPUT
+  prompts[] — source strings.
+
+OUTPUT
+  negprompts[] — new links with the same text content.
+  prompts[] — cleared.
+
+ARGUMENTS
+  join=1 | true | yes — merge all prompts into one negprompts[] entry (\n\n separated).
+
+EXAMPLE
+  @neg: $llm -> $prompts_to_negprompts -> %neg_store
+
+PROMPT-CONSUMING
+  Yes.

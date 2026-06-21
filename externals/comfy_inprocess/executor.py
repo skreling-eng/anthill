@@ -124,6 +124,40 @@ def _filter_node_inputs(class_type: str, cls, inputs: dict[str, Any]) -> dict[st
     return {k: v for k, v in inputs.items() if k in allowed}
 
 
+def _inject_hidden_inputs(
+    nid: str,
+    cls,
+    inputs: dict[str, Any],
+    *,
+    prompt: dict[str, Any],
+    extra_data: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Inject Comfy hidden inputs (unique_id, prompt, …) like execution.get_input_data."""
+    if not hasattr(cls, "INPUT_TYPES"):
+        return inputs
+    hidden = cls.INPUT_TYPES().get("hidden")
+    if not isinstance(hidden, dict):
+        return inputs
+    extra = extra_data or {}
+    out = dict(inputs)
+    for key, token in hidden.items():
+        if key in out:
+            continue
+        if token == "PROMPT":
+            out[key] = prompt
+        elif token == "DYNPROMPT":
+            out[key] = None
+        elif token == "EXTRA_PNGINFO":
+            out[key] = extra.get("extra_pnginfo")
+        elif token == "UNIQUE_ID":
+            out[key] = nid
+        elif token == "AUTH_TOKEN_COMFY_ORG":
+            out[key] = extra.get("auth_token_comfy_org")
+        elif token == "API_KEY_COMFY_ORG":
+            out[key] = extra.get("api_key_comfy_org")
+    return out
+
+
 def _normalize_outputs(result: Any) -> tuple[Any, ...]:
     if result is None:
         return (None,)
@@ -186,6 +220,7 @@ def _execute_prompt_legacy(
         finalize_node,
         handle_execution_oom,
         prepare_node,
+        prompt_uses_flux2_klein,
         prompt_uses_qwen_image_edit,
     )
 
@@ -194,12 +229,18 @@ def _execute_prompt_legacy(
     mappings = nodes_module.NODE_CLASS_MAPPINGS
     memory_mode = comfy_memory_enabled(prompt)
     qwen_edit = prompt_uses_qwen_image_edit(prompt)
+    flux2_klein = prompt_uses_flux2_klein(prompt)
+    klein_edit = flux2_klein and any(
+        n.get("class_type") == "ReferenceLatent" for n in prompt.values()
+    )
+    klein_label = "$flux2_klein" if flux2_klein else "$image2image"
     timing = os.environ.get("AH_IMAGE2IMAGE_TIMING", "").strip().lower() in (
         "1",
         "true",
         "yes",
         "on",
     )
+    flux2_encode_ready = False
 
     for nid in order:
         node = prompt[nid]
@@ -217,21 +258,81 @@ def _execute_prompt_legacy(
             continue
 
         prepare_node(class_type, enabled=memory_mode)
-        ksampler_qwen = class_type == "KSampler" and qwen_edit
-        t_node = time.perf_counter() if (timing or ksampler_qwen) else 0.0
-        if ksampler_qwen and prepare_ksampler:
+        ksampler_heavy = class_type == "KSampler" and (qwen_edit or flux2_klein)
+        t_node = time.perf_counter() if (timing or ksampler_heavy) else 0.0
+        if (
+            flux2_klein
+            and not flux2_encode_ready
+            and class_type in ("VAEEncode", "CLIPTextEncode")
+        ):
+            try:
+                from externals.flux2_klein.comfy_sample_prep import prepare_for_klein_encode
+
+                prepare_for_klein_encode(
+                    clip=inputs.get("clip"),
+                    vae=inputs.get("vae"),
+                )
+                flux2_encode_ready = True
+            except ImportError:
+                pass
+        if ksampler_heavy and prepare_ksampler:
             steps = (node.get("inputs") or {}).get("steps", "?")
             sampler = (node.get("inputs") or {}).get("sampler_name", "?")
             print(
-                f"$image2image: KSampler ({steps} steps, {sampler})…",
+                f"{klein_label}: KSampler ({steps} steps, {sampler})…",
                 flush=True,
             )
+            if flux2_klein:
+                try:
+                    from externals.flux2_klein.comfy_sample_prep import (
+                        offload_klein_conditioning,
+                        offload_klein_image_tensor,
+                        offload_klein_latent,
+                    )
+
+                    keep_refs = klein_edit
+                    for key in ("positive", "negative"):
+                        if key in inputs:
+                            inputs[key] = offload_klein_conditioning(
+                                inputs[key],
+                                keep_reference_latents=keep_refs,
+                            )
+                    for src_id, out in list(outputs.items()):
+                        src = prompt.get(src_id) or {}
+                        ctype = src.get("class_type")
+                        if ctype in ("CLIPTextEncode", "ReferenceLatent") and out:
+                            outputs[src_id] = (
+                                offload_klein_conditioning(
+                                    out[0],
+                                    keep_reference_latents=keep_refs,
+                                ),
+                                *out[1:],
+                            )
+                        elif ctype == "LoadImage" and out:
+                            outputs[src_id] = (offload_klein_image_tensor(out[0]), *out[1:])
+                        elif ctype == "VAEEncode" and out:
+                            outputs[src_id] = (offload_klein_latent(out[0]), *out[1:])
+                except ImportError:
+                    pass
             model = inputs.get("model")
             if model is not None:
                 try:
-                    from externals.image2image.comfy_sample_prep import prepare_for_ksampler
+                    if flux2_klein:
+                        from externals.flux2_klein.comfy_sample_prep import (
+                            prepare_for_ksampler as _klein_prep,
+                        )
 
-                    prepare_for_ksampler(model)
+                        _klein_prep(
+                            model,
+                            label=klein_label,
+                            prefer_full_unet=klein_edit,
+                        )
+                    else:
+                        from externals.image2image.comfy_sample_prep import (
+                            prepare_for_ksampler,
+                        )
+
+                        prepare_for_ksampler(model)
                 except ImportError:
                     pass
 
@@ -243,6 +344,9 @@ def _execute_prompt_legacy(
                 instance = cls()
                 func = getattr(instance, cls.FUNCTION)
                 filtered = _filter_node_inputs(class_type, cls, inputs)
+                filtered = _inject_hidden_inputs(
+                    nid, cls, filtered, prompt=prompt
+                )
                 result = func(**filtered)
                 outputs[nid] = _normalize_outputs(result)
             else:
@@ -253,11 +357,18 @@ def _execute_prompt_legacy(
                 handle_execution_oom()
             raise
         finally:
+            if flux2_klein and class_type == "UNETLoader" and nid in outputs:
+                try:
+                    from externals.flux2_klein.comfy_sample_prep import park_unet_off_gpu
+
+                    park_unet_off_gpu(outputs[nid][0])
+                except ImportError:
+                    pass
             finalize_node(class_type, enabled=memory_mode)
-            if ksampler_qwen:
+            if ksampler_heavy:
                 elapsed = time.perf_counter() - t_node
                 print(
-                    f"$image2image: KSampler finished ({elapsed:.1f}s)",
+                    f"{klein_label}: KSampler finished ({elapsed:.1f}s)",
                     flush=True,
                 )
             elif timing and elapsed >= 0.5:

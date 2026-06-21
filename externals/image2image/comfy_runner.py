@@ -14,7 +14,7 @@ from externals.image2image.comfy_executor import execute_prompt_legacy, find_nod
 
 _SAMPLE_ONLY = frozenset({"KSampler", "VAEDecode"})
 from externals.image2image.comfy_workflow import build_edit_prompt
-from externals.image2image.model_paths import resolve_checkpoint
+from externals.image2image.model_paths import is_klein_model, resolve_checkpoint
 
 _PIL_INSTALL_HINT = (
     "Pillow is required for $image2image. "
@@ -246,6 +246,27 @@ def run_comfy_edit_variants(
     height: int,
     use_gpu: bool,
 ) -> list:
+    if is_klein_model(model_arg):
+        from externals.flux2_klein.comfy_runner import run_klein_edit_variants
+
+        if len(image_paths) != 1:
+            image_paths = [image_paths[0]]
+        from externals.flux2_klein.model_paths import normalize_klein_steps_cfg
+
+        steps, cfg = normalize_klein_steps_cfg(model_arg, steps, 4.0)
+        return run_klein_edit_variants(
+            work_dir=work_dir,
+            image_path=image_paths[0],
+            prompt=prompt,
+            model_arg=model_arg,
+            steps=steps,
+            cfg=cfg,
+            seeds=seeds,
+            width=width,
+            height=height,
+            use_gpu=use_gpu,
+        )
+
     checkpoint = resolve_checkpoint(model_arg)
     runner = get_runner(work_dir=work_dir, use_gpu=use_gpu)
     return runner.run_edit_variants(
@@ -271,6 +292,33 @@ def run_comfy_edit(
     height: int,
     use_gpu: bool,
 ) -> Image.Image:
+    if is_klein_model(model_arg):
+        from externals.flux2_klein.comfy_runner import run_klein_edit
+
+        if len(image_paths) != 1:
+            image_paths = [image_paths[0]]
+        from externals.flux2_klein.model_paths import normalize_klein_steps_cfg
+
+        steps, cfg = normalize_klein_steps_cfg(model_arg, steps, 4.0)
+        t0 = time.perf_counter()
+        result = run_klein_edit(
+            work_dir=work_dir,
+            image_path=image_paths[0],
+            prompt=prompt,
+            model_arg=model_arg,
+            steps=steps,
+            cfg=cfg,
+            seed=seed,
+            width=width,
+            height=height,
+            use_gpu=use_gpu,
+        )
+        print(
+            f"$image2image: klein edit finished in {time.perf_counter() - t0:.1f}s",
+            flush=True,
+        )
+        return result
+
     checkpoint = resolve_checkpoint(model_arg)
     runner = get_runner(work_dir=work_dir, use_gpu=use_gpu)
     t0 = time.perf_counter()

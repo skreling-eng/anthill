@@ -27,6 +27,8 @@ _RELEASE_AFTER: frozenset[str] = frozenset(
     {
         "CLIPTextEncode",
         "CLIPVisionEncode",
+        "VAEEncode",
+        "ReferenceLatent",
         "WanImageToVideo",
         "WanVaceToVideo",
         "WanVideoVACEStartToEndFrame",
@@ -45,6 +47,12 @@ def prompt_uses_qwen_image_edit(prompt: dict[str, Any]) -> bool:
     )
 
 
+def prompt_uses_flux2_klein(prompt: dict[str, Any]) -> bool:
+    """Split UNET+CLIP loaders (Flux.2 Klein in-process workflows)."""
+    types = {n.get("class_type") for n in prompt.values()}
+    return "UNETLoader" in types and "CLIPLoader" in types
+
+
 def comfy_memory_enabled(prompt: dict[str, Any]) -> bool:
     import os
 
@@ -53,8 +61,8 @@ def comfy_memory_enabled(prompt: dict[str, Any]) -> bool:
         return False
     if raw in ("1", "true", "yes", "on", "comfy", "mega"):
         return True
-    # Default: Comfy-like unload for MEGA/VACE workflows only.
-    return prompt_uses_mega_vace(prompt)
+    # Default: Comfy-like unload for MEGA/VACE and Flux.2 Klein split-loader workflows.
+    return prompt_uses_mega_vace(prompt) or prompt_uses_flux2_klein(prompt)
 
 
 def _release_gpu(*, force: bool = False) -> None:

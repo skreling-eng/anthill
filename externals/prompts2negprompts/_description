@@ -1,0 +1,3 @@
+$prompts2negprompts — alias for $prompts_to_negprompts
+
+See externals/prompts_to_negprompts/_description.

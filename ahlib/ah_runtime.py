@@ -82,6 +82,8 @@ _MIN_MEDIA_BYTES = {
 _CHANGE_TYPE_MAP = {
     "prompt": "prompts",
     "prompts": "prompts",
+    "negprompt": "negprompts",
+    "negprompts": "negprompts",
     "text": "texts",
     "texts": "texts",
     "image": "images",
@@ -106,6 +108,7 @@ class ArrayBundle:
     """Arrays hold only links (paths relative to session root)."""
 
     prompts: list[str] = field(default_factory=list)
+    negprompts: list[str] = field(default_factory=list)
     texts: list[str] = field(default_factory=list)
     images: list[str] = field(default_factory=list)
     sounds: list[str] = field(default_factory=list)
@@ -118,6 +121,7 @@ class ArrayBundle:
     def as_dict(self) -> dict[str, list]:
         return {
             "prompts": list(self.prompts),
+            "negprompts": list(self.negprompts),
             "texts": list(self.texts),
             "images": list(self.images),
             "sounds": list(self.sounds),
@@ -133,6 +137,7 @@ class ArrayBundle:
         changes = [tuple(c) for c in data.get("changes", [])]
         return cls(
             prompts=list(data.get("prompts", [])),
+            negprompts=list(data.get("negprompts", [])),
             texts=list(data.get("texts", [])),
             images=list(data.get("images", [])),
             sounds=list(data.get("sounds", [])),

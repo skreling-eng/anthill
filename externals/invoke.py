@@ -69,13 +69,16 @@ def release_gpu_resources(*, reason: str = "") -> None:
 _DEFAULT_UV_EXTRAS: dict[str, list[str]] = {
     "image": ["media"],
     "image2image": ["media"],
+    "image_face_swap": ["media"],
     "check_image": ["media"],
     "image2video": ["media", "comfy-wan", "clip"],
+    "avatar": ["media", "comfy-wan", "clip"],
     "image_clip": ["media"],
     "video_clip": ["media"],
     "clip": ["clip"],
     "music": ["music"],
     "music_separation": ["media", "music_separation"],
+    "split_song": ["media", "music_separation"],
     "change_voice": [],
     "join_stems": ["media", "music_separation"],
     "text2speech": ["text2speech"],
@@ -126,6 +129,10 @@ _DEFAULT_INPROCESS = frozenset(
         "texts2prompts",
         "prompts_to_texts",
         "prompts2texts",
+        "prompts_to_negprompts",
+        "prompts2negprompts",
+        "negprompts_to_prompts",
+        "negprompts2prompts",
         "json2texts",
         "ah_code_examples",
         "model_ah_create_jsonl",
@@ -137,13 +144,16 @@ _DEFAULT_INPROCESS = frozenset(
 _DEFAULT_VENVS: dict[str, str] = {
     "image": ".venvs/media",
     "image2image": ".venvs/media",
+    "image_face_swap": ".venvs/media",
     "check_image": ".venvs/media",
     "image2video": ".venvs/comfy-wan",
+    "avatar": ".venvs/comfy-wan",
     "image_clip": ".venvs/media",
     "video_clip": ".venvs/media",
     "clip": ".venvs/media",
     "music": ".venvs/music",
     "music_separation": ".venvs/media",
+    "split_song": ".venvs/media",
     "change_voice": ".venvs/change_voice",
     "join_stems": ".venvs/media",
     "text2speech": ".venvs/text2speech",
@@ -166,6 +176,22 @@ _DEFAULT_VENVS: dict[str, str] = {
     "depth": ".venvs/media",
     "controlnet": ".venvs/media",
 }
+
+# RoFormer stem separation (audio-separator lives in the music_separation extra).
+_AUDIO_SEPARATOR_EXTERNALS = frozenset({"music_separation", "split_song", "join_stems"})
+
+
+def _python_can_import(python: str, module: str) -> bool:
+    try:
+        subprocess.run(
+            [python, "-c", f"import {module}"],
+            capture_output=True,
+            check=True,
+            timeout=30,
+        )
+        return True
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+        return False
 
 
 def write_invoke(op_dir: Path, inp: ExternalInput) -> None:
@@ -278,10 +304,11 @@ def require_external_venv(name: str) -> None:
         path = _REPO_ROOT / rel
     if path.is_dir() and venv_python(name) is not None:
         return
+    extras_hint = " --extra media --extra music_separation" if name in _AUDIO_SEPARATOR_EXTERNALS else " --extra media --extra video_index"
     raise RuntimeError(
         f"$externals {name!r} needs isolated venv {rel} with torch/transformers/faiss.\n"
         f"  Run once: tools\\setup_external_venvs.ps1\n"
-        f"  Or: UV_PROJECT_ENVIRONMENT={rel} uv sync --extra media --extra video_index"
+        f"  Or: UV_PROJECT_ENVIRONMENT={rel} uv sync{extras_hint}"
     )
 
 
@@ -294,6 +321,9 @@ def build_runner_cmd(name: str, op_dir: Path) -> list[str]:
 
     require_external_venv(name)
     isolated = venv_python(name, op_dir)
+    if isolated and name in _AUDIO_SEPARATOR_EXTERNALS:
+        if not _python_can_import(isolated, "audio_separator"):
+            isolated = None
     if isolated:
         return [isolated, "-m", "externals.runner", name, op]
 

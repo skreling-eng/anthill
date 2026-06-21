@@ -28,17 +28,24 @@ ARGUMENTS
   width= / height= — output size in pixels. If omitted, uses the model
                profile default (typically 768×512 for Flux). Both must be
                positive when set.
+  steps=     — diffusion steps (default: from model profile, e.g. 4 for
+               flux_fusion_v2, 20 for flux2_klein_fp8, 50 for default Flux)
   count=     — variants per prompt (if [n] suffix not used)
   seed=      — base seed; per-prompt offset when seed > 0
   neg=       — negative prompt string
+
+PROMPT LENGTH (Flux / flux_ext)
+  Flux uses two text encoders: CLIP (first ~77 tokens → pooled embed) and T5
+  (up to 512 tokens → main prompt embed). Put the most important tags early
+  so CLIP sees them; the full prompt still goes to T5.
 
 REPEAT SYNTAX
   $image(...)[n] — n output variants per prompt (same as count=n).
 
 BEHAVIOR
   Loops: for each model × each prompt × count variants. One model load per
-  model name. On ImportError / missing weights, falls back to emulated PNG
-  placeholders unless AH_EMULATE_IMAGE is set.
+  model name. Missing deps or weights raise RuntimeError (no silent fallback).
+  Use AH_EMULATE_IMAGE=1 only when you want placeholder PNGs.
 
 DEPENDENCIES
 

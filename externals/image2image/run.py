@@ -13,10 +13,11 @@ from externals.image2image.comfy_runner import (
     run_comfy_edit_variants,
     save_png_bytes,
 )
-from externals.image2image.model_paths import DEFAULT_MODEL, available_models
+from externals.image2image.model_paths import DEFAULT_MODEL, available_models, is_klein_model
 from ahlib.ah_runtime import ArrayBundle
 
 _DEFAULT_STEPS = 4
+_DEFAULT_KLEIN_STEPS = 4
 _MAX_USE_ALL_IMAGES = 4
 _MAX_COMFY_ENCODE_IMAGES = 3
 
@@ -116,10 +117,12 @@ def _jobs_share_encode(jobs: list[tuple[list[Path], str]]) -> bool:
 
 def _help() -> str:
     return (
-        "$image2image uses comfy_lib (in-process) with Qwen-Rapid-AIO_4.json.\n"
+        "$image2image uses comfy_lib (in-process).\n"
+        "  Qwen-Rapid: models/qwen-rapid/ (sfw-v23, nsfw-v23)\n"
+        "  Flux.2 Klein FP8: models/flux2klein/flux2Klein9bFp8_fp8.safetensors "
+        f"(model=klein-fp8; also needs text_encoders/qwen_3_8b_fp8mixed + vae/flux2-vae)\n"
+        f"  Checkpoints: {available_models()}\n"
         "  Worker venv: AH_EXTERNAL_VENV_image2image=.venvs/media (comfy-kitchen for FP8).\n"
-        "  Checkpoint: models/qwen-rapid/ "
-        f"({available_models()})\n"
         "Test without GPU/model: AH_EMULATE_IMAGE2IMAGE=1"
     )
 
@@ -169,13 +172,18 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     use_all = _truthy(inp.args.get("use_all", ""))
     width = _optional_int(inp.args, "width")
     height = _optional_int(inp.args, "height")
-    steps = _int_arg(inp.args, "steps", _DEFAULT_STEPS)
+    model_arg = inp.args.get("model", DEFAULT_MODEL)
+    steps = _int_arg(inp.args, "steps", _DEFAULT_KLEIN_STEPS if is_klein_model(model_arg) else _DEFAULT_STEPS)
     seed = _optional_int(inp.args, "seed")
     use_gpu = _truthy(inp.args.get("gpu", os.environ.get("AH_IMAGE2IMAGE_GPU", "1")))
-    model_arg = inp.args.get("model", DEFAULT_MODEL)
     repeat = _repeat_count(inp)
     prompt_list = _read_prompt_list(ctx, inp)
 
+    if use_all and is_klein_model(model_arg):
+        print(
+            "$image2image: Flux.2 Klein edit uses the first input image only (use_all ignored)",
+            flush=True,
+        )
     if use_all and len(image_paths) > _MAX_USE_ALL_IMAGES:
         skipped = len(image_paths) - _MAX_USE_ALL_IMAGES
         print(

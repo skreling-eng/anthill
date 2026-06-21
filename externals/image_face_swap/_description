@@ -1,0 +1,62 @@
+$image_face_swap — Flux.2 Klein face/head swap
+
+SUMMARY
+  Swaps a donor face onto target image(s) using Flux.2 Klein 9B FP8 multi-reference
+  edit (comfy_lib in-process). Derived from
+  comfy_workflows/Flux 2 Klein Precise Face_Head Swap Final V2.json.
+
+SYNTAX
+  $image_face_swap
+  $image_face_swap[3]
+  $image_face_swap(steps=20, cfg=4.0, seed=42)
+  $image_face_swap(model='klein-fp8')
+
+INPUT
+  images[]  — target photo(s) to edit (must NOT be labeled 'face')
+  labels[]  — one image labeled 'face' (donor face via $add_label('face'))
+  prompts[] — optional; overrides default swap instruction
+
+OUTPUT
+  images[] — one swapped PNG per (target, face) job; repeat adds variants
+
+BUNDLE LAYOUT
+  @target: $file('body.png')
+  @donor:  $file('face.png') -> $add_label('face')
+  @target -> @donor -> $image_face_swap
+
+  Target = images[] entry not tagged face.
+  Donor  = images[] entry labeled face.
+
+DEFAULT PROMPT
+  English instruction from the Comfy workflow (two-reference Klein edit).
+  Override with prompts[] or prompt=.
+
+ARGUMENTS
+  model=   — Klein checkpoint alias (default klein-fp8 → flux2Klein9bFp8_fp8)
+  prompt=  — override default swap instruction
+  width= / height= — output size (default: target image size, snapped to 16px)
+  steps=   — diffusion steps (default 20 for FP8 base)
+  cfg=     — classifier-free guidance (default 4.0)
+  seed=    — fixed seed; with repeat, seed+0..n-1 per variant
+  gpu=     — use CUDA when true (default true)
+  [n]      — repeat variants per job (encode once, n samples)
+
+MODELS
+  models/flux2klein/flux2Klein9bFp8_fp8.safetensors
+  models/text_encoders/qwen_3_8b_fp8mixed.safetensors
+  models/vae/flux2-vae.safetensors
+
+DEPENDENCIES
+  .venvs/media (comfy-kitchen for FP8; tools/setup_external_venvs.ps1)
+
+ENVIRONMENT
+  AH_EXTERNAL_VENV_image_face_swap=.venvs/media
+  AH_EMULATE_IMAGE_FACE_SWAP=1 — placeholder PNGs, no model load
+
+EXAMPLE
+  @body: $file('portrait.png')
+  @face_src: $file('donor_face.png') -> $add_label('face')
+  @body -> @face_src -> $image_face_swap
+
+PROMPT-CONSUMING
+  Yes — prompts[] cleared; images[] replaced with outputs.

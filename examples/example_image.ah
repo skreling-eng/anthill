@@ -1,0 +1,17 @@
+
+
+@neg: $prompts2negprompts
+score_4,score_5,score_6,messy_drawing,amateur_drawing,bad_drawing,ugly_eyes,ugly_hands,worst_quality,low_quality,normal_quality,low_resolution,child,toddler,infant,cherub,grandmother,teens
+
+@topis:
+Survival expert
+
+@blonde:
+1girl, blonde with green eyes, portrait of a grown-up woman, focus on her tits, high-angle shot, camera looking down at her
+
+@high_quality:
+High Angle Shot, High Resolution, Best Quality, realistic, photorealistic, hyperrealistic, best quality,score_9, score_8_up, score_7_up
+
+@images: @neg -> @blonde -> @topis -> @high_quality -> $image(model='flux2_klein_fp8', width=720, height=1280, steps=20)[4]
+
+>>>

@@ -14,9 +14,10 @@ def require_audio_separator() -> None:
         import audio_separator  # noqa: F401
     except ImportError as exc:
         raise RuntimeError(
-            "$music_separation needs audio-separator in .venvs/media.\n"
+            "$music_separation / $split_song need audio-separator in .venvs/media.\n"
             "  powershell -File tools\\setup_external_venvs.ps1\n"
-            "Test stub: AH_EMULATE_MUSIC_SEPARATION=1"
+            "  Or: UV_PROJECT_ENVIRONMENT=.venvs/media uv sync --extra media --extra music_separation\n"
+            "Test stub: AH_EMULATE_MUSIC_SEPARATION=1 or AH_EMULATE_SPLIT_SONG=1"
         ) from exc
 
 

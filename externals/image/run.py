@@ -81,6 +81,23 @@ def _path_to_link(ctx: ExternalContext, path: str) -> str:
     return str(dest.relative_to(ctx.base_dir)).replace("\\", "/")
 
 
+def _emulate_enabled() -> bool:
+    return os.environ.get("AH_EMULATE_IMAGE", "").lower() in ("1", "true", "yes")
+
+
+def _help() -> str:
+    return (
+        "$image uses .venvs/media (torch + diffusers + bitsandbytes for NF4 Flux).\n"
+        "  Run once: tools\\setup_external_venvs.ps1\n"
+        "  Set AH_EXTERNAL_VENV_image=.venvs/media in .env\n"
+        "  Models: models/FLUX.1-dev, models/flux.1-dev-nf4-pkg, models/flux/…\n"
+        "  flux_fusion_v2: models/flux/fluxFusionV24StepsGGUFNF4_v1Fp16AIO.safetensors\n"
+        "  flux2_klein_fp8: models/flux2klein/flux2Klein9bFp8_fp8.safetensors "
+        "(+ text_encoders/qwen_3_8b_fp8mixed + vae/flux2-vae)\n"
+        "Test without GPU/models: AH_EMULATE_IMAGE=1"
+    )
+
+
 def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     out = inp.bundle.copy()
     models = read_arg_list(inp, "model", "default")
@@ -92,9 +109,10 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     neg = inp.args.get("neg", "")
     width = _optional_int(inp.args, "width") or 0
     height = _optional_int(inp.args, "height") or 0
+    steps = _optional_int(inp.args, "steps")
     model_names_to_texts = _truthy_arg(inp.args, "model_names_to_texts")
 
-    if os.environ.get("AH_EMULATE_IMAGE", "").lower() in ("1", "true", "yes"):
+    if _emulate_enabled():
         return _emulate(
             ctx, inp, out, models, prompts, count,
             model_names_to_texts=model_names_to_texts,
@@ -107,6 +125,8 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
         next_index = 0
         for model_name in models:
             gen = get_image_gen(model_name)
+            if steps is not None:
+                gen.steps = steps
             file_prefix = _image_file_prefix(model_name)
             for i, prompt in enumerate(prompts):
                 run_seed = seed + i if seed else seed
@@ -126,11 +146,11 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
                     out.images.append(_path_to_link(ctx, path))
                     if model_names_to_texts:
                         _append_model_name_text(ctx, out, model_name)
-    except (ImportError, KeyError, OSError) as exc:
-        print(f"$image fallback to emulate ({exc})")
-        return _emulate(
-            ctx, inp, out, models, prompts, count,
-            model_names_to_texts=model_names_to_texts,
-        )
+    except ImportError as exc:
+        raise RuntimeError(_help()) from exc
+    except KeyError as exc:
+        raise RuntimeError(str(exc)) from exc
+    except OSError as exc:
+        raise RuntimeError(f"{exc}\n\n{_help()}") from exc
 
     return out

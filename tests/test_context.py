@@ -543,7 +543,7 @@ tail
 class TestContextFullBundle(unittest.TestCase):
     def test_stores_and_loads_all_array_types(self) -> None:
         runtime, _ = _runtime("@noop:\n")
-        for rel in ("p1.txt", "t1.txt", "t2.txt", "i1.png", "s1.mp3", "v1.mp4", "f1.dat"):
+        for rel in ("p1.txt", "n1.txt", "t1.txt", "t2.txt", "i1.png", "s1.mp3", "v1.mp4", "f1.dat"):
             p = runtime.session.base_dir / rel
             p.parent.mkdir(parents=True, exist_ok=True)
             if rel.endswith(".png"):
@@ -556,6 +556,7 @@ class TestContextFullBundle(unittest.TestCase):
                 p.write_bytes(b"x")
         bundle = ArrayBundle(
             prompts=["p1.txt"],
+            negprompts=["n1.txt"],
             texts=["t1.txt"],
             images=["i1.png"],
             sounds=["s1.mp3"],
@@ -580,6 +581,7 @@ class TestContextFullBundle(unittest.TestCase):
             {},
         )
         self.assertEqual(loaded.prompts, ["p1.txt"])
+        self.assertEqual(loaded.negprompts, ["n1.txt"])
         self.assertEqual(loaded.texts, ["t1.txt", "t2.txt"])
         self.assertEqual(loaded.images, ["i1.png"])
         self.assertEqual(loaded.sounds, ["s1.mp3"])

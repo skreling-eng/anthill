@@ -1,0 +1,23 @@
+[project]
+name = "anthill-brain"
+version = "0.1.0"
+description = "Isolated Anthill brain — AH codebase analyzer and diff generator"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "pywebview>=5.0",
+    "llama-cpp-python>=0.3.0",
+]
+
+[project.scripts]
+brain = "brain.app:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = [".."]
+include = ["brain*"]
+
+[tool.uv]
+package = true

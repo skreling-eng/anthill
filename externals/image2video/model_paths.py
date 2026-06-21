@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from externals.anthill_models import require_models_file
-from externals.comfy_inprocess.bootstrap import comfyui_models_root
 from externals.image.model_paths import models_roots
 
 MODEL_ALIASES: dict[str, str] = {
@@ -49,9 +47,6 @@ def _search_roots() -> list[Path]:
                 root / "checkpoints",
             ]
         )
-    comfy = comfyui_models_root()
-    if comfy is not None:
-        roots.append(comfy / "checkpoints" / WAN_SUBDIR)
     return roots
 
 
@@ -78,7 +73,7 @@ def resolve_checkpoint(model_arg: str = "") -> Path:
 
     raise FileNotFoundError(
         f"$image2video checkpoint not found: {model_arg or DEFAULT_MODEL!r}. "
-        f"Place under models/wan/ or ComfyUI models/checkpoints/WAN/ "
+        f"Place under models/wan/ "
         f"(models: {available_models()}). "
         f"Run: uv run python tools/download_models.py"
     )
@@ -88,18 +83,18 @@ def comfy_ckpt_name(model_arg: str = "") -> str:
     """Checkpoint name for CheckpointLoaderSimple (WAN\\file.safetensors)."""
     path = resolve_checkpoint(model_arg)
     for root in models_roots():
-        ckpt_root = root / "checkpoints"
-        try:
-            rel = path.relative_to(ckpt_root)
-            return str(rel).replace("/", "\\")
-        except ValueError:
-            pass
-    comfy = comfyui_models_root()
-    if comfy is not None:
-        ckpt_root = comfy / "checkpoints"
-        try:
-            rel = path.relative_to(ckpt_root)
-            return str(rel).replace("/", "\\")
-        except ValueError:
-            pass
+        wan_dir = root / "wan"
+        if wan_dir.is_dir():
+            try:
+                path.relative_to(wan_dir.resolve())
+                return path.name
+            except ValueError:
+                pass
+        ckpt_wan = root / "checkpoints" / WAN_SUBDIR
+        if ckpt_wan.is_dir():
+            try:
+                rel = path.relative_to(ckpt_wan.resolve())
+                return str(WAN_SUBDIR / rel).as_posix().replace("/", "\\")
+            except ValueError:
+                pass
     return f"{WAN_SUBDIR}\\{path.name}"

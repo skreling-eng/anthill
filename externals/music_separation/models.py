@@ -13,6 +13,8 @@ ROFORMER_2STEM_CKPT = "model_bs_roformer_ep_317_sdr_12.9755.ckpt"
 ROFORMER_6STEM_CKPT = "BS-Roformer-SW.ckpt"
 
 DEFAULT_MODEL = "bs_roformer_sw"
+# 2-stem vocals + instrumental (BS-RoFormer-Viperx-1297); alias: 2stem
+VOCAL_STEM_MODEL = "bs_roformer_viperx_1297"
 
 STEM_ALIASES = {
     "vocals": "vocals",

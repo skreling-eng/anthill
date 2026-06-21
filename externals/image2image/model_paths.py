@@ -1,15 +1,23 @@
-"""Qwen-Rapid-AIO checkpoint under models/qwen-rapid/."""
+"""Qwen-Rapid-AIO and Flux.2 Klein checkpoints under models/."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from externals.anthill_models import require_models_file
+from externals.flux2_klein.model_paths import (
+    DEFAULT_MODEL as KLEIN_DEFAULT_MODEL,
+    available_models as klein_available_models,
+    is_klein_model,
+    resolve_unet,
+)
 from externals.image.model_paths import models_roots
 
 MODEL_ALIASES: dict[str, str] = {
     "sfw-v23": "Qwen-Rapid-AIO-SFW-v23.safetensors",
     "nsfw-v23": "Qwen-Rapid-AIO-NSFW-v23.safetensors",
+    "klein-fp8": "flux2Klein9bFp8_fp8.safetensors",
+    "flux2_klein_fp8": "flux2Klein9bFp8_fp8.safetensors",
 }
 
 DEFAULT_MODEL = "sfw-v23"
@@ -18,7 +26,8 @@ MODEL_SUBDIR = Path("qwen-rapid")
 
 
 def available_models() -> str:
-    return ", ".join(sorted(MODEL_ALIASES))
+    qwen = ", ".join(sorted(k for k in MODEL_ALIASES if k.startswith(("sfw", "nsfw"))))
+    return f"{qwen}; Klein: {klein_available_models()}"
 
 
 def _repo_model_path(name: str) -> Path:
@@ -38,6 +47,9 @@ def _resolve_model_ref(model_arg: str) -> str:
 
 def resolve_checkpoint(model_arg: str = "") -> Path:
     """Resolve model= to an absolute .safetensors path."""
+    if is_klein_model(model_arg):
+        return resolve_unet(model_arg or KLEIN_DEFAULT_MODEL)
+
     raw = _resolve_model_ref(model_arg)
 
     path = Path(raw)

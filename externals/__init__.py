@@ -16,12 +16,14 @@ _KNOWN = frozenset(
         "input_json",
         "image",
         "image2image",
+        "image_face_swap",
         "check_image",
         "clear",
         "pass",
         "del_session",
         "comfy",
         "image2video",
+        "avatar",
         "image_clip",
         "video_clip",
         "clip",
@@ -46,10 +48,15 @@ _KNOWN = frozenset(
         "texts2prompts",
         "prompts_to_texts",
         "prompts2texts",
+        "prompts_to_negprompts",
+        "prompts2negprompts",
+        "negprompts_to_prompts",
+        "negprompts2prompts",
         "json2texts",
         "list",
         "music",
         "music_separation",
+        "split_song",
         "change_voice",
         "draw_text",
         "face",
@@ -85,16 +92,18 @@ _KNOWN = frozenset(
 _LABEL_AWARE = frozenset({"label", "add_label", "split_video", "split_video_fast", "search_local_video"})
 
 # Externals that honor $name(...)[n] via inp.repeat inside the handler (not runtime fan-out).
-_REPEAT_NATIVE = frozenset({"image", "image2image", "llm", "math", "music", "code"})
+_REPEAT_NATIVE = frozenset({"image", "image2image", "image_face_swap", "llm", "math", "music", "code"})
 
 # Externals that read prompts as model input and should not pass them through.
 _PROMPT_CONSUMING = frozenset(
     {
         "image",
         "image2image",
+        "image_face_swap",
         "controlnet",
         "check_image",
         "image2video",
+        "avatar",
         "comfy",
         "llm",
         "math",
@@ -105,6 +114,8 @@ _PROMPT_CONSUMING = frozenset(
         "music",
         "prompts_to_texts",
         "prompts2texts",
+        "prompts_to_negprompts",
+        "prompts2negprompts",
         "image2text",
         "search_local_video",
         "audio_instruct",
