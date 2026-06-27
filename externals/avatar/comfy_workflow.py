@@ -17,6 +17,11 @@ from externals.avatar.model_paths import (
     DEFAULT_WAV2VEC,
     DEFAULT_WORKFLOW,
     default_attention_mode,
+    fit_avatar_resolution,
+    resolve_blocks_to_swap,
+    resolve_force_offload,
+    resolve_tiled_vae,
+    resolve_wan_load_device,
 )
 from externals.comfy.client import (
     PLACEHOLDER_IMAGE,
@@ -49,11 +54,23 @@ def resolve_avatar_size(
     *,
     width: int | None,
     height: int | None,
+    cap_unspecified: bool = True,
 ) -> tuple[int, int]:
     img_w, img_h = read_image_size(image_path)
+    user_set = width is not None or height is not None
     out_w = width if width is not None else img_w
     out_h = height if height is not None else img_h
-    return snap_latent_size(out_w, out_h, multiple=_LATENT_ALIGN)
+    out_w, out_h = snap_latent_size(out_w, out_h, multiple=_LATENT_ALIGN)
+    if cap_unspecified and not user_set:
+        capped_w, capped_h = fit_avatar_resolution(out_w, out_h)
+        if capped_w != out_w or capped_h != out_h:
+            print(
+                f"$avatar: output size {out_w}x{out_h} -> {capped_w}x{capped_h} "
+                f"(AVATAR_MAX_AREA cap; unset it to keep full input resolution)",
+                flush=True,
+            )
+        out_w, out_h = capped_w, capped_h
+    return out_w, out_h
 
 
 def _load_template(ref: str = "") -> dict[str, Any]:
@@ -79,13 +96,24 @@ def _patch_avatar_nodes(
     text_encoder: str,
     wav2vec_model: str,
     cfg: float,
+    blocks_to_swap: int | None = None,
+    tiled_vae: bool | None = None,
 ) -> None:
+    swap = resolve_blocks_to_swap(blocks_to_swap)
+    load_device = resolve_wan_load_device(swap)
+    force_offload = resolve_force_offload(swap)
+    use_tiled_vae = resolve_tiled_vae(tiled_vae)
     for node in wf.values():
         ctype = node.get("class_type")
         inputs = node.setdefault("inputs", {})
-        if ctype == "WanVideoModelLoader":
+        if ctype == "WanVideoBlockSwap":
+            inputs["blocks_to_swap"] = swap
+        elif ctype == "WanVideoModelLoader":
             inputs["model"] = wan_model
             inputs["attention_mode"] = default_attention_mode()
+            inputs["load_device"] = load_device
+            if swap == 0:
+                inputs.pop("block_swap_args", None)
         elif ctype == "WanVideoVAELoader":
             inputs["model_name"] = vae_name
         elif ctype == "WanVideoTextEncodeCached":
@@ -103,10 +131,13 @@ def _patch_avatar_nodes(
             inputs["frame_window_size"] = frame_window_size
             inputs["motion_frame"] = motion_frame
             inputs["drop_frames"] = drop_frames
+            inputs["force_offload"] = force_offload
+            inputs["tiled_vae"] = use_tiled_vae
         elif ctype == "WanVideoSchedulerv2":
             inputs["steps"] = steps
         elif ctype == "WanVideoSamplerv2":
             inputs["cfg"] = cfg
+            inputs["force_offload"] = force_offload
 
 
 def build_avatar_prompt(
@@ -131,6 +162,8 @@ def build_avatar_prompt(
     wav2vec_model: str = DEFAULT_WAV2VEC,
     cfg: float = 1.0,
     workflow_ref: str = "",
+    blocks_to_swap: int | None = None,
+    tiled_vae: bool | None = None,
 ) -> tuple[dict[str, Any], int]:
     """Return (patched API workflow, seed used)."""
     wf = copy.deepcopy(_load_template(workflow_ref))
@@ -168,6 +201,8 @@ def build_avatar_prompt(
         text_encoder=text_encoder,
         wav2vec_model=wav2vec_model,
         cfg=cfg,
+        blocks_to_swap=blocks_to_swap,
+        tiled_vae=tiled_vae,
     )
 
     for nid, node in wf.items():

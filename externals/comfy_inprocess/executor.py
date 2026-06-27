@@ -228,6 +228,9 @@ def _execute_prompt_legacy(
     outputs: dict[str, tuple[Any, ...]] = dict(initial_outputs or {})
     mappings = nodes_module.NODE_CLASS_MAPPINGS
     memory_mode = comfy_memory_enabled(prompt)
+    avatar_wan = any(
+        (n.get("class_type") or "") == "WanVideoSamplerv2" for n in prompt.values()
+    )
     qwen_edit = prompt_uses_qwen_image_edit(prompt)
     flux2_klein = prompt_uses_flux2_klein(prompt)
     klein_edit = flux2_klein and any(
@@ -259,7 +262,20 @@ def _execute_prompt_legacy(
 
         prepare_node(class_type, enabled=memory_mode)
         ksampler_heavy = class_type == "KSampler" and (qwen_edit or flux2_klein)
-        t_node = time.perf_counter() if (timing or ksampler_heavy) else 0.0
+        t_node = 0.0
+        if avatar_wan and class_type not in _SKIP_NODES:
+            from externals.avatar.progress import (
+                install_avatar_progress_logging,
+                log_avatar_stage_start,
+                set_avatar_phase,
+            )
+
+            install_avatar_progress_logging()
+            if class_type == "WanVideoSamplerv2":
+                set_avatar_phase("sampler")
+            t_node = log_avatar_stage_start(class_type)
+        elif timing or ksampler_heavy:
+            t_node = time.perf_counter()
         if (
             flux2_klein
             and not flux2_encode_ready
@@ -371,11 +387,17 @@ def _execute_prompt_legacy(
                     f"{klein_label}: KSampler finished ({elapsed:.1f}s)",
                     flush=True,
                 )
-            elif timing and elapsed >= 0.5:
-                print(
-                    f"$image2image: node {class_type} ({nid}) {elapsed:.1f}s",
-                    flush=True,
-                )
+            elif avatar_wan and t_node:
+                from externals.avatar.progress import log_avatar_stage_end
+
+                log_avatar_stage_end(class_type, t_node)
+            elif timing and t_node:
+                elapsed = time.perf_counter() - t_node
+                if elapsed >= 0.5:
+                    print(
+                        f"$image2image: node {class_type} ({nid}) {elapsed:.1f}s",
+                        flush=True,
+                    )
 
     return outputs
 

@@ -18,12 +18,23 @@ def _vram_mode_from_env() -> str | None:
 
 
 def _apply_vram_mode(mode: str) -> None:
-    if not mode or mode in ("normal", "default", "off", "0", "false", "no"):
-        return
-
     try:
         import comfy.cli_args as cli_args
     except ImportError:
+        return
+
+    if not mode or mode in ("normal", "default", "off", "0", "false", "no"):
+        cli_args.args.highvram = False
+        cli_args.args.lowvram = False
+        cli_args.args.novram = False
+        try:
+            import comfy.model_management as mm
+            from comfy.model_management import VRAMState
+
+            mm.vram_state = VRAMState.NORMAL_VRAM
+            mm.set_vram_to = VRAMState.NORMAL_VRAM
+        except ImportError:
+            pass
         return
 
     if mode in ("high", "highvram", "gpu", "gpu_only"):
@@ -125,3 +136,34 @@ def configure_comfy_vram_for_job(args: dict) -> None:
         os.environ["WAN_I2V_VRAM"] = "low"
     elif raw in ("novram", "no_vram", "minimal", "min"):
         os.environ["WAN_I2V_VRAM"] = "novram"
+
+
+def _default_avatar_vram() -> str:
+    """SkyReels FP8 A2V — do not inherit WAN_I2V_VRAM=novram from MEGA $image2video."""
+    raw = os.environ.get("AH_AVATAR_VRAM", "").strip().lower()
+    if raw:
+        return raw
+    raw = os.environ.get("AH_COMFY_VRAM", "").strip().lower()
+    if raw and raw not in ("normal", "default", "off", "0", "false", "no"):
+        return raw
+    return "normal"
+
+
+def apply_avatar_vram_settings() -> None:
+    """$avatar VRAM profile — ignores WAN_I2V_VRAM unless AH_AVATAR_VRAM is set."""
+    _apply_vram_mode(_default_avatar_vram())
+
+
+def configure_avatar_vram_for_job(args: dict) -> None:
+    """Map ``$avatar(..., vram='low')`` to AH_AVATAR_VRAM for this worker job."""
+    if "vram" not in args and "lowvram" not in args:
+        return
+    raw = str(args.get("vram", args.get("lowvram", ""))).strip().lower()
+    if raw in ("0", "false", "no", "off", "normal", "default"):
+        os.environ["AH_AVATAR_VRAM"] = "normal"
+    elif raw in ("low", "lowvram", "low_vram") or _truthy(raw):
+        os.environ["AH_AVATAR_VRAM"] = "low"
+    elif raw in ("novram", "no_vram", "minimal", "min"):
+        os.environ["AH_AVATAR_VRAM"] = "novram"
+    elif raw in ("high", "highvram", "gpu", "gpu_only"):
+        os.environ["AH_AVATAR_VRAM"] = "high"

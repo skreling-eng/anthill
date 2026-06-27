@@ -23,7 +23,7 @@ from externals import external_handles_repeat
 from externals.image2image.run import (
     _align_prompts,
     _build_edit_jobs,
-    _jobs_share_encode,
+    _group_edit_jobs,
     _read_prompt_list,
     run,
 )
@@ -53,7 +53,20 @@ class TestImage2ImageRepeat(unittest.TestCase):
         self.assertEqual(_align_prompts(["a"], 3), ["a", "a", "a"])
         self.assertEqual(_align_prompts(["a", "b"], 3), ["a", "b", "b"])
 
-    def test_jobs_share_encode(self) -> None:
+    def test_group_edit_jobs(self) -> None:
+        paths = [Path("a.png"), Path("b.png")]
+        jobs = _build_edit_jobs(
+            image_paths=paths,
+            prompts=["edit"],
+            use_all=False,
+            repeat=2,
+        )
+        groups = _group_edit_jobs(jobs)
+        self.assertEqual(len(groups), 2)
+        self.assertEqual(groups[0], ([paths[0]], "edit", 2))
+        self.assertEqual(groups[1], ([paths[1]], "edit", 2))
+
+    def test_group_edit_jobs_single_repeat(self) -> None:
         paths = [Path("a.png")]
         jobs = _build_edit_jobs(
             image_paths=paths,
@@ -61,7 +74,8 @@ class TestImage2ImageRepeat(unittest.TestCase):
             use_all=False,
             repeat=3,
         )
-        self.assertTrue(_jobs_share_encode(jobs))
+        groups = _group_edit_jobs(jobs)
+        self.assertEqual(groups, [([paths[0]], "edit", 3)])
 
     def test_build_jobs_with_repeat(self) -> None:
         paths = [Path("a.png"), Path("b.png")]
@@ -96,12 +110,15 @@ class TestImage2ImageRepeat(unittest.TestCase):
             bundle.images.append(ctx.new_link("images", ".png", _png_bytes()))
             inp = ExternalInput(
                 bundle=bundle,
-                args={},
+                args={"model": "sfw-v23"},
                 prompt_text="",
                 repeat=3,
             )
             out = run(ctx, inp)
             self.assertEqual(len(out.images), 3)
+            for link in out.images:
+                name = Path(link).name
+                self.assertRegex(name, r"^\d{8}_\d{6}_sfw-v23_\d+\.png$")
         finally:
             os.environ.pop("AH_EMULATE_IMAGE2IMAGE", None)
 

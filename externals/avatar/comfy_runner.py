@@ -9,6 +9,14 @@ from pathlib import Path
 import numpy as np
 
 from externals.avatar.comfy_workflow import build_avatar_prompt, resolve_avatar_size
+from externals.avatar.model_paths import (
+    resolve_attention_mode,
+    resolve_blocks_to_swap,
+    resolve_defer_transformer_load,
+    resolve_force_offload,
+    resolve_tiled_vae,
+    resolve_wan_load_device,
+)
 from externals.comfy_inprocess.bootstrap import bootstrap_comfy, get_nodes_module
 from externals.comfy_inprocess.executor import execute_prompt, find_node_id
 
@@ -94,7 +102,13 @@ class ComfyAvatarRunner:
             input_dir=self.input_dir,
             output_dir=self.output_dir,
             load_wan_wrapper=True,
+            vram_profile="avatar",
         )
+        from externals.avatar.progress import avatar_work_heartbeat, install_avatar_progress_logging
+        from externals.avatar.sampler_perf import install_avatar_sampler_perf
+
+        install_avatar_progress_logging()
+        install_avatar_sampler_perf()
 
     @property
     def nodes(self):
@@ -120,52 +134,87 @@ class ComfyAvatarRunner:
         drop_frames: int = 12,
         cfg: float = 1.0,
         workflow_ref: str = "",
+        blocks_to_swap: int | None = None,
+        tiled_vae: bool | None = None,
     ) -> Path:
-        job_width, job_height = resolve_avatar_size(
-            image_path, width=width, height=height
-        )
-        prompt_dict, _used_seed = build_avatar_prompt(
-            prompt=prompt,
-            negative_prompt=negative_prompt,
-            image_path=image_path,
-            audio_path=audio_path,
-            input_dir=self.input_dir,
-            seed=seed,
-            width=job_width,
-            height=job_height,
-            steps=steps,
-            fps=float(self.fps),
-            num_frames=num_frames,
-            frame_window_size=frame_window_size,
-            motion_frame=motion_frame,
-            drop_frames=drop_frames,
-            cfg=cfg,
-            workflow_ref=workflow_ref,
-        )
-        from externals.comfy_inprocess.vram_config import apply_comfy_vram_settings
-
-        apply_comfy_vram_settings()
-        _empty_cuda_cache_before_inference()
+        swap = resolve_blocks_to_swap(blocks_to_swap)
+        load_device = resolve_wan_load_device(swap)
+        force_offload = resolve_force_offload(swap)
+        defer_dit_load = resolve_defer_transformer_load(swap, force_offload)
+        use_tiled_vae = resolve_tiled_vae(tiled_vae)
+        vram_state = "unknown"
         try:
             import comfy.model_management as mm
 
-            mm.unload_all_models()
-            mm.soft_empty_cache(force=True)
-        except ImportError:
+            vram_state = mm.vram_state.name
+        except Exception:
             pass
+        job_width, job_height = resolve_avatar_size(
+            image_path, width=width, height=height
+        )
+        attn_mode, attn_detail = resolve_attention_mode()
+        print(
+            f"$avatar: blocks_to_swap={swap} load_device={load_device} "
+            f"force_offload={force_offload} defer_dit_load={defer_dit_load} "
+            f"attention_mode={attn_mode} ({attn_detail}) "
+            f"vram_state={vram_state} "
+            f"size={job_width}x{job_height} tiled_vae={use_tiled_vae}",
+            flush=True,
+        )
+        from externals.avatar.progress import avatar_stage
 
-        outputs = execute_prompt(prompt_dict, nodes_module=self.nodes)
+        with avatar_stage("build workflow"):
+            prompt_dict, _used_seed = build_avatar_prompt(
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                image_path=image_path,
+                audio_path=audio_path,
+                input_dir=self.input_dir,
+                seed=seed,
+                width=job_width,
+                height=job_height,
+                steps=steps,
+                fps=float(self.fps),
+                num_frames=num_frames,
+                frame_window_size=frame_window_size,
+                motion_frame=motion_frame,
+                drop_frames=drop_frames,
+                cfg=cfg,
+                workflow_ref=workflow_ref,
+                blocks_to_swap=blocks_to_swap,
+                tiled_vae=tiled_vae,
+            )
+        from externals.comfy_inprocess.vram_config import apply_avatar_vram_settings
+
+        apply_avatar_vram_settings()
+        _empty_cuda_cache_before_inference()
+
+        _ = self.nodes  # import WanVideoWrapper before rebinding load_weights
+        from externals.avatar.progress import avatar_stage, avatar_work_heartbeat
+        from externals.avatar.sampler_perf import begin_avatar_job, end_avatar_job, install_avatar_sampler_perf
+
+        install_avatar_sampler_perf()
+        begin_avatar_job(defer_transformer_load=defer_dit_load)
+        try:
+            with avatar_stage("comfy workflow"):
+                with avatar_work_heartbeat():
+                    outputs = execute_prompt(prompt_dict, nodes_module=self.nodes)
+        finally:
+            end_avatar_job()
         decode_id = find_node_id(prompt_dict, "WanVideoPassImagesFromSamples")
         if decode_id is None:
             raise RuntimeError("WanVideoPassImagesFromSamples node missing from workflow")
         frames_tensor = outputs[decode_id][0]
-        frames = _tensor_to_frames(frames_tensor)
+        with avatar_stage("decode frames"):
+            frames = _tensor_to_frames(frames_tensor)
         silent_path = output_path.with_name(output_path.stem + "_silent.mp4")
-        _write_mp4(frames, silent_path, fps=self.fps)
+        with avatar_stage("write MP4"):
+            _write_mp4(frames, silent_path, fps=self.fps)
 
         from externals.video_audio.ffmpeg_io import attach_audio
 
-        attach_audio(silent_path, audio_path, output_path, shortest=True)
+        with avatar_stage("mux audio"):
+            attach_audio(silent_path, audio_path, output_path, shortest=True)
         if silent_path.is_file() and silent_path != output_path:
             silent_path.unlink(missing_ok=True)
         return output_path
@@ -177,14 +226,14 @@ _RUNNER_KEY: tuple[str, int] | None = None
 
 def get_runner(*, work_dir: Path, fps: int = 24) -> ComfyAvatarRunner:
     global _RUNNER, _RUNNER_KEY
-    from externals.comfy_inprocess.vram_config import apply_comfy_vram_settings
+    from externals.comfy_inprocess.vram_config import apply_avatar_vram_settings
 
     key = (str(work_dir.resolve()), fps)
     if _RUNNER is None or _RUNNER_KEY != key:
         print(f"$avatar: comfy_lib backend ({work_dir})", flush=True)
         _RUNNER = ComfyAvatarRunner(work_dir=work_dir, fps=fps)
         _RUNNER_KEY = key
-    apply_comfy_vram_settings()
+    apply_avatar_vram_settings()
     return _RUNNER
 
 
@@ -207,6 +256,8 @@ def run_comfy_avatar(
     cfg: float = 1.0,
     fps: int = 24,
     workflow_ref: str = "",
+    blocks_to_swap: int | None = None,
+    tiled_vae: bool | None = None,
 ) -> Path:
     runner = get_runner(work_dir=work_dir, fps=fps)
     t0 = time.perf_counter()
@@ -226,6 +277,8 @@ def run_comfy_avatar(
         drop_frames=drop_frames,
         cfg=cfg,
         workflow_ref=workflow_ref,
+        blocks_to_swap=blocks_to_swap,
+        tiled_vae=tiled_vae,
     )
     print(
         f"$avatar: finished in {time.perf_counter() - t0:.1f}s",

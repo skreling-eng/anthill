@@ -32,6 +32,8 @@ Sync-Venv ".venvs/comfy-wan" "media,comfy-wan,clip"
 $wanPy = Join-Path $Root ".venvs\comfy-wan\Scripts\python.exe"
 Write-Host "`$avatar / `$image2video SkyReels colormatch (.venvs/comfy-wan)"
 & $wanPy -c "import kornia; import av; print('  ok: kornia + av')"
+Write-Host "SageAttention for `$avatar / WanVideoWrapper (.venvs/comfy-wan)"
+powershell -NoProfile -File (Join-Path $Root "tools\setup_sage_windows.ps1") -VenvPath ".venvs/comfy-wan"
 
 Write-Host ""
 Write-Host "=== .venvs/change_voice (Python 3.10 + rvc-python; do NOT uv sync here) ==="
@@ -106,7 +108,8 @@ Write-Host "  AH_EXTERNAL_VENV_controlnet=.venvs/media"
 Write-Host "  AH_CUSTOM_ACTIONS_VENV=.venvs/custom_actions   # &action codegen + handlers"
 Write-Host ""
 Write-Host "Media venv: optional sage wheels (from repo root):"
-Write-Host '  $env:UV_PROJECT_ENVIRONMENT=".venvs/media"; powershell -File tools\setup_sage_windows.ps1'
+Write-Host '  powershell -File tools\setup_sage_windows.ps1 -VenvPath ".venvs/media"'
+Write-Host '  powershell -File tools\setup_sage_windows.ps1 -VenvPath ".venvs/comfy-wan"   # $avatar'
 Write-Host ""
 Write-Host "Run orchestrator with base deps only:"
 Write-Host "  uv run python run_ah.py example.ah"

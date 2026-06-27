@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from externals.api import ExternalContext, ExternalInput, read_prompt_texts
-from externals.avatar.model_paths import DEFAULT_NEGATIVE_PROMPT
+from externals.avatar.model_paths import DEFAULT_NEGATIVE_PROMPT, audio_frame_budget
 from ahlib.ah_runtime import ArrayBundle
 
 _SOUND_EXTS = {".wav", ".mp3", ".flac", ".ogg", ".m4a"}
@@ -160,6 +160,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     steps = _optional_int(inp.args, "steps") or 4
     seed = _optional_int(inp.args, "seed")
     num_frames = _optional_int(inp.args, "frames") or _int_arg(inp.args, "max_frames", 400)
+    blocks_to_swap = _optional_int(inp.args, "blocks_to_swap")
     frame_window = _int_arg(inp.args, "frame_window", 81)
     motion_frame = _int_arg(inp.args, "motion_frame", 5)
     drop_frames = _int_arg(inp.args, "drop_frames", 12)
@@ -167,11 +168,15 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     fps = _int_arg(inp.args, "fps", 24)
     workflow_ref = inp.args.get("workflow", inp.args.get("json", "")).strip()
 
-    from externals.comfy_inprocess.vae_tiling import configure_tiled_vae_for_job
-    from externals.comfy_inprocess.vram_config import configure_comfy_vram_for_job
+    from externals.avatar.model_paths import configure_avatar_tiled_vae_for_job
+    from externals.comfy_inprocess.vram_config import configure_avatar_vram_for_job
 
-    configure_tiled_vae_for_job(inp.args)
-    configure_comfy_vram_for_job(inp.args)
+    tiled_vae = configure_avatar_tiled_vae_for_job(inp.args)
+    configure_avatar_vram_for_job(inp.args)
+
+    from externals.comfy_inprocess.vram_config import apply_avatar_vram_settings
+
+    apply_avatar_vram_settings()
 
     work_dir = ctx.op_dir / "comfy_work"
     videos_dir = ctx.op_dir / "videos"
@@ -200,9 +205,14 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
                 raise RuntimeCancelled("$avatar cancelled")
             out_path = videos_dir / _output_name(index)
             run_seed = (seed + index) if seed else seed
+            job_frames = min(
+                num_frames,
+                audio_frame_budget(sound_path, float(fps), cap=num_frames),
+            )
             print(
                 f"$avatar: job {index + 1}/{len(pairs)} "
-                f"image={image_path.name} audio={sound_path.name}",
+                f"image={image_path.name} audio={sound_path.name} "
+                f"frames={job_frames}",
                 flush=True,
             )
             run_comfy_avatar(
@@ -216,13 +226,15 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
                 width=width,
                 height=height,
                 steps=steps,
-                num_frames=num_frames,
+                num_frames=job_frames,
                 frame_window_size=frame_window,
                 motion_frame=motion_frame,
                 drop_frames=drop_frames,
                 cfg=cfg,
                 fps=fps,
                 workflow_ref=workflow_ref,
+                blocks_to_swap=blocks_to_swap,
+                tiled_vae=tiled_vae,
             )
             out.videos.append(_path_to_link(ctx, out_path))
     except ImportError as exc:

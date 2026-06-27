@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import time
+from datetime import datetime
 from pathlib import Path
-
 from externals.api import ExternalContext, ExternalInput, read_prompt_texts
 from externals.image2image.comfy_workflow import resolve_output_size
 from externals.image2image.comfy_runner import (
@@ -20,6 +22,12 @@ _DEFAULT_STEPS = 4
 _DEFAULT_KLEIN_STEPS = 4
 _MAX_USE_ALL_IMAGES = 4
 _MAX_COMFY_ENCODE_IMAGES = 3
+
+
+def _image_file_prefix(model_arg: str) -> str:
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_model = re.sub(r"[^\w.-]", "_", model_arg)
+    return f"{ts}_{safe_model}_"
 
 
 def _emulate_enabled() -> bool:
@@ -108,11 +116,22 @@ def _build_edit_jobs(
     return jobs
 
 
-def _jobs_share_encode(jobs: list[tuple[list[Path], str]]) -> bool:
-    if len(jobs) <= 1:
-        return False
-    key = (tuple(str(p.resolve()) for p in jobs[0][0]), jobs[0][1])
-    return all((tuple(str(p.resolve()) for p in imgs), pr) == key for imgs, pr in jobs)
+def _group_edit_jobs(
+    jobs: list[tuple[list[Path], str]],
+) -> list[tuple[list[Path], str, int]]:
+    """Merge identical (image batch, prompt) jobs; preserve first-seen order."""
+    groups: list[tuple[list[Path], str, int]] = []
+    index: dict[tuple[tuple[str, ...], str], int] = {}
+    for job_images, job_prompt in jobs:
+        key = (tuple(str(p.resolve()) for p in job_images), job_prompt)
+        if key in index:
+            gi = index[key]
+            imgs, prompt, count = groups[gi]
+            groups[gi] = (imgs, prompt, count + 1)
+        else:
+            index[key] = len(groups)
+            groups.append((job_images, job_prompt, 1))
+    return groups
 
 
 def _help() -> str:
@@ -134,6 +153,7 @@ def _emulate(
     prompt: str,
     image_paths: list[Path],
     use_all: bool,
+    file_prefix: str,
 ) -> None:
     if use_all:
         names = ", ".join(p.name for p in image_paths[:_MAX_USE_ALL_IMAGES])
@@ -142,7 +162,9 @@ def _emulate(
             f"prompt: {prompt}\n"
             f"images: {names}\n"
         )
-        out.images.append(ctx.new_link("images", ".png", text.encode("utf-8")))
+        out.images.append(
+            ctx.new_link("images", ".png", text.encode("utf-8"), prefix=file_prefix)
+        )
         return
 
     for image_path in image_paths:
@@ -151,7 +173,9 @@ def _emulate(
             f"prompt: {prompt}\n"
             f"source: {image_path.name}\n"
         )
-        out.images.append(ctx.new_link("images", ".png", text.encode("utf-8")))
+        out.images.append(
+            ctx.new_link("images", ".png", text.encode("utf-8"), prefix=file_prefix)
+        )
 
 
 def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
@@ -178,6 +202,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     use_gpu = _truthy(inp.args.get("gpu", os.environ.get("AH_IMAGE2IMAGE_GPU", "1")))
     repeat = _repeat_count(inp)
     prompt_list = _read_prompt_list(ctx, inp)
+    file_prefix = _image_file_prefix(model_arg)
 
     if use_all and is_klein_model(model_arg):
         print(
@@ -213,6 +238,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
                 prompt=job_prompt,
                 image_paths=job_images,
                 use_all=use_all and len(job_images) > 1,
+                file_prefix=file_prefix,
             )
         return out
 
@@ -224,6 +250,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
             flush=True,
         )
 
+    groups = _group_edit_jobs(jobs)
     run_total = len(jobs)
     t_load = time.perf_counter()
     print(
@@ -231,82 +258,87 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
         flush=True,
     )
 
-    if _jobs_share_encode(jobs):
-        job_images, job_prompt = jobs[0]
-        job_width, job_height = resolve_output_size(
-            job_images[0], width=width, height=height
-        )
-        print(
-            f"$image2image: edit 1/{run_total} (fast path, {len(jobs)} variants) "
-            f"({len(job_images)} image(s)) steps={steps} "
-            f"size={job_width}x{job_height} "
-            f"prompt={job_prompt[:80]!r}",
-            flush=True,
-        )
-        print(
-            f"$image2image: pipeline ready in {time.perf_counter() - t_load:.1f}s",
-            flush=True,
-        )
-        # If the user didn't pass an explicit seed, the workflow will generate one.
-        # The runner will expand that used seed into N distinct seeds for variants.
-        seeds = [seed + i if seed is not None else None for i in range(len(jobs))]
-        try:
-            variants = run_comfy_edit_variants(
-                work_dir=work_dir,
-                image_paths=job_images,
-                prompt=job_prompt,
-                model_arg=model_arg,
-                steps=steps,
-                seeds=seeds,
-                width=job_width,
-                height=job_height,
-                use_gpu=use_gpu,
-            )
-        except ImportError as exc:
-            raise RuntimeError(_help()) from exc
-        except FileNotFoundError as exc:
-            raise RuntimeError(str(exc)) from exc
-        for pil in variants:
-            out.images.append(ctx.new_link("images", ".png", save_png_bytes(pil)))
-        return out
-
-    for run_index, (job_images, job_prompt) in enumerate(jobs):
+    global_idx = 0
+    for group_idx, (job_images, job_prompt, variant_count) in enumerate(groups):
         if ctx.cancel_event is not None and ctx.cancel_event.is_set():
             from ahlib.ah_runtime import RuntimeCancelled
 
             raise RuntimeCancelled("$image2image cancelled")
-        run_seed = seed + run_index if seed is not None else None
         job_width, job_height = resolve_output_size(
             job_images[0], width=width, height=height
         )
+        fast = variant_count > 1
         print(
-            f"$image2image: edit {run_index + 1}/{run_total} "
-            f"({len(job_images)} image(s)) steps={steps} "
-            f"size={job_width}x{job_height} "
+            f"$image2image: edit {group_idx + 1}/{len(groups)} "
+            f"({len(job_images)} image(s)"
+            f"{f', {variant_count} variants' if fast else ''}) "
+            f"steps={steps} size={job_width}x{job_height} "
             f"prompt={job_prompt[:80]!r}",
             flush=True,
         )
-        if run_index == 0:
+        if group_idx == 0:
             print(
                 f"$image2image: pipeline ready in {time.perf_counter() - t_load:.1f}s",
                 flush=True,
             )
         try:
-            result = run_comfy_edit(
-                work_dir=work_dir,
-                image_paths=job_images,
-                prompt=job_prompt,
-                model_arg=model_arg,
-                steps=steps,
-                seed=run_seed,
-                width=job_width,
-                height=job_height,
-                use_gpu=use_gpu,
-            )
+            if fast:
+                seeds = [
+                    seed + global_idx + i if seed is not None else None
+                    for i in range(variant_count)
+                ]
+
+                def _save_variant(pil) -> None:
+                    out.images.append(
+                        ctx.new_link(
+                            "images",
+                            ".png",
+                            save_png_bytes(pil),
+                            prefix=file_prefix,
+                        )
+                    )
+                    (ctx.op_dir / "output.json").write_text(
+                        json.dumps(out.as_dict(), indent=2),
+                        encoding="utf-8",
+                    )
+
+                run_comfy_edit_variants(
+                    work_dir=work_dir,
+                    image_paths=job_images,
+                    prompt=job_prompt,
+                    model_arg=model_arg,
+                    steps=steps,
+                    seeds=seeds,
+                    width=job_width,
+                    height=job_height,
+                    use_gpu=use_gpu,
+                    on_variant=_save_variant,
+                )
+            else:
+                run_seed = seed + global_idx if seed is not None else None
+                result = run_comfy_edit(
+                    work_dir=work_dir,
+                    image_paths=job_images,
+                    prompt=job_prompt,
+                    model_arg=model_arg,
+                    steps=steps,
+                    seed=run_seed,
+                    width=job_width,
+                    height=job_height,
+                    use_gpu=use_gpu,
+                )
+                out.images.append(
+                    ctx.new_link(
+                        "images",
+                        ".png",
+                        save_png_bytes(result),
+                        prefix=file_prefix,
+                    )
+                )
         except ImportError as exc:
             raise RuntimeError(_help()) from exc
         except FileNotFoundError as exc:
             raise RuntimeError(str(exc)) from exc
-        out.images.append(ctx.new_link("images", ".png", save_png_bytes(result)))
+        global_idx += variant_count
 
     return out

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -154,6 +155,7 @@ class ComfyRunner:
         width: int,
         height: int,
         workflow_ref: str = "",
+        on_variant: Callable | None = None,
     ) -> list:
         """One vision encode, multiple KSampler+decode runs (repeat with same prompt/image)."""
         ckpt_name = checkpoint.name
@@ -216,7 +218,10 @@ class ComfyRunner:
                 f"$image2image: sample done ({time.perf_counter() - t_s:.1f}s)",
                 flush=True,
             )
-            results.append(_tensor_to_pil(out[decode_id][0]))
+            pil = _tensor_to_pil(out[decode_id][0])
+            results.append(pil)
+            if on_variant is not None:
+                on_variant(pil)
         return results
 
 
@@ -245,6 +250,7 @@ def run_comfy_edit_variants(
     width: int,
     height: int,
     use_gpu: bool,
+    on_variant: Callable | None = None,
 ) -> list:
     if is_klein_model(model_arg):
         from externals.flux2_klein.comfy_runner import run_klein_edit_variants
@@ -265,6 +271,7 @@ def run_comfy_edit_variants(
             width=width,
             height=height,
             use_gpu=use_gpu,
+            on_variant=on_variant,
         )
 
     checkpoint = resolve_checkpoint(model_arg)
@@ -277,6 +284,7 @@ def run_comfy_edit_variants(
         seeds=seeds,
         width=width,
         height=height,
+        on_variant=on_variant,
     )
 
 

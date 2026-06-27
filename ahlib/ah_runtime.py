@@ -260,11 +260,19 @@ class Session:
                 f"Output file incomplete ({size} bytes, need >= {min_size}): {path}"
             )
 
-    def new_link(self, op_dir: Path, array_name: str, ext: str, content: str | bytes) -> str:
+    def new_link(
+        self,
+        op_dir: Path,
+        array_name: str,
+        ext: str,
+        content: str | bytes,
+        *,
+        prefix: str = "",
+    ) -> str:
         arr_dir = op_dir / array_name
         arr_dir.mkdir(exist_ok=True)
         existing = len(list(arr_dir.glob(f"*{ext}")))
-        filename = f"{existing}{ext}"
+        filename = f"{prefix}{existing}{ext}" if prefix else f"{existing}{ext}"
         rel = op_dir.relative_to(self.base_dir) / array_name / filename
         path = self.base_dir / rel
         path.parent.mkdir(parents=True, exist_ok=True)

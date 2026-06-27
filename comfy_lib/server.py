@@ -42,6 +42,10 @@ class PromptServer:
     def send_sync(self, *_args, **_kwargs) -> None:
         pass
 
+    def send_progress_text(self, *_args, **_kwargs) -> None:
+        """Headless no-op (WanVideoWrapper / kjnodes progress UI)."""
+        pass
+
     @classmethod
     def _ensure_instance(cls) -> PromptServer:
         if cls.instance is None:

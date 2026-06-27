@@ -19,7 +19,7 @@
   },
   "block_swap": {
     "inputs": {
-      "blocks_to_swap": 30,
+      "blocks_to_swap": 0,
       "offload_img_emb": false,
       "offload_txt_emb": false,
       "use_non_blocking": true,

@@ -283,6 +283,7 @@ class KleinRunner:
         seeds: list[int | None],
         width: int,
         height: int,
+        on_variant: Callable | None = None,
     ) -> list:
         ensure_companion_assets()
         resolve_unet(model_arg)
@@ -331,7 +332,10 @@ class KleinRunner:
                 initial_outputs=base,
                 prepare_ksampler=True,
             )
-            results.append(_tensor_to_pil(out[decode_id][0]))
+            pil = _tensor_to_pil(out[decode_id][0])
+            results.append(pil)
+            if on_variant is not None:
+                on_variant(pil)
         return results
 
 
@@ -437,6 +441,7 @@ def run_klein_edit_variants(
     width: int,
     height: int,
     use_gpu: bool,
+    on_variant: Callable | None = None,
 ) -> list:
     runner = get_runner(work_dir=work_dir, use_gpu=use_gpu)
     return runner.run_edit_variants(
@@ -448,4 +453,5 @@ def run_klein_edit_variants(
         seeds=seeds,
         width=width,
         height=height,
+        on_variant=on_variant,
     )

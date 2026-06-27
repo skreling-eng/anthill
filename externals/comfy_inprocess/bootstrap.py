@@ -99,6 +99,26 @@ def _register_anthill_model_paths() -> None:
                 _add(sub, qwen / sub)
 
 
+def _ensure_headless_prompt_server() -> None:
+    """Patch ComfyUI server stub before WanVideoWrapper imports ``PromptServer``."""
+    try:
+        import server
+    except ImportError:
+        return
+
+    cls = server.PromptServer
+    if not hasattr(cls, "send_progress_text"):
+
+        def send_progress_text(self, *_args, **_kwargs) -> None:
+            pass
+
+        cls.send_progress_text = send_progress_text  # type: ignore[method-assign]
+
+    inst = getattr(cls, "instance", None)
+    if inst is not None and not hasattr(inst, "send_progress_text"):
+        inst.send_progress_text = lambda *_a, **_k: None  # type: ignore[method-assign]
+
+
 def bootstrap_comfy(
     *,
     input_dir: Path,
@@ -123,10 +143,16 @@ def bootstrap_comfy(
         from externals.comfy_inprocess.vram_config import apply_image2image_vram_settings
 
         apply_image2image_vram_settings()
+    elif vram_profile == "avatar":
+        from externals.comfy_inprocess.vram_config import apply_avatar_vram_settings
+
+        apply_avatar_vram_settings()
     else:
         from externals.comfy_inprocess.vram_config import apply_comfy_vram_settings
 
         apply_comfy_vram_settings()
+
+    _ensure_headless_prompt_server()
 
     import folder_paths
 

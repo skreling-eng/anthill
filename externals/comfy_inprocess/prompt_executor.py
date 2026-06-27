@@ -23,6 +23,9 @@ class StubPromptServer:
     def send_sync(self, *_args, **_kwargs) -> None:
         pass
 
+    def send_progress_text(self, *_args, **_kwargs) -> None:
+        pass
+
 
 def should_use_comfy_executor(prompt: dict[str, Any] | None = None) -> bool:
     """Whether to run via vendored ComfyUI ``PromptExecutor``.

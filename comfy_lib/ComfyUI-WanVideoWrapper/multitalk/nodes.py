@@ -217,7 +217,7 @@ class MultiTalkWav2VecEmbeds:
             except Exception:
                 audio_segment = audio_input
 
-            audio_segment = audio_segment.numpy()
+            audio_segment = audio_segment.detach().cpu().numpy()
 
             if normalize_loudness:
                 audio_segment = loudness_norm(audio_segment, sr=sr)

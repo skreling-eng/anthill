@@ -1,6 +1,7 @@
 import torch
 import os
 import gc
+import time
 from PIL import Image
 import numpy as np
 from ..latent_preview import prepare_callback
@@ -21,6 +22,22 @@ script_directory = os.path.dirname(os.path.abspath(__file__))
 
 device = mm.get_torch_device()
 offload_device = mm.unet_offload_device()
+
+
+def _should_clear_dit_before_vae_encode(*, force_offload: bool) -> bool:
+    if force_offload:
+        return True
+    for mod_path, func in (
+        ("externals.avatar.sampler_perf", "defer_transformer_load_active"),
+    ):
+        try:
+            mod = __import__(mod_path, fromlist=[func])
+            if getattr(mod, func)():
+                return True
+        except ImportError:
+            continue
+    return False
+
 
 def multitalk_loop(self, **kwargs):
     # Unpack kwargs into local variables
@@ -267,13 +284,57 @@ def multitalk_loop(self, **kwargs):
                 video_frames = torch.zeros(1, 3, frame_num-cond_frame_num, target_h, target_w, device=device, dtype=vae.dtype)
                 padding_frames_pixels_values = torch.cat([cond_.to(device, vae.dtype), video_frames], dim=2)
 
-            # encode
+            # Free GPU for WanVAE encode (force_offload or deferred DiT load).
+            if not offloaded and _should_clear_dit_before_vae_encode(force_offload=offload):
+                try:
+                    from externals.comfy_inprocess.wan_dit_vram import (
+                        gpu_allocated_mib,
+                        park_dit_for_vae_encode,
+                    )
+
+                    before_mib, after_mib = park_dit_for_vae_encode(patcher, transformer)
+                    print(
+                        f"WanVideo: parked DiT on CPU ({before_mib:.0f} -> {after_mib:.0f} MiB GPU)",
+                        flush=True,
+                    )
+                except Exception as exc:
+                    log.warning(f"park_dit_for_vae_encode failed: {exc}")
+                    try:
+                        from externals.comfy_inprocess.wan_dit_vram import (
+                            park_dit_state_dict_to_cpu,
+                            _move_module_to_cpu_if_materialized,
+                        )
+
+                        park_dit_state_dict_to_cpu(patcher)
+                        _move_module_to_cpu_if_materialized(transformer)
+                        model = getattr(patcher, "model", None) if patcher is not None else None
+                        dm = getattr(model, "diffusion_model", None) if model is not None else None
+                        if dm is not None and dm is not transformer:
+                            _move_module_to_cpu_if_materialized(dm)
+                    except Exception:
+                        pass
+                    mm.unload_all_models()
+                    mm.soft_empty_cache()
+                    gc.collect()
+                    try:
+                        from externals.comfy_inprocess.wan_dit_vram import gpu_allocated_mib
+
+                        mb = gpu_allocated_mib()
+                        if mb:
+                            print(
+                                f"WanVideo: GPU allocated {mb:.0f} MiB before WanVAE encode",
+                                flush=True,
+                            )
+                    except Exception:
+                        pass
+                print("WanVideo: keeping DiT off GPU for WanVAE encode", flush=True)
+                offloaded = True
             vae.to(device)
-            y = vae.encode(padding_frames_pixels_values, device=device, tiled=tiled_vae, pbar=False).to(dtype)[0]
+            y = vae.encode(padding_frames_pixels_values, device=device, tiled=tiled_vae, pbar=True).to(dtype)[0]
 
             if mode == "infinitetalk":
                 cond_ = cond_image if is_first_clip else cond_frame
-                latent_motion_frames = vae.encode(cond_.to(device, vae.dtype), device=device, tiled=tiled_vae, pbar=False).to(dtype)[0]
+                latent_motion_frames = vae.encode(cond_.to(device, vae.dtype), device=device, tiled=tiled_vae, pbar=True).to(dtype)[0]
             else:
                 latent_motion_frames = y[:, :cur_motion_frames_latent_num] # C T H W
 
@@ -344,7 +405,7 @@ def multitalk_loop(self, **kwargs):
 
         if offloaded:
             # Load weights
-            if transformer.patched_linear and gguf_reader is None:
+            if patcher.model["sd"] is not None and gguf_reader is None:
                 load_weights(patcher.model.diffusion_model, patcher.model["sd"], weight_dtype, base_dtype=dtype, transformer_load_device=device, block_swap_args=block_swap_args)
             elif gguf_reader is not None: #handle GGUF
                 load_weights(transformer, patcher.model["sd"], base_dtype=dtype, transformer_load_device=device, patcher=patcher, gguf=True, reader=gguf_reader, block_swap_args=block_swap_args)
@@ -405,9 +466,37 @@ def multitalk_loop(self, **kwargs):
 
         mm.soft_empty_cache()
         gc.collect()
+        sampling_total = len(timesteps) - 1
+        out_w = latent.shape[3] * vae_upscale_factor
+        out_h = latent.shape[2] * vae_upscale_factor
+        print(
+            f"$avatar: denoise window {iteration_count + 1}/{estimated_iterations} "
+            f"at {out_w}x{out_h} ({sampling_total} steps)…",
+            flush=True,
+        )
+        attn = getattr(transformer, "attention_mode", "?")
+        lat_t, lat_h, lat_w = int(latent.shape[1]), int(latent.shape[2]), int(latent.shape[3])
+        print(
+            f"$avatar: DiT attention={attn} latent T×H×W={lat_t}×{lat_h}×{lat_w} "
+            f"(step 1 may compile sage CUDA kernels — watch for denoise step N/M done lines)",
+            flush=True,
+        )
+        try:
+            from externals.comfy_inprocess.wan_dit_vram import log_sampling_vram_readiness
+
+            log_sampling_vram_readiness(transformer, patcher)
+        except ImportError:
+            pass
         # sampling loop
-        sampling_pbar = tqdm(total=len(timesteps)-1, desc=f"Sampling audio indices {audio_start_idx}-{audio_end_idx}", position=0, leave=True)
-        for i in range(len(timesteps)-1):
+        sampling_pbar = tqdm(total=sampling_total, desc=f"Sampling audio indices {audio_start_idx}-{audio_end_idx}", position=0, leave=True)
+        for i in range(sampling_total):
+            try:
+                from externals.avatar.progress import set_sampling_progress
+
+                set_sampling_progress(i + 1, sampling_total)
+            except ImportError:
+                pass
+            t_step = time.perf_counter()
             timestep = timesteps[i]
             latent_model_input = latent.to(device)
             if mode == "infinitetalk":
@@ -428,6 +517,11 @@ def multitalk_loop(self, **kwargs):
 
             sampling_pbar.update(1)
             step_iteration_count += 1
+            print(
+                f"$avatar: denoise step {i + 1}/{sampling_total} done "
+                f"({time.perf_counter() - t_step:.1f}s)",
+                flush=True,
+            )
 
             # update latent
             if use_tsr:

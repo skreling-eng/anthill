@@ -21,7 +21,10 @@ OUTPUT
 
 ARGUMENTS
   prompt= / neg= / negative_prompt= — override prompt text.
-  width= / height= — output size (default: from input image, snapped to /16).
+  width= / height= — output size (default: input image dimensions, snapped to /16).
+    Set only one side to keep the other from the image. Optional AVATAR_MAX_AREA caps
+    both when width=/height= are unset.
+  tiled_vae= — 1 only if VAE OOM (default off; much faster full-GPU encode).
   steps= — diffusion steps (default 4, flowmatch_distill).
   seed= — base seed; offset per job when set.
   frames= / max_frames= — audio frame budget for MultiTalk (default 400).
@@ -29,10 +32,13 @@ ARGUMENTS
   motion_frame= / drop_frames= — long-video overlap tuning (5 / 12).
   cfg= — classifier-free guidance (default 1).
   fps= — output frame rate (default 24).
+  blocks_to_swap= — transformer blocks on CPU between steps (default 30 on 16GB,
+    0 on 24GB+; matches Comfy SkyReels graph on 16GB cards).
   workflow= / json= — alternate API workflow JSON path.
 
 DEPENDENCIES
   Same venv as $image2video: uv sync --extra media,comfy-wan,clip
+  SageAttention (faster sampling): powershell -File tools\setup_sage_windows.ps1 -VenvPath ".venvs/comfy-wan"
   Models under models/ (diffusion_models, text_encoders, vae, transformers):
     Wan21-SkyReelsV3-A2V_fp8_scaled_mixed.safetensors
     Wan2_1_VAE_bf16.safetensors
@@ -40,8 +46,18 @@ DEPENDENCIES
 
 ENVIRONMENT
   AH_EMULATE_AVATAR=1 — write stub MP4 placeholders without loading models.
+  AH_AVATAR_VRAM — normal (default); low|novram if OOM. Ignores WAN_I2V_VRAM from MEGA.
+  AVATAR_BLOCKS_TO_SWAP — override GPU default (30 on ≤20GB, 0 on 24GB+).
+  AVATAR_TILED_VAE — 1 for tiled VAE (slow; ignored unless set). Does not inherit
+    WAN_I2V_TILED_VAE from MEGA $image2video.
+  AVATAR_MAX_AREA — optional max pixels when width=/height= unset (off by default).
+  AVATAR_FORCE_OFFLOAD — default true (ComfyUI default); defers DiT GPU load until
+    after WanVAE encode on 16GB cards. Set 0 to load DiT before VAE (usually slower).
+  AVATAR_LOAD_DEVICE — offload_device (default, ComfyUI SkyReels); main_device only
+    on 24GB+ (preloads DiT and slows WanVAE encode on 16GB).
   AVATAR_WAN_MODEL / AVATAR_VAE / AVATAR_TEXT_ENCODER / AVATAR_WAV2VEC — overrides.
-  AVATAR_ATTENTION_MODE — default sdpa; set sageattn if sageattention+triton installed.
+  AVATAR_ATTENTION_MODE — unset = sageattn when sageattention works, else sdpa.
+  Install: pip install sageattention (or tools\\setup_sage_windows.ps1 for 2.1.1 wheels).
 
 EXAMPLE
   @face: $file('face.png')

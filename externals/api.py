@@ -24,8 +24,17 @@ class ExternalContext:
     def base_dir(self) -> Path:
         return self.session.base_dir
 
-    def new_link(self, array_name: str, ext: str, content: str | bytes) -> str:
-        return self.session.new_link(self.op_dir, array_name, ext, content)
+    def new_link(
+        self,
+        array_name: str,
+        ext: str,
+        content: str | bytes,
+        *,
+        prefix: str = "",
+    ) -> str:
+        return self.session.new_link(
+            self.op_dir, array_name, ext, content, prefix=prefix
+        )
 
     def resolve_link_path(self, link: str) -> Path:
         return self.session.resolve_link_path(link)
