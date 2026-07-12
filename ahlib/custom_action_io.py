@@ -89,3 +89,17 @@ def save_image(
     dest.parent.mkdir(parents=True, exist_ok=True)
     image.save(dest)
     return _rel_link(Path(base_dir), dest)
+
+
+def save_text(
+    base_dir: str | Path,
+    op_dir: str | Path,
+    array: str,
+    filename: str,
+    text: str,
+) -> str:
+    """Write UTF-8 text under op_dir/<array>/; return link for prompts[] / texts[]."""
+    dest = Path(op_dir) / array / filename
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
+    return _rel_link(Path(base_dir), dest)

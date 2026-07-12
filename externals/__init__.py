@@ -92,7 +92,9 @@ _KNOWN = frozenset(
 _LABEL_AWARE = frozenset({"label", "add_label", "split_video", "split_video_fast", "search_local_video"})
 
 # Externals that honor $name(...)[n] via inp.repeat inside the handler (not runtime fan-out).
-_REPEAT_NATIVE = frozenset({"image", "image2image", "image_face_swap", "llm", "math", "music", "code"})
+_REPEAT_NATIVE = frozenset(
+    {"image", "image2image", "image_face_swap", "image2video", "llm", "math", "music", "code"}
+)
 
 # Externals that read prompts as model input and should not pass them through.
 _PROMPT_CONSUMING = frozenset(

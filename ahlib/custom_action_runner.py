@@ -35,7 +35,7 @@ def cmd_complete(args: argparse.Namespace) -> int:
 
 def cmd_run(args: argparse.Namespace) -> int:
     from ahlib.custom_action_codegen import load_run_function
-    from ahlib.custom_action_env import ensure_venv, sync_imports_for_code
+    from ahlib.custom_action_env import ensure_imports_for_code, ensure_venv
 
     repo = Path(args.repo_root).resolve()
     run_py = Path(args.run_py).resolve()
@@ -45,7 +45,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     ensure_venv(repo)
     code = run_py.read_text(encoding="utf-8")
     if meta_path.is_file():
-        sync_imports_for_code(repo, code, meta_path)
+        ensure_imports_for_code(repo, code, meta_path)
+    else:
+        ensure_imports_for_code(repo, code, None)
 
     base = os.environ.get("AH_SESSION_BASE_DIR", "").strip()
     if not base:

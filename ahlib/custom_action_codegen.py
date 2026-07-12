@@ -49,18 +49,35 @@ OUTPUT FILES — use ahlib.custom_action_io helpers; they write under op_dir and
 to put in bundle[] (never invent a separate path string):
 
   from ahlib.custom_action_io import (
-      apply_db_gain, float_to_int16, save_wav, save_image, save_bytes,
+      apply_db_gain, float_to_int16, save_wav, save_image, save_bytes, save_text,
   )
 
   link = save_wav(base_dir, op_dir, "louder_0.wav", sample_rate, data)  # → sounds[]
   link = save_image(base_dir, op_dir, "crop_0.png", pil_image)          # → images[]
   link = save_bytes(base_dir, op_dir, "files", "out.bin", raw_bytes)    # → files[]
+  link = save_text(base_dir, op_dir, "prompts", "0.txt", prompt_text)    # → prompts[]
+
+VIDEOS — use moviepy (ffmpeg on PATH). Do NOT use save_bytes for .mp4/.webm; that helper is for
+files[] binary blobs only. Write under op_dir/videos/ and return a session-relative link string:
+
+  from pathlib import Path
+  from moviepy import VideoFileClip, concatenate_videoclips, AudioFileClip
+
+  dest = Path(op_dir) / "videos" / "joined_0.mp4"
+  dest.parent.mkdir(parents=True, exist_ok=True)
+  final.write_videofile(str(dest), codec="libx264", audio_codec="aac", logger=None)
+  link = dest.relative_to(Path(base_dir)).as_posix()   # → videos[]
+  final.close()   # and close every clip you opened
+
+MoviePy 2.x: subclipped(), with_audio(), with_fps(). MoviePy 1.x fallbacks: subclip(), set_audio().
+Always close clips in finally blocks. For concat: concatenate_videoclips(clips, method="compose").
 
 Read inputs with:  src = Path(base_dir) / link
 
 ALLOWED IMPORTS:
   ahlib.custom_action_io, json, math, re, pathlib.Path, shutil, uuid
   PIL / Pillow for images; numpy / scipy.io.wavfile for audio when needed
+  moviepy for video read/write/concat/mux (requires ffmpeg)
 
 FORBIDDEN (validation will reject):
   subprocess, os.system, socket, urllib, requests, httpx, eval, exec, compile,
@@ -106,7 +123,63 @@ EXAMPLES:
         out["sounds"] = new_sounds
         return out
 
-CRITICAL: append only the link string RETURNED by save_wav / save_image / save_bytes.
+4) Join videos[] into one MP4:
+    from pathlib import Path
+    from moviepy import VideoFileClip, concatenate_videoclips
+    def run(bundle, base_dir, op_dir):
+        root = Path(base_dir)
+        out = {k: list(bundle.get(k, [])) for k in
+               ("prompts","texts","images","sounds","videos","files","changes")}
+        clips = []
+        try:
+            for link in bundle.get("videos", []):
+                clips.append(VideoFileClip(str(root / link)))
+            if not clips:
+                return out
+            final = concatenate_videoclips(clips, method="compose")
+            clips.append(final)
+            dest = Path(op_dir) / "videos" / "joined_0.mp4"
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            final.write_videofile(str(dest), codec="libx264", audio_codec="aac", logger=None)
+            out["videos"] = [dest.relative_to(root).as_posix()]
+        finally:
+            for clip in clips:
+                clip.close()
+        return out
+
+5) Replace each video's audio with paired sounds[] (same length lists):
+    from pathlib import Path
+    from moviepy import AudioFileClip, VideoFileClip
+    def run(bundle, base_dir, op_dir):
+        root = Path(base_dir)
+        out = {k: list(bundle.get(k, [])) for k in
+               ("prompts","texts","images","sounds","videos","files","changes")}
+        new_videos = []
+        for video_link, sound_link in zip(bundle.get("videos", []), bundle.get("sounds", [])):
+            video = VideoFileClip(str(root / video_link))
+            audio = AudioFileClip(str(root / sound_link))
+            try:
+                end = min(video.duration, audio.duration)
+                if hasattr(video, "subclipped"):
+                    video = video.subclipped(0, end)
+                else:
+                    video = video.subclip(0, end)
+                if hasattr(video, "with_audio"):
+                    video = video.with_audio(audio)
+                else:
+                    video = video.set_audio(audio)
+                dest = Path(op_dir) / "videos" / f"synced_{len(new_videos)}.mp4"
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                video.write_videofile(str(dest), codec="libx264", audio_codec="aac", logger=None)
+                new_videos.append(dest.relative_to(root).as_posix())
+            finally:
+                video.close()
+                audio.close()
+        out["videos"] = new_videos
+        return out
+
+CRITICAL: append only the link string RETURNED by save_wav / save_image / save_bytes, or the
+relative path string for moviepy outputs under op_dir/videos/.
 Never build output paths by hand or call uuid.uuid4() for bundle links.
 
 Follow the user's specification exactly. Output ONLY Python source (no markdown fences, no prose).
@@ -128,11 +201,15 @@ ANTHILL DATA MODEL — required; do NOT reject correct code for misunderstanding
   STRINGS (links like "3__crop/images/0.png"), never raw bytes, PIL Image objects, numpy arrays,
   or open file handles in the returned dict.
 - When the spec says "return an image", "return the original image", "output a flipped image",
-  "return texts", etc., the handler MUST write files under op_dir (via save_image, save_wav,
-  save_bytes, or new_link-style helpers) and put the RETURNED LINK STRING into the matching
-  bundle array. That is the correct implementation — not a mismatch with the spec.
+  "return texts", "join videos", "concatenate clips", etc., the handler MUST write files under
+  op_dir (via save_image, save_wav, save_bytes, moviepy write_videofile, or equivalent) and put
+  the RETURNED LINK STRING into the matching bundle array. That is the correct implementation —
+  not a mismatch with the spec.
 - save_image(base_dir, op_dir, filename, pil_image) writes the file AND returns the link;
   appending that link to out["images"] correctly "returns" the image in Anthill's format.
+- For videos[], moviepy write_videofile to op_dir/videos/*.mp4 (or .webm) with a returned
+  relative link is CORRECT. Do NOT reject moviepy/ffmpeg for video output. Do NOT require
+  save_bytes for video files — save_bytes is for files[] only.
 - Saving under op_dir and returning those links is REQUIRED and CORRECT. Never mark ok:false
   because the code returns paths instead of embedding image/text data in the bundle.
 
@@ -145,9 +222,10 @@ Mark ok:false if the code:
 - Has no reasonable connection to the spec
 - Writes a file but returns a DIFFERENT path than was written (e.g. uuid.uuid4() called twice)
 
-Mark ok:true when outputs are saved with save_image / save_wav / save_bytes (or equivalent) and
-the same returned link strings are placed in bundle arrays, even if the spec describes results
-in plain language as "images" or "texts" rather than "paths".
+Mark ok:true when outputs are saved with save_image / save_wav / save_bytes, moviepy
+write_videofile under op_dir, or equivalent, and the same returned link strings are placed in
+bundle arrays, even if the spec describes results in plain language as "images" or "texts"
+rather than "paths".
 
 Minor style issues are fine if behavior matches the spec and paths stay under base_dir.
 """
@@ -163,6 +241,27 @@ _SAVE_WITHOUT_MKDIR_RE = re.compile(
 _APPEND_FRESH_UUID_RE = re.compile(
     r"""\.append\(\s*f?['"][^'"]*\{uuid\.uuid4\(\)\}"""
 )
+_BUNDLE_ARRAY_KEYS = (
+    "prompts",
+    "texts",
+    "images",
+    "sounds",
+    "videos",
+    "files",
+    "changes",
+)
+_LINK_ARRAY_KEYS = (
+    "prompts",
+    "texts",
+    "images",
+    "sounds",
+    "videos",
+    "files",
+)
+_FOR_BUNDLE_KEY_RE = re.compile(
+    r"""for\s+\w+\s+in\s+bundle(?:\.get\(\s*|\[\s*)['"](\w+)['"]"""
+)
+_SMOKE_HARD_ERRORS = (NameError, ImportError, ModuleNotFoundError)
 
 
 def _static_codegen_issues(code: str) -> str | None:
@@ -183,6 +282,185 @@ def _static_codegen_issues(code: str) -> str | None:
                     "Return the same rel path used for write(dest), "
                     "not a newly generated path"
                 )
+    return None
+
+
+def _iterated_bundle_keys(code: str) -> set[str]:
+    keys = set(_FOR_BUNDLE_KEY_RE.findall(code))
+    return keys & set(_BUNDLE_ARRAY_KEYS)
+
+
+def _empty_smoke_bundle() -> dict[str, list]:
+    return {k: [] for k in _BUNDLE_ARRAY_KEYS}
+
+
+def _write_smoke_text(base_dir: Path, rel: str, text: str) -> None:
+    dest = base_dir / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(text, encoding="utf-8")
+
+
+def _write_smoke_png(base_dir: Path, rel: str) -> None:
+    dest = base_dir / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        from PIL import Image
+    except ImportError:
+        # 1x1 RGB PNG
+        dest.write_bytes(
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+            b"\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc"
+            b"\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        return
+    Image.new("RGB", (2, 2), color=(1, 2, 3)).save(dest, format="PNG")
+
+
+def _write_smoke_wav(base_dir: Path, rel: str) -> None:
+    import struct
+    import wave
+
+    dest = base_dir / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(dest), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(44100)
+        wf.writeframes(struct.pack("<h", 0) * 100)
+
+
+def _write_smoke_bytes(base_dir: Path, rel: str, data: bytes = b"smoke") -> None:
+    dest = base_dir / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+
+
+def _fixture_smoke_bundle(code: str, base_dir: Path, op_tag: str) -> dict[str, list]:
+    bundle = _empty_smoke_bundle()
+    prefix = f"{op_tag}/smoke"
+    for key in _iterated_bundle_keys(code):
+        if key == "texts":
+            rel = f"{prefix}/sample.txt"
+            _write_smoke_text(base_dir, rel, "alpha\n\nbeta\n")
+            bundle["texts"] = [rel]
+        elif key == "images":
+            rel = f"{prefix}/sample.png"
+            _write_smoke_png(base_dir, rel)
+            bundle["images"] = [rel]
+        elif key == "sounds":
+            rel = f"{prefix}/sample.wav"
+            _write_smoke_wav(base_dir, rel)
+            bundle["sounds"] = [rel]
+        elif key == "files":
+            rel = f"{prefix}/sample.bin"
+            _write_smoke_bytes(base_dir, rel)
+            bundle["files"] = [rel]
+        elif key == "videos":
+            if "VideoFileClip" in code:
+                continue
+            rel = f"{prefix}/missing.mp4"
+            bundle["videos"] = [rel]
+        elif key == "prompts":
+            rel = f"{prefix}/prompt.txt"
+            _write_smoke_text(base_dir, rel, "smoke prompt")
+            bundle["prompts"] = [rel]
+    return bundle
+
+
+def _is_smoke_hard_failure(exc: BaseException) -> bool:
+    if isinstance(exc, _SMOKE_HARD_ERRORS):
+        return True
+    if isinstance(exc, TypeError):
+        msg = str(exc).lower()
+        if "run()" in msg or "required positional argument" in msg:
+            return True
+    return False
+
+
+def _smoke_output_link_issues(result: dict, base_dir: Path) -> str | None:
+    """Reject handlers that put inline text in link arrays instead of file paths."""
+    root = Path(base_dir)
+    for key in _LINK_ARRAY_KEYS:
+        for link in result.get(key, []):
+            if not isinstance(link, str):
+                return f"smoke output: {key}[] values must be strings"
+            if not link.strip():
+                continue
+            if "\n" in link or "\r" in link:
+                return (
+                    f"smoke output: {key}[] must hold session file links, "
+                    "not inline multiline text"
+                )
+            path = root / link
+            if path.is_file():
+                continue
+            if key in ("prompts", "texts") and "/" not in link and "\\" not in link:
+                return (
+                    f"smoke output: {key}[] must hold session file links, "
+                    f"not inline text ({link[:48]!r})"
+                )
+    return None
+
+
+def _smoke_run_once(
+    code: str,
+    bundle: dict[str, list],
+    *,
+    base_dir: Path,
+    op_dir: Path,
+) -> str | None:
+    import inspect
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        run_py = Path(tmp) / "run.py"
+        run_py.write_text(code, encoding="utf-8")
+        try:
+            run_fn = load_run_function(run_py)
+        except Exception as exc:
+            return f"smoke load failed: {type(exc).__name__}: {exc}"
+
+        params = list(inspect.signature(run_fn).parameters)
+        args: list[Any] = [bundle, str(base_dir.resolve())]
+        if len(params) >= 3:
+            args.append(str(op_dir.resolve()))
+
+        try:
+            result = run_fn(*args)
+        except Exception as exc:
+            if _is_smoke_hard_failure(exc):
+                return f"smoke execution failed: {type(exc).__name__}: {exc}"
+            return None
+
+    if not isinstance(result, dict):
+        return (
+            f"smoke execution failed: run() returned "
+            f"{type(result).__name__}, expected dict"
+        )
+    return _smoke_output_link_issues(result, base_dir)
+
+
+def smoke_execution_issues(code: str) -> str | None:
+    """Run handler with empty and fixture bundles; catch import/name errors."""
+    import tempfile
+
+    if "def run" not in code:
+        return "missing def run()"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        base_dir = Path(tmp) / "session"
+        op_dir = base_dir / "1__smoke"
+        op_dir.mkdir(parents=True)
+
+        for bundle in (
+            _empty_smoke_bundle(),
+            _fixture_smoke_bundle(code, base_dir, "1__smoke"),
+        ):
+            err = _smoke_run_once(
+                code, bundle, base_dir=base_dir, op_dir=op_dir
+            )
+            if err:
+                return err
     return None
 
 
@@ -514,13 +792,15 @@ def check_generated_code(
     if static:
         return False, static, ""
 
+    smoke = smoke_execution_issues(code)
+    if smoke:
+        return False, smoke, ""
+
     prompt = (
         f"SPECIFICATION:\n{spec.strip()}\n\n"
         f"GENERATED PYTHON:\n{code}\n"
     )
     if os.environ.get("AH_EMULATE_CODE", "").lower() in ("1", "true", "yes"):
-        if "def run" not in code:
-            return False, "missing def run()", ""
         forbidden = ("subprocess", "os.system", "eval(", "exec(", "__import__")
         for token in forbidden:
             if token in code:
@@ -588,7 +868,7 @@ def run_handler_subprocess(
     """Execute run.py inside the custom-actions venv."""
     from ahlib.ah_runtime import ArrayBundle
     from ahlib.custom_action_env import _subprocess_env as env_builder
-    from ahlib.custom_action_env import ensure_venv, sync_imports_for_code
+    from ahlib.custom_action_env import ensure_imports_for_code, ensure_venv
 
     import subprocess
 
@@ -612,7 +892,9 @@ def run_handler_subprocess(
     meta_path = run_py.parent / "meta.json"
     code = run_py.read_text(encoding="utf-8")
     if meta_path.is_file():
-        sync_imports_for_code(repo_root, code, meta_path)
+        ensure_imports_for_code(repo_root, code, meta_path)
+    else:
+        ensure_imports_for_code(repo_root, code, None)
 
     from ahlib.custom_action_env import venv_python
 
@@ -679,16 +961,20 @@ def generate_and_store(
         if meta.get("prompt_hash") == digest and meta.get("prompt") == spec:
             print(f"&{name}: using cached handler {run_py}", file=sys.stderr, flush=True)
             ensure_run_py_fixups(run_py)
+            cached_code = run_py.read_text(encoding="utf-8")
+            smoke = smoke_execution_issues(cached_code)
+            if smoke:
+                raise ValueError(f"Custom action cached handler failed smoke test: {smoke}")
             if _use_custom_venv() and run_py.is_file():
                 from ahlib.custom_action_env import sync_imports_for_code
 
                 sync_imports_for_code(
-                    repo_root, run_py.read_text(encoding="utf-8"), meta_path
+                    repo_root, cached_code, meta_path
                 )
             if op_dir is not None:
                 write_custom_code_log(
                     op_dir,
-                    run_py.read_text(encoding="utf-8"),
+                    cached_code,
                     name=name,
                     spec=spec,
                     handler_path=run_py,

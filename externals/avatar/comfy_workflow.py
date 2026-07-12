@@ -19,7 +19,9 @@ from externals.avatar.model_paths import (
     default_attention_mode,
     fit_avatar_resolution,
     resolve_blocks_to_swap,
+    resolve_drop_frames,
     resolve_force_offload,
+    resolve_motion_frame,
     resolve_tiled_vae,
     resolve_wan_load_device,
 )
@@ -154,8 +156,9 @@ def build_avatar_prompt(
     fps: float = 24.0,
     num_frames: int = 400,
     frame_window_size: int = 81,
-    motion_frame: int = 5,
-    drop_frames: int = 12,
+    motion_frame: int | None = None,
+    drop_frames: int | None = None,
+    use_reference_video: bool = False,
     wan_model: str = DEFAULT_WAN_MODEL,
     vae_name: str = DEFAULT_VAE,
     text_encoder: str = DEFAULT_TEXT_ENCODER,
@@ -194,8 +197,8 @@ def build_avatar_prompt(
         fps=fps,
         num_frames=num_frames,
         frame_window_size=frame_window_size,
-        motion_frame=motion_frame,
-        drop_frames=drop_frames,
+        motion_frame=resolve_motion_frame(motion_frame),
+        drop_frames=resolve_drop_frames(drop_frames),
         wan_model=wan_model,
         vae_name=vae_name,
         text_encoder=text_encoder,
@@ -204,6 +207,20 @@ def build_avatar_prompt(
         blocks_to_swap=blocks_to_swap,
         tiled_vae=tiled_vae,
     )
+
+    skyreels = next(
+        (n for n in wf.values() if n.get("class_type") == "WanVideoImageToVideoSkyreelsv3_audio"),
+        None,
+    )
+    if skyreels is not None:
+        inputs = skyreels.setdefault("inputs", {})
+        inputs.pop("reference_video", None)
+        if use_reference_video:
+            wf["avatar_reference"] = {
+                "inputs": {},
+                "class_type": "AnthillAvatarReferenceVideo",
+            }
+            inputs["reference_video"] = ["avatar_reference", 0]
 
     for nid, node in wf.items():
         if node.get("class_type") != "LoadImage":

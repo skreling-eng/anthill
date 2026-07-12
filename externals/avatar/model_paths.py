@@ -174,6 +174,48 @@ def configure_avatar_tiled_vae_for_job(args: dict) -> bool | None:
     return override
 
 
+def resolve_motion_frame(override: int | None = None) -> int:
+    """Overlap frames between multitalk windows (Comfy SkyReels default: 5)."""
+    if override is not None:
+        return max(1, override)
+    raw = os.environ.get("AVATAR_MOTION_FRAME", "").strip()
+    if raw:
+        return max(1, int(raw))
+    return 5
+
+
+def resolve_drop_frames(override: int | None = None) -> int:
+    """Frames dropped at each window tail before stitching (Comfy default: 12)."""
+    if override is not None:
+        return max(0, override)
+    raw = os.environ.get("AVATAR_DROP_FRAMES", "").strip()
+    if raw:
+        return max(0, int(raw))
+    return 12
+
+
+def skyreels_frame_count(frame_window_size: int) -> int:
+    """Pixel frames per SkyReels window (matches WanVideoImageToVideoSkyreelsv3_audio)."""
+    return ((frame_window_size - 1) // 4) * 4 + 1
+
+
+def needs_avatar_reference_pass(num_frames: int, frame_window_size: int) -> bool:
+    """True when audio exceeds one SkyReels window and pass-2 reference_video helps."""
+    return num_frames > skyreels_frame_count(frame_window_size)
+
+
+def resolve_use_reference_pass(override: bool | None = None) -> bool:
+    """Two-pass anchor + reference_video extension (SkyReels long-form recipe)."""
+    if override is not None:
+        return override
+    raw = os.environ.get("AVATAR_REFERENCE_PASS", "").strip().lower()
+    if raw in ("0", "false", "no", "off"):
+        return False
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    return True
+
+
 def _default_max_area() -> int | None:
     raw = os.environ.get("AVATAR_MAX_AREA", "").strip()
     if raw in ("0", "false", "no", "off", "none"):

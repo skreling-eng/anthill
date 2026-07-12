@@ -68,7 +68,7 @@ def _image_paths(ctx: ExternalContext, bundle: ArrayBundle) -> list[Path]:
 
 
 def _repeat_count(inp: ExternalInput) -> int:
-    """Variants per image job ($image2image(...)[n])."""
+    """Variants per (image, prompt) pair ($image2image(...)[n])."""
     return max(1, inp.repeat) if inp.repeat > 0 else 1
 
 
@@ -80,16 +80,9 @@ def _read_prompt_list(ctx: ExternalContext, inp: ExternalInput) -> list[str]:
     return read_prompt_texts(ctx, inp)
 
 
-def _align_prompts(prompts: list[str], count: int) -> list[str]:
-    if not prompts:
-        return [""] * count
-    if len(prompts) == 1:
-        return [prompts[0]] * count
-    if len(prompts) >= count:
-        return prompts[:count]
-    padded = list(prompts)
-    padded.extend([prompts[-1]] * (count - len(prompts)))
-    return padded
+def _job_prompts(prompts: list[str]) -> list[str]:
+    """At least one prompt slot so every image still runs when prompts[] is empty."""
+    return prompts if prompts else [""]
 
 
 def _build_edit_jobs(
@@ -99,20 +92,21 @@ def _build_edit_jobs(
     use_all: bool,
     repeat: int,
 ) -> list[tuple[list[Path], str]]:
-    """(image batch, prompt) jobs including repeat variants."""
+    """(image batch, prompt) jobs: images × prompts × repeat (use_all: one batch per prompt)."""
     jobs: list[tuple[list[Path], str]] = []
+    prompt_list = _job_prompts(prompts)
     if use_all:
         batch = image_paths[:_MAX_USE_ALL_IMAGES]
         if len(batch) > _MAX_COMFY_ENCODE_IMAGES:
             batch = batch[:_MAX_COMFY_ENCODE_IMAGES]
-        prompt = _align_prompts(prompts, 1)[0]
-        for _ in range(repeat):
-            jobs.append((batch, prompt))
+        for job_prompt in prompt_list:
+            for _ in range(repeat):
+                jobs.append((batch, job_prompt))
         return jobs
-    aligned = _align_prompts(prompts, len(image_paths))
-    for image_path, job_prompt in zip(image_paths, aligned):
-        for _ in range(repeat):
-            jobs.append(([image_path], job_prompt))
+    for image_path in image_paths:
+        for job_prompt in prompt_list:
+            for _ in range(repeat):
+                jobs.append(([image_path], job_prompt))
     return jobs
 
 
@@ -246,7 +240,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     if repeat > 1:
         print(
             f"$image2image: repeat={repeat} → {len(jobs)} edit job(s) "
-            f"(single worker, prompts read once)",
+            f"(images × prompts × repeat)",
             flush=True,
         )
 

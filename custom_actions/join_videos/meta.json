@@ -1,0 +1,13 @@
+{
+  "name": "join_videos",
+  "prompt": "you need to take all input videos and join into one output video",
+  "prompt_hash": "6200447433621a2983ff9081b68d45ef44c08afe8ed67ffe232209598160cae9",
+  "model": "default",
+  "venv": ".venvs/custom_actions",
+  "imports": [
+    "moviepy"
+  ],
+  "pypi_packages": [
+    "moviepy"
+  ]
+}

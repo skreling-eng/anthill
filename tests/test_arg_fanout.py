@@ -69,6 +69,7 @@ class TestArgFanoutRuntime(unittest.TestCase):
             "AH_EMULATE_IMAGE2TEXT",
             "AH_EMULATE_FILE",
             "AH_EMULATE_IMAGE",
+            "AH_EMULATE_IMAGE2VIDEO",
             "AH_EXTERNAL_INPROCESS",
             "AH_EXTERNAL_SUBPROCESS",
         ):
@@ -87,6 +88,27 @@ a cat
         ]
         self.assertEqual(len(invokes), 1)
         self.assertEqual(invokes[0].get("repeat"), 5)
+
+    def test_image2video_native_repeat_single_invoke(self) -> None:
+        os.environ["AH_EMULATE_IMAGE2VIDEO"] = "1"
+        try:
+            source = """
+@img: $file('photo.png')
+
+@run: @img -> $image2video[10]
+Animate gently
+"""
+            out, session_dir = _run(source, "run", inprocess="file,image2video")
+            invokes = [
+                json.loads(p.read_text(encoding="utf-8"))
+                for p in sorted(session_dir.rglob("invoke.json"))
+                if "__image2video" in p.parent.name.replace("\\", "/")
+            ]
+            self.assertEqual(len(invokes), 1)
+            self.assertEqual(invokes[0].get("repeat"), 10)
+            self.assertEqual(len(out.videos), 10)
+        finally:
+            os.environ.pop("AH_EMULATE_IMAGE2VIDEO", None)
 
     def test_image2text_model_at_ref_matches_parallel(self) -> None:
         source = """

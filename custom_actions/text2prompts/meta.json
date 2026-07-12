@@ -1,0 +1,9 @@
+{
+  "name": "text2prompts",
+  "prompt": "- take input texts[] and split them by empty lines into list\n- delete all elements where you don't find English letters\n- return this list into prompts[]",
+  "prompt_hash": "7446f2c47d67772d305f7533ef49d1a032bbc9d5de7391b879e0869e71752ef1",
+  "model": "default",
+  "venv": ".venvs/custom_actions",
+  "imports": [],
+  "pypi_packages": []
+}

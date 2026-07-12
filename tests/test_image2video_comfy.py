@@ -11,6 +11,7 @@ from externals.image2video.comfy_workflow import (
     load_i2v_workflow,
     resolve_output_size,
 )
+from ahlib.ah_runtime import ArrayBundle
 
 
 class TestI2VOutputSize(unittest.TestCase):
@@ -83,6 +84,62 @@ class TestI2VWorkflow(unittest.TestCase):
                 and "negative" not in (n.get("_meta") or {}).get("title", "").lower()
             )
             self.assertEqual(pos["inputs"]["text"], "woman running")
+
+
+class TestImage2VideoRepeat(unittest.TestCase):
+    def test_repeat_emulate_produces_n_videos(self) -> None:
+        import os
+
+        from ahlib.ah_runtime import ArrayBundle, Session, create_session_dir
+        from externals.api import ExternalContext, ExternalInput
+        from externals.image2video.run import run
+
+        os.environ["AH_EMULATE_IMAGE2VIDEO"] = "1"
+        try:
+            session_dir = create_session_dir(Path("sessions"))
+            session = Session(session_dir)
+            op_dir = session.next_op_dir("image2video")
+            image_path = op_dir / "images" / "start.png"
+            image_path.parent.mkdir(parents=True, exist_ok=True)
+            image_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * 64)
+            rel = str(image_path.relative_to(session_dir)).replace("\\", "/")
+            ctx = ExternalContext(session=session, op_dir=op_dir)
+            inp = ExternalInput(
+                bundle=ArrayBundle(images=[rel], prompts=["move"]),
+                args={"seed": "42"},
+                prompt_text="move",
+                repeat=10,
+            )
+            out = run(ctx, inp)
+            self.assertEqual(len(out.videos), 10)
+        finally:
+            os.environ.pop("AH_EMULATE_IMAGE2VIDEO", None)
+
+    def test_seed_offsets_when_explicit(self) -> None:
+        from externals.api import ExternalInput
+        from externals.image2video.run import _seed_for_output
+
+        inp = ExternalInput(
+            bundle=ArrayBundle(),
+            args={"seed": "42"},
+            prompt_text="",
+            repeat=10,
+        )
+        self.assertEqual(_seed_for_output(inp, 0), 42)
+        self.assertEqual(_seed_for_output(inp, 9), 51)
+
+    def test_seed_random_when_omitted(self) -> None:
+        from externals.api import ExternalInput
+        from externals.image2video.run import _seed_for_output
+
+        inp = ExternalInput(
+            bundle=ArrayBundle(),
+            args={},
+            prompt_text="",
+            repeat=10,
+        )
+        seeds = {_seed_for_output(inp, i) for i in range(20)}
+        self.assertGreater(len(seeds), 1)
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ INPUT
   prompts[] — edit instruction (or instruction body / prompt= arg)
 
 OUTPUT
-  images[] — one output per job (see use_all; repeat adds variants per image)
+  images[] — one output per job (images × prompts × [n]; use_all is prompts × [n])
 
 ARGUMENTS
   use_all=  — when true, send up to 3 reference images into one edit job (Comfy encode limit)
@@ -29,7 +29,7 @@ ARGUMENTS
   height=   — output height (default: input image height, snapped to 8px)
   steps=    — inference steps (default 4 for klein-fp8 distilled; 20 for klein base)
   seed=     — fixed seed; omit for random per job; with repeat, seed+0..n-1 per variant
-  [n]       — repeat variants per image (encode once, n samples; same prompt+image)
+  [n]       — repeat variants per (image, prompt) pair (encode once, n samples when grouped)
 
 MODELS
   sfw-v23  — Qwen-Rapid-AIO-SFW-v23.safetensors (default)

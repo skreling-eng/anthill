@@ -8,7 +8,13 @@ from datetime import datetime
 from pathlib import Path
 
 from externals.api import ExternalContext, ExternalInput, read_prompt_texts
-from externals.avatar.model_paths import DEFAULT_NEGATIVE_PROMPT, audio_frame_budget
+from externals.avatar.model_paths import (
+    DEFAULT_NEGATIVE_PROMPT,
+    audio_frame_budget,
+    resolve_drop_frames,
+    resolve_motion_frame,
+    resolve_use_reference_pass,
+)
 from ahlib.ah_runtime import ArrayBundle
 
 _SOUND_EXTS = {".wav", ".mp3", ".flac", ".ogg", ".m4a"}
@@ -31,6 +37,17 @@ def _optional_float(args: dict[str, str], key: str) -> float | None:
     if not raw:
         return None
     return float(raw)
+
+
+def _optional_bool(args: dict[str, str], key: str) -> bool | None:
+    raw = args.get(key, "").strip().lower()
+    if not raw:
+        return None
+    if raw in ("0", "false", "no", "off"):
+        return False
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    raise ValueError(f"$avatar: {key}= must be 0/1 or true/false, got {raw!r}")
 
 
 def _int_arg(args: dict[str, str], key: str, default: int) -> int:
@@ -162,8 +179,11 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     num_frames = _optional_int(inp.args, "frames") or _int_arg(inp.args, "max_frames", 400)
     blocks_to_swap = _optional_int(inp.args, "blocks_to_swap")
     frame_window = _int_arg(inp.args, "frame_window", 81)
-    motion_frame = _int_arg(inp.args, "motion_frame", 5)
-    drop_frames = _int_arg(inp.args, "drop_frames", 12)
+    motion_frame = resolve_motion_frame(_optional_int(inp.args, "motion_frame"))
+    drop_frames = resolve_drop_frames(_optional_int(inp.args, "drop_frames"))
+    reference_pass = resolve_use_reference_pass(
+        _optional_bool(inp.args, "reference_pass")
+    )
     cfg = _optional_float(inp.args, "cfg") or 1.0
     fps = _int_arg(inp.args, "fps", 24)
     workflow_ref = inp.args.get("workflow", inp.args.get("json", "")).strip()
@@ -230,6 +250,7 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
                 frame_window_size=frame_window,
                 motion_frame=motion_frame,
                 drop_frames=drop_frames,
+                reference_pass=reference_pass,
                 cfg=cfg,
                 fps=fps,
                 workflow_ref=workflow_ref,

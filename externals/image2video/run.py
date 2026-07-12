@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import os
+import random
 import re
 import shutil
 from datetime import datetime
 from pathlib import Path
 
 from externals.api import ExternalContext, ExternalInput, read_arg_list, read_prompt_texts
+from externals.comfy.client import SEED_MAX, SEED_MIN
 from externals.image2video.comfy_workflow import resolve_output_size
 from externals.image2video.model_list import DEFAULT_NEGATIVE_PROMPT
 from ahlib.ah_runtime import ArrayBundle
@@ -18,6 +20,32 @@ def _output_name(model: str, index: int) -> str:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe = re.sub(r"[^\w.-]", "_", model)
     return f"{ts}_{safe}_i2v_{index}.mp4"
+
+
+def _repeat_count(inp: ExternalInput) -> int:
+    """Variants per input image ($image2video(...)[n] or count= arg)."""
+    if inp.repeat > 1:
+        return inp.repeat
+    return max(1, int(inp.args.get("count", "1")))
+
+
+def _resolve_job_seed(inp: ExternalInput) -> int | None:
+    raw = inp.args.get("seed", "").strip()
+    if not raw:
+        return None
+    return int(raw)
+
+
+def _seed_for_output(inp: ExternalInput, output_index: int) -> int:
+    """Seed for one output video.
+
+    With seed= set: seed+0, seed+1, … (reproducible sweep).
+    Without seed=: independent random per output (parallel-safe).
+    """
+    explicit = _resolve_job_seed(inp)
+    if explicit is not None:
+        return explicit + output_index
+    return random.randint(SEED_MIN, SEED_MAX)
 
 
 def _truthy(val: str) -> bool:
@@ -92,22 +120,25 @@ def _emulate(
     model: str,
     prompt: str,
     images: list[Path],
+    repeat: int,
 ) -> None:
     for image_path in images:
-        content = (
-            f"[emulated $image2video model={model}]\n"
-            f"prompt: {prompt}\n"
-            f"start_image: {image_path.name}\n"
-        )
-        out.videos.append(ctx.new_link("videos", ".mp4", content.encode("utf-8")))
-    if not images and prompt:
-        out.videos.append(
-            ctx.new_link(
-                "videos",
-                ".mp4",
-                f"[emulated $image2video]\n{prompt}\n".encode("utf-8"),
+        for vi in range(repeat):
+            content = (
+                f"[emulated $image2video model={model} variant={vi}]\n"
+                f"prompt: {prompt}\n"
+                f"start_image: {image_path.name}\n"
             )
-        )
+            out.videos.append(ctx.new_link("videos", ".mp4", content.encode("utf-8")))
+    if not images and prompt:
+        for vi in range(repeat):
+            out.videos.append(
+                ctx.new_link(
+                    "videos",
+                    ".mp4",
+                    f"[emulated $image2video variant={vi}]\n{prompt}\n".encode("utf-8"),
+                )
+            )
 
 
 def _resolve_backend(inp: ExternalInput) -> str:
@@ -145,7 +176,8 @@ def _run_comfy_lib(
     steps = _optional_int(inp.args, "steps")
     guidance = _optional_float(inp.args, "guidance", "cfg")
     frames = _optional_int(inp.args, "frames")
-    seed = _optional_int(inp.args, "seed") or 0
+    explicit_seed = _resolve_job_seed(inp)
+    repeat = _repeat_count(inp)
     neg = inp.args.get("neg", inp.args.get("negative_prompt", ""))
 
     work_dir = ctx.op_dir / "comfy_work"
@@ -180,71 +212,82 @@ def _run_comfy_lib(
             job_frames = int(raw_frames)
 
         for image_path in image_paths:
-            if ctx.cancel_event is not None and ctx.cancel_event.is_set():
-                from ahlib.ah_runtime import RuntimeCancelled
-
-                raise RuntimeCancelled("$image2video cancelled")
-            job_width, job_height = resolve_output_size(
-                image_path, width=width, height=height
-            )
-            from externals.comfy_inprocess.memory_guard import apply_wan_memory_limits
-
-            req_w, req_h, req_f = job_width, job_height, job_frames
-            job_width, job_height, job_frames = apply_wan_memory_limits(
-                width=job_width,
-                height=job_height,
-                num_frames=job_frames,
-                mega=is_mega_model(model_name),
-            )
-            if (req_w, req_h, req_f) != (job_width, job_height, job_frames):
+            if repeat > 1:
+                if explicit_seed is not None:
+                    seed_note = f"seeds {explicit_seed}..{explicit_seed + repeat - 1}"
+                else:
+                    seed_note = "random seed per output"
                 print(
-                    f"$image2video: VRAM cap applied "
-                    f"(requested {req_w}x{req_h}, {req_f} frames → "
-                    f"{job_width}x{job_height}, {job_frames} frames; "
-                    "WAN_I2V_AUTO_CAP=0 to disable).",
+                    f"$image2video: repeat={repeat} for {image_path.name} ({seed_note})",
                     flush=True,
                 )
-            out_path = videos_dir / _output_name(model_name, track)
-            run_seed = seed + track if seed else seed
-            extras: list[str] = []
-            if os.environ.get("WAN_I2V_TILED_VAE", "").strip().lower() in (
-                "1",
-                "true",
-                "yes",
-                "on",
-            ):
-                extras.append("tiled_vae=1")
-            vram_mode = os.environ.get("WAN_I2V_VRAM", "").strip().lower()
-            if vram_mode and vram_mode not in ("normal", "default", "off", "0"):
-                extras.append(f"vram={vram_mode}")
-            extra_note = (" " + " ".join(extras)) if extras else ""
-            print(
-                f"$image2video: I2V {track + 1} model={model_name} "
-                f"{job_width}x{job_height} frames={job_frames} steps={job_steps}{extra_note}",
-                flush=True,
-            )
-            workflow_ref = (
-                inp.args.get("workflow", "").strip()
-                or inp.args.get("json", "").strip()
-            )
-            run_comfy_i2v(
-                work_dir=work_dir,
-                image_path=image_path,
-                prompt=prompt,
-                output_path=out_path,
-                model_arg=model_name,
-                steps=job_steps,
-                seed=run_seed,
-                width=job_width,
-                height=job_height,
-                num_frames=job_frames,
-                negative_prompt=neg or DEFAULT_NEGATIVE_PROMPT,
-                guidance=job_guidance,
-                fps=profile.fps,
-                workflow_ref=workflow_ref,
-            )
-            out.videos.append(_path_to_link(ctx, out_path))
-            track += 1
+            for _vi in range(repeat):
+                if ctx.cancel_event is not None and ctx.cancel_event.is_set():
+                    from ahlib.ah_runtime import RuntimeCancelled
+
+                    raise RuntimeCancelled("$image2video cancelled")
+                job_width, job_height = resolve_output_size(
+                    image_path, width=width, height=height
+                )
+                from externals.comfy_inprocess.memory_guard import apply_wan_memory_limits
+
+                req_w, req_h, req_f = job_width, job_height, job_frames
+                job_width, job_height, job_frames = apply_wan_memory_limits(
+                    width=job_width,
+                    height=job_height,
+                    num_frames=job_frames,
+                    mega=is_mega_model(model_name),
+                )
+                if (req_w, req_h, req_f) != (job_width, job_height, job_frames):
+                    print(
+                        f"$image2video: VRAM cap applied "
+                        f"(requested {req_w}x{req_h}, {req_f} frames → "
+                        f"{job_width}x{job_height}, {job_frames} frames; "
+                        "WAN_I2V_AUTO_CAP=0 to disable).",
+                        flush=True,
+                    )
+                out_path = videos_dir / _output_name(model_name, track)
+                run_seed = _seed_for_output(inp, track)
+                extras: list[str] = []
+                if os.environ.get("WAN_I2V_TILED_VAE", "").strip().lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                    "on",
+                ):
+                    extras.append("tiled_vae=1")
+                vram_mode = os.environ.get("WAN_I2V_VRAM", "").strip().lower()
+                if vram_mode and vram_mode not in ("normal", "default", "off", "0"):
+                    extras.append(f"vram={vram_mode}")
+                extra_note = (" " + " ".join(extras)) if extras else ""
+                print(
+                    f"$image2video: I2V {track + 1} model={model_name} "
+                    f"{job_width}x{job_height} frames={job_frames} steps={job_steps} "
+                    f"seed={run_seed}{extra_note}",
+                    flush=True,
+                )
+                workflow_ref = (
+                    inp.args.get("workflow", "").strip()
+                    or inp.args.get("json", "").strip()
+                )
+                run_comfy_i2v(
+                    work_dir=work_dir,
+                    image_path=image_path,
+                    prompt=prompt,
+                    output_path=out_path,
+                    model_arg=model_name,
+                    steps=job_steps,
+                    seed=run_seed,
+                    width=job_width,
+                    height=job_height,
+                    num_frames=job_frames,
+                    negative_prompt=neg or DEFAULT_NEGATIVE_PROMPT,
+                    guidance=job_guidance,
+                    fps=profile.fps,
+                    workflow_ref=workflow_ref,
+                )
+                out.videos.append(_path_to_link(ctx, out_path))
+                track += 1
 
 
 def _run_diffusers(
@@ -271,7 +314,8 @@ def _run_diffusers(
     steps = _optional_int(inp.args, "steps")
     guidance = _optional_float(inp.args, "guidance", "cfg")
     frames = _optional_int(inp.args, "frames")
-    seed = _int_arg(inp.args, "seed", 0)
+    explicit_seed = _resolve_job_seed(inp)
+    repeat = _repeat_count(inp)
     neg = inp.args.get("neg", inp.args.get("negative_prompt", ""))
     attn = (
         inp.args.get("attn", "").strip()
@@ -286,24 +330,25 @@ def _run_diffusers(
     for model_name in models:
         video_model = get_video_model(model_name)
         for image_path in image_paths:
-            out_path = videos_dir / _output_name(model_name, track)
-            run_seed = seed + track if seed else seed
-            wan_i2v.generate(
-                video_model,
-                image_path=image_path,
-                prompt=prompt,
-                output_path=out_path,
-                negative_prompt=neg or DEFAULT_NEGATIVE_PROMPT,
-                seed=run_seed,
-                width=width,
-                height=height,
-                num_inference_steps=steps,
-                guidance_scale=guidance,
-                num_frames=frames,
-                attn=attn,
-            )
-            out.videos.append(_path_to_link(ctx, out_path))
-            track += 1
+            for _vi in range(repeat):
+                out_path = videos_dir / _output_name(model_name, track)
+                run_seed = _seed_for_output(inp, track)
+                wan_i2v.generate(
+                    video_model,
+                    image_path=image_path,
+                    prompt=prompt,
+                    output_path=out_path,
+                    negative_prompt=neg or DEFAULT_NEGATIVE_PROMPT,
+                    seed=run_seed,
+                    width=width,
+                    height=height,
+                    num_inference_steps=steps,
+                    guidance_scale=guidance,
+                    num_frames=frames,
+                    attn=attn,
+                )
+                out.videos.append(_path_to_link(ctx, out_path))
+                track += 1
 
 
 def _run_comfy_api(
@@ -322,7 +367,8 @@ def _run_comfy_api(
     height = _optional_int(inp.args, "height")
     steps = _optional_int(inp.args, "steps")
     guidance = _optional_float(inp.args, "guidance", "cfg")
-    seed = _int_arg(inp.args, "seed", 0)
+    explicit_seed = _resolve_job_seed(inp)
+    repeat = _repeat_count(inp)
     neg = inp.args.get("neg", inp.args.get("negative_prompt", ""))
 
     videos_dir = ctx.op_dir / "videos"
@@ -332,21 +378,22 @@ def _run_comfy_api(
     for model_name in models:
         profile = get_video_model(model_name)
         for image_path in image_paths:
-            out_path = videos_dir / _output_name(model_name, track)
-            run_seed = seed + track if seed else seed
-            generate_via_comfy(
-                image_path=image_path,
-                prompt=prompt,
-                output_path=out_path,
-                negative_prompt=neg or DEFAULT_NEGATIVE_PROMPT,
-                seed=run_seed,
-                steps=steps,
-                guidance_scale=guidance,
-                width=width,
-                height=height,
-            )
-            out.videos.append(_path_to_link(ctx, out_path))
-            track += 1
+            for _vi in range(repeat):
+                out_path = videos_dir / _output_name(model_name, track)
+                run_seed = _seed_for_output(inp, track)
+                generate_via_comfy(
+                    image_path=image_path,
+                    prompt=prompt,
+                    output_path=out_path,
+                    negative_prompt=neg or DEFAULT_NEGATIVE_PROMPT,
+                    seed=run_seed,
+                    steps=steps,
+                    guidance_scale=guidance,
+                    width=width,
+                    height=height,
+                )
+                out.videos.append(_path_to_link(ctx, out_path))
+                track += 1
         _ = profile
 
 
@@ -379,13 +426,27 @@ def run(ctx: ExternalContext, inp: ExternalInput) -> ArrayBundle:
     backend = _resolve_backend(inp)
 
     if _emulate_enabled():
-        _emulate(ctx, out, model=models[0], prompt=prompt, images=image_paths)
+        _emulate(
+            ctx,
+            out,
+            model=models[0],
+            prompt=prompt,
+            images=image_paths,
+            repeat=_repeat_count(inp),
+        )
         out.images.clear()
         return out
 
     if not image_paths:
         if prompt:
-            _emulate(ctx, out, model=models[0], prompt=prompt, images=[])
+            _emulate(
+                ctx,
+                out,
+                model=models[0],
+                prompt=prompt,
+                images=[],
+                repeat=_repeat_count(inp),
+            )
         out.images.clear()
         return out
 

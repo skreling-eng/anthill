@@ -13,6 +13,9 @@ from externals.avatar.model_paths import (
     configure_avatar_tiled_vae_for_job,
     fit_avatar_resolution,
     resolve_defer_transformer_load,
+    resolve_drop_frames,
+    resolve_motion_frame,
+    resolve_seam_blend_frames,
     resolve_tiled_vae,
 )
 from externals.api import ExternalContext, ExternalInput
@@ -123,6 +126,78 @@ class TestAvatarExternal(unittest.TestCase):
                 n for n in wf.values() if n.get("class_type") == "WanVideoSamplerv2"
             )
             self.assertTrue(sampler["inputs"]["force_offload"])
+
+    def test_build_avatar_prompt_patches_skyreels_window_defaults(self) -> None:
+        os.environ.pop("AVATAR_MOTION_FRAME", None)
+        os.environ.pop("AVATAR_DROP_FRAMES", None)
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            image = tmp_path / "face.png"
+            audio = tmp_path / "voice.wav"
+            image.write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * 64)
+            audio.write_bytes(b"RIFF" + b"\x00" * 40)
+            wf, _ = build_avatar_prompt(
+                prompt="talk",
+                negative_prompt="bad",
+                image_path=image,
+                audio_path=audio,
+                input_dir=tmp_path / "input",
+                seed=42,
+                width=480,
+                height=832,
+            )
+            skyreels = next(
+                n
+                for n in wf.values()
+                if n.get("class_type") == "WanVideoImageToVideoSkyreelsv3_audio"
+            )
+            self.assertEqual(skyreels["inputs"]["motion_frame"], 13)
+            self.assertEqual(skyreels["inputs"]["drop_frames"], 2)
+            self.assertEqual(skyreels["inputs"]["seam_blend_frames"], 8)
+
+    def test_resolve_motion_frame_and_drop_frames(self) -> None:
+        os.environ.pop("AVATAR_MOTION_FRAME", None)
+        os.environ.pop("AVATAR_DROP_FRAMES", None)
+        os.environ.pop("AVATAR_SEAM_BLEND", None)
+        self.assertEqual(resolve_motion_frame(), 13)
+        self.assertEqual(resolve_drop_frames(), 2)
+        self.assertEqual(resolve_seam_blend_frames(), 8)
+        self.assertEqual(resolve_motion_frame(12), 12)
+        self.assertEqual(resolve_drop_frames(0), 0)
+        os.environ["AVATAR_MOTION_FRAME"] = "7"
+        os.environ["AVATAR_DROP_FRAMES"] = "2"
+        try:
+            self.assertEqual(resolve_motion_frame(), 7)
+            self.assertEqual(resolve_drop_frames(), 2)
+        finally:
+            os.environ.pop("AVATAR_MOTION_FRAME", None)
+            os.environ.pop("AVATAR_DROP_FRAMES", None)
+
+    def test_build_avatar_prompt_wires_reference_video(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            image = tmp_path / "face.png"
+            audio = tmp_path / "voice.wav"
+            image.write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * 64)
+            audio.write_bytes(b"RIFF" + b"\x00" * 40)
+            wf, _ = build_avatar_prompt(
+                prompt="talk",
+                negative_prompt="bad",
+                image_path=image,
+                audio_path=audio,
+                input_dir=tmp_path / "input",
+                seed=42,
+                width=480,
+                height=832,
+                use_reference_video=True,
+            )
+            skyreels = next(
+                n
+                for n in wf.values()
+                if n.get("class_type") == "WanVideoImageToVideoSkyreelsv3_audio"
+            )
+            self.assertEqual(skyreels["inputs"]["reference_video"], ["avatar_reference", 0])
+            self.assertEqual(wf["avatar_reference"]["class_type"], "AnthillAvatarReferenceVideo")
 
     def test_tiled_vae_defaults_false_in_workflow(self) -> None:
         os.environ.pop("AVATAR_TILED_VAE", None)

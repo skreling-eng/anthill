@@ -271,31 +271,116 @@ def install_pypi_packages(repo_root: Path, packages: list[str]) -> list[str]:
     return installed
 
 
+def packages_needing_install(py: Path, packages: list[str]) -> list[str]:
+    """Return PyPI packages from ``packages`` that are not importable in ``py``."""
+    return [pkg for pkg in packages if not _package_importable(py, pkg)]
+
+
+def _node_ids_under_except_handlers(tree: ast.AST) -> frozenset[int]:
+    """Import nodes inside ``except`` blocks are optional fallbacks — do not probe them."""
+    skip: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ExceptHandler):
+            for child in ast.walk(node):
+                skip.add(id(child))
+    return frozenset(skip)
+
+
+def parse_import_probes(source: str) -> list[str]:
+    """Build ``import`` / ``from … import`` probe lines from custom action source."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return []
+    probes: list[str] = []
+    seen: set[str] = set()
+    stdlib = _stdlib_modules()
+    skip = _node_ids_under_except_handlers(tree)
+    for node in ast.walk(tree):
+        if id(node) in skip:
+            continue
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                stmt = f"import {alias.name}"
+                if stmt not in seen:
+                    seen.add(stmt)
+                    probes.append(stmt)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level and node.level > 0:
+                continue
+            mod = node.module or ""
+            top = mod.split(".")[0]
+            if not mod or top in stdlib or top in _SKIP_MODULES:
+                continue
+            names = [a.name for a in node.names if a.name != "*"]
+            if not names:
+                stmt = f"import {mod}"
+            else:
+                stmt = f"from {mod} import {', '.join(names)}"
+            if stmt not in seen:
+                seen.add(stmt)
+                probes.append(stmt)
+    return probes
+
+
+def _import_probe_works(py: Path, statement: str) -> bool:
+    r = subprocess.run(
+        [str(py), "-c", statement],
+        capture_output=True,
+        text=True,
+    )
+    return r.returncode == 0
+
+
+def ensure_imports_for_code(
+    repo_root: Path,
+    code: str,
+    meta_path: Path | None = None,
+) -> list[str]:
+    """Install PyPI deps required by ``code`` when missing from the custom-actions venv."""
+    modules = parse_third_party_imports(code)
+    packages = modules_to_pypi_packages(modules)
+    py = ensure_venv(repo_root)
+    missing = packages_needing_install(py, packages)
+    if missing:
+        install_pypi_packages(repo_root, missing)
+        py = ensure_venv(repo_root)
+        still_missing = packages_needing_install(py, packages)
+        if still_missing:
+            raise RuntimeError(
+                "custom_actions: failed to install required packages: "
+                + ", ".join(still_missing)
+            )
+    failed_probes = [
+        stmt for stmt in parse_import_probes(code) if not _import_probe_works(py, stmt)
+    ]
+    if failed_probes:
+        raise RuntimeError(
+            "custom_actions: imports still fail after package install "
+            f"(update run.py for installed package versions): {failed_probes[0]}"
+        )
+    if meta_path is not None and meta_path.is_file():
+        meta: dict = {}
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            meta = {}
+        meta["imports"] = modules
+        meta["pypi_packages"] = packages
+        meta_path.write_text(
+            json.dumps(meta, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+    return packages
+
+
 def sync_imports_for_code(
     repo_root: Path,
     code: str,
     meta_path: Path,
 ) -> list[str]:
-    """Parse imports in code, install new PyPI deps, update meta.json."""
-    modules = parse_third_party_imports(code)
-    packages = modules_to_pypi_packages(modules)
-    meta: dict = {}
-    if meta_path.is_file():
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            meta = {}
-    prev = set(meta.get("pypi_packages") or [])
-    new_pkgs = [p for p in packages if p not in prev]
-    if new_pkgs:
-        install_pypi_packages(repo_root, new_pkgs)
-    meta["imports"] = modules
-    meta["pypi_packages"] = packages
-    meta_path.write_text(
-        json.dumps(meta, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
-    return packages
+    """Parse imports in code, install missing PyPI deps, update meta.json."""
+    return ensure_imports_for_code(repo_root, code, meta_path)
 
 
 def ensure_custom_actions_env(repo_root: Path) -> Path:

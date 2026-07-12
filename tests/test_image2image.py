@@ -21,7 +21,6 @@ from externals.image2image.model_paths import (
 )
 from externals import external_handles_repeat
 from externals.image2image.run import (
-    _align_prompts,
     _build_edit_jobs,
     _group_edit_jobs,
     _read_prompt_list,
@@ -49,9 +48,36 @@ class TestImage2ImageRepeat(unittest.TestCase):
     def test_handles_repeat_natively(self) -> None:
         self.assertTrue(external_handles_repeat("image2image"))
 
-    def test_align_prompts(self) -> None:
-        self.assertEqual(_align_prompts(["a"], 3), ["a", "a", "a"])
-        self.assertEqual(_align_prompts(["a", "b"], 3), ["a", "b", "b"])
+    def test_build_jobs_cartesian_product(self) -> None:
+        paths = [Path("a.png"), Path("b.png")]
+        jobs = _build_edit_jobs(
+            image_paths=paths,
+            prompts=["p1", "p2"],
+            use_all=False,
+            repeat=1,
+        )
+        self.assertEqual(len(jobs), 4)
+        self.assertEqual(
+            jobs,
+            [
+                ([paths[0]], "p1"),
+                ([paths[0]], "p2"),
+                ([paths[1]], "p1"),
+                ([paths[1]], "p2"),
+            ],
+        )
+
+    def test_build_jobs_one_image_many_prompts(self) -> None:
+        paths = [Path("a.png")]
+        jobs = _build_edit_jobs(
+            image_paths=paths,
+            prompts=["p1", "p2", "p3"],
+            use_all=False,
+            repeat=1,
+        )
+        self.assertEqual(len(jobs), 3)
+        self.assertEqual(jobs[0], ([paths[0]], "p1"))
+        self.assertEqual(jobs[2], ([paths[0]], "p3"))
 
     def test_group_edit_jobs(self) -> None:
         paths = [Path("a.png"), Path("b.png")]
@@ -119,6 +145,49 @@ class TestImage2ImageRepeat(unittest.TestCase):
             for link in out.images:
                 name = Path(link).name
                 self.assertRegex(name, r"^\d{8}_\d{6}_sfw-v23_\d+\.png$")
+        finally:
+            os.environ.pop("AH_EMULATE_IMAGE2IMAGE", None)
+
+
+    def test_emulate_one_image_many_prompts(self) -> None:
+        os.environ["AH_EMULATE_IMAGE2IMAGE"] = "1"
+        try:
+            session_dir = create_session_dir(Path("sessions"))
+            session = Session(session_dir)
+            ctx = ExternalContext(
+                session=session, op_dir=session.next_op_dir("image2image")
+            )
+            bundle = ArrayBundle()
+            bundle.images.append(ctx.new_link("images", ".png", _png_bytes()))
+            for text in ("fix hands", "add hat", "warm lighting"):
+                bundle.prompts.append(ctx.new_link("prompts", ".txt", text + "\n"))
+            inp = ExternalInput(bundle=bundle, args={}, prompt_text="")
+            out = run(ctx, inp)
+            self.assertEqual(len(out.images), 3)
+        finally:
+            os.environ.pop("AH_EMULATE_IMAGE2IMAGE", None)
+
+    def test_emulate_cartesian_with_repeat(self) -> None:
+        os.environ["AH_EMULATE_IMAGE2IMAGE"] = "1"
+        try:
+            session_dir = create_session_dir(Path("sessions"))
+            session = Session(session_dir)
+            ctx = ExternalContext(
+                session=session, op_dir=session.next_op_dir("image2image")
+            )
+            bundle = ArrayBundle()
+            for _ in range(2):
+                bundle.images.append(ctx.new_link("images", ".png", _png_bytes()))
+            for text in ("p1", "p2"):
+                bundle.prompts.append(ctx.new_link("prompts", ".txt", text + "\n"))
+            inp = ExternalInput(
+                bundle=bundle,
+                args={},
+                prompt_text="",
+                repeat=2,
+            )
+            out = run(ctx, inp)
+            self.assertEqual(len(out.images), 8)
         finally:
             os.environ.pop("AH_EMULATE_IMAGE2IMAGE", None)
 

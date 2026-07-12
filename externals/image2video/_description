@@ -72,7 +72,10 @@ ARGUMENTS
   AH_COMFY_EXECUTOR — unset: PromptExecutor for MEGA/VACE workflows only; legacy for
   simple graphs. comfy = always PromptExecutor. legacy = always topo executor.
 
-  seed= — RNG seed; offset per output when generating multiple videos.
+  seed= — optional fixed base; outputs use seed+0, seed+1, … when set.
+    Omitted: each output (and each parallel job) gets its own random seed.
+
+  [n] / count= — generate n video variants per input image (one model load, n outputs).
 
   neg= / negative_prompt= — negative prompt override.
 

@@ -20,6 +20,7 @@ from ahlib.custom_action_codegen import (
     generate_and_store,
     prompt_hash,
     rejected_attempt_log_name,
+    smoke_execution_issues,
     write_custom_code_log,
     write_rejected_attempt_log,
 )
@@ -42,6 +43,95 @@ class TestStaticCodegenChecks(unittest.TestCase):
         self.assertIsNotNone(reason)
         assert reason is not None
         self.assertIn("uuid.uuid4()", reason)
+
+
+class TestSmokeExecution(unittest.TestCase):
+    _BAD_TEXT2PROMPTS = """
+def run(bundle, base_dir, op_dir):
+    out = {k: list(bundle.get(k, [])) for k in
+           ("prompts", "texts", "images", "sounds", "videos", "files", "changes")}
+    new_prompts = []
+    for text_link in bundle.get("texts", []):
+        src = Path(base_dir) / text_link
+        with open(src, encoding="utf-8") as file:
+            new_prompts.extend(file.read().split("\\n\\n"))
+    out["prompts"] = new_prompts
+    return out
+"""
+
+    _GOOD_SHUFFLE = """
+import random
+from pathlib import Path
+
+def run(bundle, base_dir, op_dir):
+    out = {k: list(bundle.get(k, [])) for k in
+           ("prompts", "texts", "images", "sounds", "videos", "files", "changes")}
+    random.shuffle(out["texts"])
+    return out
+"""
+
+    def test_rejects_missing_path_import(self) -> None:
+        reason = smoke_execution_issues(self._BAD_TEXT2PROMPTS)
+        self.assertIsNotNone(reason)
+        assert reason is not None
+        self.assertIn("NameError", reason)
+
+    def test_rejects_inline_prompt_text(self) -> None:
+        code = """
+from pathlib import Path
+
+def run(bundle, base_dir, op_dir):
+    out = {k: list(bundle.get(k, [])) for k in
+           ("prompts", "texts", "images", "sounds", "videos", "files", "changes")}
+    new_prompts = []
+    for text_link in bundle.get("texts", []):
+        src = Path(base_dir) / text_link
+        new_prompts.extend(src.read_text(encoding="utf-8").split("\\n\\n"))
+    out["prompts"] = new_prompts
+    return out
+"""
+        reason = smoke_execution_issues(code)
+        self.assertIsNotNone(reason)
+        assert reason is not None
+        self.assertIn("inline text", reason)
+
+    def test_text2prompts_writes_prompt_links(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        code = (repo / "custom_actions/text2prompts/run.py").read_text(encoding="utf-8")
+        self.assertIsNone(smoke_execution_issues(code))
+
+    def test_accepts_valid_handler(self) -> None:
+        self.assertIsNone(smoke_execution_issues(self._GOOD_SHUFFLE))
+
+    def test_rejects_non_dict_return(self) -> None:
+        code = "def run(bundle, base_dir, op_dir):\n    return []\n"
+        reason = smoke_execution_issues(code)
+        self.assertIsNotNone(reason)
+        assert reason is not None
+        self.assertIn("expected dict", reason)
+
+    def test_check_generated_code_runs_smoke_in_emulate_mode(self) -> None:
+        os.environ["AH_EMULATE_CODE"] = "1"
+        try:
+            ok, reason, _ = check_generated_code(
+                self._BAD_TEXT2PROMPTS,
+                "split texts by blank lines into prompts",
+            )
+            self.assertFalse(ok)
+            self.assertIn("NameError", reason)
+        finally:
+            os.environ.pop("AH_EMULATE_CODE", None)
+
+    def test_checked_in_handlers_pass_smoke(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        for run_py in sorted((repo / "custom_actions").glob("*/run.py")):
+            with self.subTest(handler=run_py.parent.name):
+                reason = smoke_execution_issues(
+                    run_py.read_text(encoding="utf-8")
+                )
+                if reason and reason.startswith("smoke load failed: ImportError"):
+                    self.skipTest(reason)
+                self.assertIsNone(reason, msg=f"{run_py}: {reason}")
 
 
 class TestCodegenRetries(unittest.TestCase):
@@ -197,6 +287,38 @@ class TestImportParsing(unittest.TestCase):
         mods = parse_third_party_imports(code)
         self.assertEqual(mods, ["PIL"])
         self.assertEqual(modules_to_pypi_packages(mods), ["Pillow"])
+
+    def test_parse_import_probes(self) -> None:
+        from ahlib.custom_action_env import parse_import_probes
+
+        code = "import moviepy.editor as mp\nfrom PIL import Image\n"
+        probes = parse_import_probes(code)
+        self.assertIn("import moviepy.editor", probes)
+        self.assertIn("from PIL import Image", probes)
+
+    def test_parse_import_probes_skips_except_fallbacks(self) -> None:
+        from ahlib.custom_action_env import parse_import_probes
+
+        code = (
+            "try:\n"
+            "    from moviepy import VideoFileClip\n"
+            "except ImportError:\n"
+            "    import moviepy.editor as mp\n"
+        )
+        probes = parse_import_probes(code)
+        self.assertEqual(probes, ["from moviepy import VideoFileClip"])
+
+    def test_packages_needing_install_detects_missing(self) -> None:
+        from ahlib.custom_action_env import packages_needing_install
+        from unittest.mock import patch
+
+        py = Path("fake/python.exe")
+        with patch(
+            "ahlib.custom_action_env._package_importable",
+            side_effect=lambda _py, pkg: pkg == "numpy",
+        ):
+            missing = packages_needing_install(py, ["numpy", "moviepy"])
+        self.assertEqual(missing, ["moviepy"])
 
 
 class TestCustomActionParse(unittest.TestCase):

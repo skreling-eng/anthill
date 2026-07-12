@@ -1,0 +1,13 @@
+{
+  "name": "sync_video_and_sound",
+  "prompt": "You should have the same number of videos[] and sounds[].\nYou need to zip them and go through pairs.\nFor each pair:\n  - you need to take the length of video and cutted to the length of sound\n  - replace the the video sound to the paired sound\n  - return as a result video",
+  "prompt_hash": "2b98e6ddb0b3e214691c3b77cf895e90083af01aacbee0ffbbe049e91008aece",
+  "model": "default",
+  "venv": ".venvs/custom_actions",
+  "imports": [
+    "moviepy"
+  ],
+  "pypi_packages": [
+    "moviepy"
+  ]
+}

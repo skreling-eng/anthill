@@ -166,8 +166,10 @@ def bootstrap_comfy(
 
     if load_wan_wrapper:
         from externals.comfy_inprocess.audio_nodes import register_comfy_audio_handlers
+        from externals.comfy_inprocess.avatar_reference import register_avatar_reference_handler
 
         register_comfy_audio_handlers()
+        register_avatar_reference_handler()
 
     if not _BOOTSTRAPPED:
         _init_comfy_extras()

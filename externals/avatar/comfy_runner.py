@@ -10,12 +10,17 @@ import numpy as np
 
 from externals.avatar.comfy_workflow import build_avatar_prompt, resolve_avatar_size
 from externals.avatar.model_paths import (
+    needs_avatar_reference_pass,
     resolve_attention_mode,
     resolve_blocks_to_swap,
     resolve_defer_transformer_load,
+    resolve_drop_frames,
     resolve_force_offload,
+    resolve_motion_frame,
     resolve_tiled_vae,
+    resolve_use_reference_pass,
     resolve_wan_load_device,
+    skyreels_frame_count,
 )
 from externals.comfy_inprocess.bootstrap import bootstrap_comfy, get_nodes_module
 from externals.comfy_inprocess.executor import execute_prompt, find_node_id
@@ -116,6 +121,29 @@ class ComfyAvatarRunner:
             self._nodes = get_nodes_module()
         return self._nodes
 
+    def _execute_workflow(self, prompt_dict: dict, *, defer_dit_load: bool):
+        from externals.comfy_inprocess.vram_config import apply_avatar_vram_settings
+        from externals.avatar.progress import avatar_stage, avatar_work_heartbeat
+        from externals.avatar.sampler_perf import begin_avatar_job, end_avatar_job, install_avatar_sampler_perf
+
+        apply_avatar_vram_settings()
+        _empty_cuda_cache_before_inference()
+        _ = self.nodes
+        install_avatar_sampler_perf()
+        begin_avatar_job(defer_transformer_load=defer_dit_load)
+        try:
+            with avatar_stage("comfy workflow"):
+                with avatar_work_heartbeat():
+                    return execute_prompt(prompt_dict, nodes_module=self.nodes)
+        finally:
+            end_avatar_job()
+
+    def _decode_frames_tensor(self, prompt_dict: dict, outputs: dict):
+        decode_id = find_node_id(prompt_dict, "WanVideoPassImagesFromSamples")
+        if decode_id is None:
+            raise RuntimeError("WanVideoPassImagesFromSamples node missing from workflow")
+        return outputs[decode_id][0]
+
     def run_avatar(
         self,
         *,
@@ -130,8 +158,9 @@ class ComfyAvatarRunner:
         steps: int = 4,
         num_frames: int = 400,
         frame_window_size: int = 81,
-        motion_frame: int = 5,
-        drop_frames: int = 12,
+        motion_frame: int | None = None,
+        drop_frames: int | None = None,
+        reference_pass: bool | None = None,
         cfg: float = 1.0,
         workflow_ref: str = "",
         blocks_to_swap: int | None = None,
@@ -153,58 +182,92 @@ class ComfyAvatarRunner:
             image_path, width=width, height=height
         )
         attn_mode, attn_detail = resolve_attention_mode()
+        motion = resolve_motion_frame(motion_frame)
+        drop = resolve_drop_frames(drop_frames)
+        anchor_frames = skyreels_frame_count(frame_window_size)
+        use_ref_pass = (
+            resolve_use_reference_pass(reference_pass)
+            and needs_avatar_reference_pass(num_frames, frame_window_size)
+        )
         print(
             f"$avatar: blocks_to_swap={swap} load_device={load_device} "
             f"force_offload={force_offload} defer_dit_load={defer_dit_load} "
             f"attention_mode={attn_mode} ({attn_detail}) "
             f"vram_state={vram_state} "
-            f"size={job_width}x{job_height} tiled_vae={use_tiled_vae}",
+            f"size={job_width}x{job_height} tiled_vae={use_tiled_vae} "
+            f"motion_frame={motion} drop_frames={drop} "
+            f"reference_pass={use_ref_pass}",
             flush=True,
         )
         from externals.avatar.progress import avatar_stage
 
-        with avatar_stage("build workflow"):
-            prompt_dict, _used_seed = build_avatar_prompt(
-                prompt=prompt,
-                negative_prompt=negative_prompt,
-                image_path=image_path,
-                audio_path=audio_path,
-                input_dir=self.input_dir,
-                seed=seed,
-                width=job_width,
-                height=job_height,
-                steps=steps,
-                fps=float(self.fps),
-                num_frames=num_frames,
-                frame_window_size=frame_window_size,
-                motion_frame=motion_frame,
-                drop_frames=drop_frames,
-                cfg=cfg,
-                workflow_ref=workflow_ref,
-                blocks_to_swap=blocks_to_swap,
-                tiled_vae=tiled_vae,
+        common = dict(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            image_path=image_path,
+            audio_path=audio_path,
+            input_dir=self.input_dir,
+            seed=seed,
+            width=job_width,
+            height=job_height,
+            steps=steps,
+            fps=float(self.fps),
+            frame_window_size=frame_window_size,
+            motion_frame=motion,
+            drop_frames=drop,
+            cfg=cfg,
+            workflow_ref=workflow_ref,
+            blocks_to_swap=blocks_to_swap,
+            tiled_vae=tiled_vae,
+        )
+
+        if use_ref_pass:
+            print(
+                f"$avatar: pass 1/2 anchor ({anchor_frames} frames), "
+                f"pass 2/2 extend to {num_frames} frames with reference_video",
+                flush=True,
             )
-        from externals.comfy_inprocess.vram_config import apply_avatar_vram_settings
+            with avatar_stage("build workflow", detail="anchor pass"):
+                prompt_anchor, used_seed = build_avatar_prompt(
+                    **common,
+                    num_frames=anchor_frames,
+                    use_reference_video=False,
+                )
+            outputs_anchor = self._execute_workflow(prompt_anchor, defer_dit_load=defer_dit_load)
+            anchor_tensor = self._decode_frames_tensor(prompt_anchor, outputs_anchor)
 
-        apply_avatar_vram_settings()
-        _empty_cuda_cache_before_inference()
+            from externals.comfy_inprocess.avatar_reference import (
+                clear_reference_video_frames,
+                register_avatar_reference_handler,
+                set_reference_video_frames,
+            )
 
-        _ = self.nodes  # import WanVideoWrapper before rebinding load_weights
-        from externals.avatar.progress import avatar_stage, avatar_work_heartbeat
-        from externals.avatar.sampler_perf import begin_avatar_job, end_avatar_job, install_avatar_sampler_perf
+            register_avatar_reference_handler()
+            set_reference_video_frames(anchor_tensor)
+            try:
+                with avatar_stage("build workflow", detail="reference pass"):
+                    extend_common = {**common, "seed": used_seed}
+                    prompt_extend, _ = build_avatar_prompt(
+                        **extend_common,
+                        num_frames=num_frames,
+                        use_reference_video=True,
+                    )
+                outputs_extend = self._execute_workflow(
+                    prompt_extend, defer_dit_load=defer_dit_load
+                )
+                frames_tensor = self._decode_frames_tensor(prompt_extend, outputs_extend)
+            finally:
+                clear_reference_video_frames()
+        else:
+            with avatar_stage("build workflow"):
+                prompt_dict, _used_seed = build_avatar_prompt(
+                    **common,
+                    num_frames=num_frames,
+                    use_reference_video=False,
+                )
+            outputs = self._execute_workflow(prompt_dict, defer_dit_load=defer_dit_load)
+            frames_tensor = self._decode_frames_tensor(prompt_dict, outputs)
 
-        install_avatar_sampler_perf()
-        begin_avatar_job(defer_transformer_load=defer_dit_load)
-        try:
-            with avatar_stage("comfy workflow"):
-                with avatar_work_heartbeat():
-                    outputs = execute_prompt(prompt_dict, nodes_module=self.nodes)
-        finally:
-            end_avatar_job()
-        decode_id = find_node_id(prompt_dict, "WanVideoPassImagesFromSamples")
-        if decode_id is None:
-            raise RuntimeError("WanVideoPassImagesFromSamples node missing from workflow")
-        frames_tensor = outputs[decode_id][0]
         with avatar_stage("decode frames"):
             frames = _tensor_to_frames(frames_tensor)
         silent_path = output_path.with_name(output_path.stem + "_silent.mp4")
@@ -251,8 +314,9 @@ def run_comfy_avatar(
     steps: int = 4,
     num_frames: int = 400,
     frame_window_size: int = 81,
-    motion_frame: int = 5,
-    drop_frames: int = 12,
+    motion_frame: int | None = None,
+    drop_frames: int | None = None,
+    reference_pass: bool | None = None,
     cfg: float = 1.0,
     fps: int = 24,
     workflow_ref: str = "",
@@ -275,6 +339,7 @@ def run_comfy_avatar(
         frame_window_size=frame_window_size,
         motion_frame=motion_frame,
         drop_frames=drop_frames,
+        reference_pass=reference_pass,
         cfg=cfg,
         workflow_ref=workflow_ref,
         blocks_to_swap=blocks_to_swap,
